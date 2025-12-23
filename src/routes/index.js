@@ -19,7 +19,7 @@ const constructorMethod = (app) => {
 
     app.use("/{*splat}", (req, res) => {
         res.status(404).render("error", {
-            layout: "main",
+            layout: "auth",
             title: "Page Not Found",
             message: "The page you requested could not be found.",
         });
