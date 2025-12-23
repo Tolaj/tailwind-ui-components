@@ -13,7 +13,7 @@ const constructorMethod = (app) => {
 
 
     // Home page
-    app.get("/", ensureAuth, noCacheAuth, (req, res) => {
+    app.get("/", (req, res) => {
         res.status(200).render("main/home", { layout: 'main', title: 'Tailwind UI Components' })
     });
 

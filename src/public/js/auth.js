@@ -27,7 +27,7 @@ const handleSignIn = (event) => {
             showToast("Login successful! Redirecting...", "success");
 
             setTimeout(() => {
-                window.location.href = "/main/dashboard";
+                window.location.href = "/";
             }, 1200);
         })
         .catch((err) => {
