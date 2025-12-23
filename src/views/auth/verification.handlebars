@@ -1,0 +1,43 @@
+<div class="w-full max-w-2xl px-5 ">
+  <div class="bg-white rounded-xl shadow-md p-12 px-20">
+    <h1 class="text-3xl font-semibold text-gray-900 text-center mb-3">OTP Verification</h1>
+    <p class="text-gray-400 text-center mb-10">
+      Enter the 6-digit verification code that was sent to your email.
+    </p><p class="text-gray-400 text-center mb-10">
+      In the unlikely case no email was sent, enter: 123456
+    </p>
+
+    <form id="otpForm" onsubmit="handleVerification(event)">
+      <div class="flex justify-center gap-3 mb-8">
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold text-gray-900 bg-gray-50 
+                 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:bg-white 
+                 focus:outline-none transition-all" required>
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold
+               text-gray-900 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-amber-500 
+               focus:bg-white focus:outline-none transition-all" required>
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold
+               text-gray-900 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-amber-500 
+               focus:bg-white focus:outline-none transition-all" required>
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold
+               text-gray-900 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-amber-500 
+               focus:bg-white focus:outline-none transition-all" required>
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold
+               text-gray-900 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-amber-500 
+               focus:bg-white focus:outline-none transition-all" required>
+        <input type="text" maxlength="1" class="otp-input w-16 h-16 text-center text-2xl font-semibold
+               text-gray-900 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-amber-500 
+               focus:bg-white focus:outline-none transition-all" required>
+      </div>
+
+      <button type="submit" class="w-full py-4 text-white font-medium bg-gradient-to-r from-amber-400 to-amber-500 
+               rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+        Verify Account
+      </button>
+
+      <p class="text-center text-sm text-gray-400 mt-6">
+        Didn't receive code? Please
+        Contact professor
+      </p>
+    </form>
+  </div>
+</div>

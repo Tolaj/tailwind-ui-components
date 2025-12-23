@@ -1,0 +1,89 @@
+
+
+/* Inner editable area (default for all editors) */
+#updateAnswerEditor .ql-editor,
+#updateQuestionEditor .ql-editor,
+#questionEditor .ql-editor,
+#answerEditor .ql-editor {
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 16px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* Placeholder styling */
+.ql-editor.ql-blank::before {
+    color: #9ca3af;
+    font-style: normal;
+}
+
+/* Remove default borders so it blends with your card */
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+    border: none;
+}
+
+/* Icon + picker color */
+.ql-snow .ql-stroke {
+    stroke: #4b5563;
+}
+
+.ql-snow .ql-fill {
+    fill: #4b5563;
+}
+
+.ql-snow .ql-picker-label,
+.ql-snow .ql-picker-item {
+    color: #4b5563;
+}
+
+/* Open pickers upwards so they don't get cut off */
+.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    bottom: 100%;
+    top: auto;
+    margin-bottom: 4px;
+}
+
+/* Tooltip (link / video dialog) */
+.ql-tooltip {
+    z-index: 1000;
+    left: 8px !important;
+    transform: none !important;
+}
+
+/* Nicer tooltip look */
+.ql-snow .ql-tooltip {
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    border-color: #e5e7eb;
+    font-size: 0.875rem;
+}
+
+.ql-snow .ql-tooltip button {
+    border-radius: 9999px;
+    padding: 0.2rem 0.6rem;
+}
+
+.ql-snow .ql-tooltip button.ql-action {
+    background-color: #f0bd66;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.ql-snow .ql-tooltip button.ql-remove {
+    color: #6b7280;
+    border-color: #e5e7eb;
+}
+
+/* Let JS control the height; just enforce a sane minimum */
+#questionEditor {
+    min-height: 60px;
+}
+
+/* Inner editor fills that box and scrolls */
+#questionEditor .ql-editor {
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+}
