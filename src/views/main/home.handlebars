@@ -160,7 +160,7 @@
                     <!-- Editor and Preview -->
                     <div class="flex-1 flex min-h-0">
                         <!-- Editor Panel -->
-                        <div class="flex-1 flex w-1/2 flex-col bg-primary border-r border-gray-800">
+                        <div class="flex-1 flex w-1/3 flex-col bg-primary border-r border-gray-800">
                             <div
                                 class="flex items-center justify-between px-6 py-3 bg-primary/50 border-b border-gray-800">
                                 <div class="flex items-center gap-2">
@@ -182,18 +182,75 @@
 </html>" spellcheck="false" oninput="handleChangeEditor(event)"></textarea>
                         </div>
 
-                        <!-- Preview Panel -->
-                        <div class="flex-1 w-1/2 flex flex-col bg-gray-950 relative">
+                        <!-- Preview Panel s-->
+                        <div class="flex-1 w-1/3 flex flex-col bg-gray-950 relative">
                             <div
                                 class="flex items-center justify-between px-6 py-3 bg-primary/50 border-b border-gray-800">
                                 <div class="flex items-center gap-2">
                                     <span class="text-sm font-medium text-gray-400">Preview</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-1.5 px-3 py-1 bg-gray-800 rounded-md">
+                                    {{!-- <div class="flex items-center gap-1.5 px-3 py-1 bg-gray-800 rounded-md">
                                         <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                                         <span class="text-xs text-gray-500">Live</span>
+                                    </div> --}}
+                                    <div id="movementButton" onclick="handleMovement()"
+                                        class="hover:bg-white bg-slate-200 hover:text-black hover:cursor-pointer text-primary p-1 rounded-md">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
+                                        </svg>
                                     </div>
+
+                                    <div onclick="clearEditor()"
+                                        class="hover:bg-white hover:text-black hover:cursor-pointer text-secondary p-1 rounded-md">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-4 ">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                        </svg>
+                                    </div>
+
+                                    <div
+                                        class="hover:bg-white hover:text-black hover:cursor-pointer  text-secondary p-1 rounded-md">
+
+                                        <label class=" select-none hover:cursor-pointer">
+
+                                            <!-- Hidden checkbox -->
+                                            <input type="checkbox" onchange="handleDisplaySize(event)"
+                                                class="peer sr-only">
+
+
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="1.5" stroke="currentColor"
+                                                class="size-4 block peer-checked:hidden">
+
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                                            </svg>
+
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="1.5" stroke="currentColor"
+                                                class="size-4 hidden peer-checked:block">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+                                            </svg>
+                                        </label>
+
+                                    </div>
+
+                                    <div onclick="togglePreviewFullscreen()"
+                                        class="hover:bg-white hover:text-black hover:cursor-pointer text-secondary p-1 rounded-md">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-4 ">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                                        </svg>
+
+                                    </div>
+
+
                                 </div>
                             </div>
 
@@ -202,67 +259,146 @@
                                     pointer-events: none;
                                 }
                             </style>
+                            <style>
+                                .grid-bg {
 
-                            <div id="preview-wrapper" class="preview-wrapper bg-white   w-full overflow-auto h-full">
-                                <div id="preview"
-                                    class="flex-1 w-fit p-1 hover:border-2  border-2 relative border-dashed hover:border-black bg-white  ">
+                                    background-color: white;
+                                    background-image:
+                                        linear-gradient(#ddd 0.5px, transparent 0.5px),
+                                        linear-gradient(90deg, #ddd 0.5px, transparent 0.5px),
+                                        linear-gradient(#aaa 1px, transparent 1px),
+                                        linear-gradient(90deg, #aaa 1px, transparent 1px);
+
+                                    background-size:
+                                        20px 20px,
+                                        20px 20px,
+                                        100px 100px,
+                                        100px 100px;
+                                }
+                            </style>
+
+                            <div id="preview-wrapper"
+                                class="grid-bg preview-wrapper bg-white  w-full overflow-auto h-full">
+                                <div id="fullScreenTools"
+                                    class="flex items-center sticky hidden gap-2 bg-black w-fit p-2 rounded-xl m-4  z-50">
+
+
+                                    <div id="movementButton2" onclick="handleMovement()"
+                                        class="hover:bg-white bg-slate-200 hover:text-black hover:cursor-pointer text-primary p-1 rounded-md">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-6">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
+                                        </svg>
+                                    </div>
+
+
+
+                                    <div
+                                        class="hover:bg-white hover:text-black hover:cursor-pointer  text-secondary p-1 rounded-md">
+
+                                        <label class=" select-none hover:cursor-pointer">
+
+                                            <!-- Hidden checkbox -->
+                                            <input type="checkbox" onchange="handleDisplaySize(event)"
+                                                class="peer sr-only">
+
+
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="1.5" stroke="currentColor"
+                                                class="size-6 block peer-checked:hidden">
+
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                                            </svg>
+
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="1.5" stroke="currentColor"
+                                                class="size-6 hidden peer-checked:block">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+                                            </svg>
+                                        </label>
+
+                                    </div>
+
+                                    <div onclick="togglePreviewFullscreen()"
+                                        class="hover:bg-white hover:text-black hover:cursor-pointer text-secondary p-1 rounded-md">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-6">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25" />
+                                        </svg>
+                                    </div>
 
 
                                 </div>
+                                <div id="preview"
+                                    class="flex-1 w-fit p-1 hover:border-2   border-2 relative border-dashed hover:border-black bg-white  ">
+                                </div>
                             </div>
 
+                        </div>
+                        <!-- Preview Panel e-->
+
+                        <div class="flex-1 w-1/3 flex flex-col bg-gray-950 relative">
+                            <div
+                                class="flex items-center justify-between px-6 py-3 bg-primary/50 border-b border-gray-800">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-gray-400">Details</span>
+                                </div>
+
+                            </div>
+
+                            <div class="flex flex-col p-4">
+                                <div>
+                                    <label for="title" class="text-secondary font-semibold p-1">Title</label>
+                                    <input type="text" id="title" name="title" placeholder="Header"
+                                        class="w-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border-b-2 border-gray-200  focus:border-amber-500 focus:outline-none transition-colors"
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col p-4">
+                                <div>
+                                    <label for="title" class="text-secondary font-semibold p-1">Category</label>
+                                    <input type="text" id="title" name="title" placeholder="Header"
+                                        class="w-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border-b-2 border-gray-200  focus:border-amber-500 focus:outline-none transition-colors"
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col p-4">
+                                <div>
+                                    <label for="title" class="text-secondary font-semibold p-1">Description</label>
+                                    <input type="text" id="title" name="title" placeholder="Header"
+                                        class="w-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border-b-2 border-gray-200  focus:border-amber-500 focus:outline-none transition-colors"
+                                        required>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="bg-white rounded-xl flex justify-end m-2 absolute right-0 bottom-0">
+                            <div
+                                class=" border border-primary  w-fit p-1 gap-2 flex items-center justify-center rounded-xl">
 
 
-                            <div class="bg-white rounded-xl flex justify-end m-2 absolute right-0 bottom-0">
-                                <div
-                                    class=" border border-primary w-fit p-1 gap-2 flex items-center justify-center rounded-xl">
+                                <button type="button" command="close" commandfor="dialog"
+                                    class="p-1 hover:bg-slate-200 rounded-md hover:cursor-pointer">
+                                    Cancel
+                                </button>
 
-                                    <div onclick="clearEditor()"
-                                        class="p-1 hover:bg-slate-200 rounded-md hover:cursor-pointer">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                            stroke-width="1.5" stroke="currentColor" class="size-5">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                        </svg>
-                                    </div>
-                                    <div id="movementButton" onclick="handleMovement()"
-                                        class="p-1 hover:bg-slate-200 hover:shadow-lg bg-slate-200 rounded-md hover:cursor-pointer">
-                                        <svg class="size-5 fill-gray-800 " viewBox="0 0 512 512"
-                                            xmlns="http://www.w3.org/2000/svg">
+                                <div>|</div>
 
-                                            <!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
-                                            <path
-                                                d="M278.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-64 64c-9.2 9.2-11.9 22.9-6.9 34.9s16.6 19.8 29.6 19.8h32v96H128V192c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9l-64 64c-12.5 12.5-12.5 32.8 0 45.3l64 64c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V288h96v96H192c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l64 64c12.5 12.5 32.8 12.5 45.3 0l64-64c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8H288V288h96v32c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l64-64c12.5-12.5 12.5-32.8 0-45.3l-64-64c-9.2-9.2-22.9-11.9-34.9-6.9s-19.8 16.6-19.8 29.6v32H288V128h32c12.9 0 24.6-7.8 29.6-19.8s2.2-25.7-6.9-34.9l-64-64z">
-                                            </path>
-
-                                        </svg>
-                                    </div>
-
-                                    <div>
-
-                                        <select id="widthSelector" class="hover:cursor-pointer"
-                                            onchange="handleDisplayWidth(event)">
-                                            <option selected disabled value="w-fit">display</option>
-
-                                            <option value="w-sm">w-sm</option>
-                                            <option value="w-fit">w-fit</option>
-                                            <option value="w-screen">w-screen</option>
-
-                                        </select>
-                                    </div>
-
-                                    <button type="button" command="close" commandfor="dialog"
-                                        class="p-1 hover:bg-slate-200 rounded-md hover:cursor-pointer">
-                                        Cancel
-                                    </button>
-
-                                    <div class="p-1 hover:bg-slate-200 rounded-md hover:cursor-pointer">
-                                        Save
-                                    </div>
+                                <div class="p-1  hover:bg-slate-200 rounded-md hover:cursor-pointer">
+                                    Next
                                 </div>
                             </div>
                         </div>
                     </div>
+
+
+
                 </div>
 
 

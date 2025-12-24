@@ -107,18 +107,6 @@ const createElementFromDescription = (
 
 
 
-const handleDisplayWidth = (e) => {
-    const preview = document.querySelector('#preview');
-    // Remove all width classes that start with "w-"
-    preview.classList.forEach(cls => {
-        if (cls.startsWith('w-')) {
-            preview.classList.remove(cls);
-        }
-    });
-
-    // Add the new width class from the select value
-    preview.classList.add(e.target.value);
-}
 
 const handleChangeEditor = (e) => {
     const preview = document.getElementById("preview");
@@ -209,8 +197,10 @@ function makePreviewZoomable(previewId, options = {}) {
     }
 
     function handleMouseUp() {
-        isDragging = false;
-        preview.style.cursor = "grab";
+        if (activeTool === "HAND") {
+            isDragging = false;
+            preview.style.cursor = "grab";
+        }
     }
 
     function handleKeyDown(e) {
@@ -238,6 +228,10 @@ function makePreviewZoomable(previewId, options = {}) {
         },
         getZoom: () => zoom,
         getPosition: () => ({ ...position }),
+        setActiveTool: (tool) => {
+            activeTool = tool;
+            preview.style.cursor = tool === "HAND" ? "grab" : "default";
+        }
     };
 }
 
@@ -252,6 +246,7 @@ previewController.setPosition(0, 0);
 
 const handleMovement = () => {
     const movementButton = document.getElementById("movementButton")
+    const movementButton2 = document.getElementById("movementButton2")
     const preview = document.getElementById("preview");
     const styleId = "previewPointerStyle";
     const existingStyle = document.getElementById(styleId);
@@ -260,8 +255,16 @@ const handleMovement = () => {
         // Remove if exists
         existingStyle.remove();
         movementButton.classList.remove("bg-slate-200")
+        movementButton.classList.add("text-white")
+        movementButton2.classList.remove("bg-slate-200")
+        movementButton2.classList.add("text-white")
+        previewController.setActiveTool("SELECT");
+
     } else {
         movementButton.classList.add("bg-slate-200")
+        movementButton.classList.remove("text-white")
+        movementButton2.classList.add("bg-slate-200")
+        movementButton2.classList.remove("text-white")
         // Add if not exists
         const style = document.createElement("style");
         style.id = styleId;
@@ -271,6 +274,50 @@ const handleMovement = () => {
             }
         `;
         document.head.appendChild(style);
+        previewController.setActiveTool("HAND");
     }
 
 }
+
+const handleDisplaySize = (e) => {
+    const preview = document.querySelector('#preview');
+
+    // Remove all width classes that start with "w-"
+    preview.classList.forEach(cls => {
+        if (cls.startsWith('w-')) {
+            preview.classList.remove(cls);
+        }
+    });
+
+    if (e.target.checked === false) {
+        preview.classList.add('w-fit');
+
+    } else {
+        preview.classList.add('w-screen');
+    }
+
+}
+
+document.addEventListener("fullscreenchange", () => {
+    const FSTools = document.getElementById("fullScreenTools");
+
+    if (!document.fullscreenElement) {
+        // Exited fullscreen (ESC or programmatic)
+        FSTools.classList.add("hidden");
+    } else {
+        // Entered fullscreen
+        FSTools.classList.remove("hidden");
+    }
+});
+
+const togglePreviewFullscreen = () => {
+    const wrapper = document.getElementById("preview-wrapper");
+
+    if (!document.fullscreenElement) {
+        wrapper.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+};
+
+
