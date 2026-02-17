@@ -34,8 +34,19 @@ const setSessionLocals = (req, res, next) => {
     next();
 };
 
+const ensureAuthAPI = (req, res, next) => {
+    if (!req.session.user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Please login to continue'
+        });
+    }
+    next();
+};
+
 export {
     ensureAuth,
+    ensureAuthAPI,
     ensureProfessor,
     setSessionLocals,
     redirectIfAuthenticated,

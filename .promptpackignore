@@ -1,0 +1,32 @@
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log*
+.env
+.DS_Store
+*.log
+*.tgz
+*.zip
+*.rar
+*.7z
+/coverage
+/.nyc_output
+/build
+/dist
+/tmp/
+/temp/
+*.pid
+*.seed
+*.sock
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+ehthumbs.db
+Thumbs.db
+
+.github
+

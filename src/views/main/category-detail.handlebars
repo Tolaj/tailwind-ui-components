@@ -29,29 +29,20 @@
             </a>
         </div>
 
-        <!-- Search Bar -->
-        <div class="relative hidden md:block">
-            <input type="text" id="searchInput" placeholder="Search components..."
-                class="w-64 px-4 py-1.5 text-sm border border-gray-400 rounded-lg focus:outline-none focus:border-primary"
-                onkeyup="handleSearch(event)">
-            <svg class="absolute right-3 top-2 size-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-        </div>
-
-        <!-- Stats Badge -->
-        {{#if totalComponents}}
-        <span class="hidden lg:flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
-            <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 0 1-1.125-1.125v-3.75ZM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-8.25ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-2.25Z" />
-            </svg>
-            {{totalComponents}} Components
-        </span>
-        {{/if}}
+        <!-- Breadcrumb -->
+        <ol class="ms-3 hidden md:flex items-center whitespace-nowrap">
+            <li class="flex items-center text-sm text-gray-800">
+                <a href="/" class="hover:text-primary">Home</a>
+                <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400" width="16" height="16"
+                    viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+            </li>
+            <li class="text-sm font-semibold text-gray-800 truncate" aria-current="page">
+                {{categoryName}}
+            </li>
+        </ol>
     </div>
 
     <div class="flex items-center py-2 gap-3">
@@ -59,9 +50,9 @@
         <div class="relative hidden sm:block">
             <select id="categoryFilter" onchange="handleCategoryFilter(event)"
                 class="h-8 px-3 text-sm border border-gray-400 rounded-xl text-gray-800 focus:outline-none focus:border-primary appearance-none pr-8 bg-white">
-                <option value="all">All Categories</option>
-                {{#each categories}}
-                <option value="{{this.slug}}">{{this.name}} ({{this.count}})</option>
+                {{#each allCategories}}
+                <option value="{{this.slug}}" {{#if this.isActive}}selected{{/if}}>{{this.name}} ({{this.count}})
+                </option>
                 {{/each}}
             </select>
             <svg class="absolute right-2 top-2 size-4 text-gray-400 pointer-events-none"
@@ -134,108 +125,66 @@
 
     <!-- Sidebar Navigation -->
     {{> sidebar
-    sidebarId="home-sidebar"
-    activePage="home"
-    showCategoryInfo=false
+    sidebarId="category-sidebar"
+    activePage="category"
+    showCategoryInfo=true
+    categoryName=categoryName
+    componentCount=components.length
     }}
 
     <!-- Main Content Area -->
-    <main class="flex-1">
-        <!-- Content -->
-        <div class="">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
+    <main class="flex-1 p-6 overflow-auto h-screen transition-all duration-300" id="mainContent">
+        <!-- Category Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">{{categoryName}}</h1>
+            <p class="text-gray-600">{{components.length}} components in this category</p>
+        </div>
 
-                {{#each categories}}
-                <a href="/category/{{this.slug}}" class="component-card group block">
-                    <div
-                        class="bg-gray-50 h-[225px] overflow-hidden border border-gray-400 rounded-xl group-hover:border-2 group-hover:border-gray-400 group-hover:shadow-xl">
-                        <div
-                            class="card-image h-[70%] bg-gray-100 px-10 pt-5 shadow-2xl shadow-white border border-gray-100">
-                            <div class="space-y-3 bg-white p-3 rounded-t-xl">
-                                <div class="flex items-center space-x-1 mb-4">
-                                    <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                                    <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                                    <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="text-xs text-gray-500">Start your journey</div>
-                                    <div class="text-xs text-gray-500">with <span
-                                            class="text-primary font-semibold">Preline</span></div>
-                                    <div class="inline-block bg-primary rounded px-2 py-1 text-white text-xs mt-2">
-                                        Button</div>
-                                    <div class="flex items-center space-x-1 mt-2">
-                                        <div class="w-1 h-1 rounded-full bg-gray-800"></div>
-                                        <div class="w-1 h-1 rounded-full bg-gray-800"></div>
-                                        <div class="w-1 h-1 rounded-full bg-gray-800"></div>
-                                        <div class="w-1 h-1 rounded-full bg-gray-800"></div>
-                                        <div class="w-1 h-1 rounded-full bg-gray-800"></div>
-                                    </div>
-                                    <div class="flex space-x-2 mt-2">
-                                        <div class="h-1 bg-gray-200 rounded flex-1"></div>
-                                        <div class="h-1 bg-gray-200 rounded flex-1"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center h-[30%] justify-between bg-white p-4">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1">
-                                    <h4 class="font-semibold text-primary text-sm group-hover:text-primary transition">
-                                        {{this.name}}
-                                    </h4>
-                                    {{#if this.hasNew}}
-                                    <span
-                                        class="bg-secondary text-primary text-xs px-2 py-0.5 rounded-full font-medium">+{{this.newCount}}
-                                        NEW</span>
-                                    {{/if}}
-                                </div>
-                                <p class="text-sm text-gray-500">{{this.count}} components</p>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-                {{/each}}
-
+        <!-- Components List -->
+        <div class="space-y-12">
+            {{#if components}}
+            {{#each components}}
+            {{> component-playground index=@index}}
+            {{/each}}
+            {{else}}
+            <div class="text-center py-20">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No components</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by creating a new component.</p>
+                {{#if user}}
+                <div class="mt-6">
+                    <button command="show-modal" commandfor="dialog"
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90">
+                        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                            fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        New Component
+                    </button>
+                </div>
+                {{/if}}
             </div>
+            {{/if}}
         </div>
     </main>
-</div>
 
+</div>
 
 {{!-- Modals --}}
 {{> component-editor-modal}}
 
 
 <script>
-    // Search functionality
-    function handleSearch(event) {
-        const searchTerm = event.target.value.toLowerCase();
-        const cards = document.querySelectorAll('.component-card');
-
-        cards.forEach(card => {
-            const title = card.querySelector('h4').textContent.toLowerCase();
-            const category = card.querySelector('p').textContent.toLowerCase();
-
-            if (title.includes(searchTerm) || category.includes(searchTerm)) {
-                card.classList.remove('hidden');
-            } else {
-                card.classList.add('hidden');
-            }
-        });
-    }
-
-    // Category filter
     function handleCategoryFilter(event) {
         const category = event.target.value;
-
-        if (category === 'all') {
-            window.location.href = '/';
-        } else {
-            window.location.href = `/category/${category}`;
-        }
+        window.location.href = `/category/${category}`;
     }
 
-    // User menu toggle
     function toggleUserMenu() {
         const menu = document.getElementById('userMenu');
         menu.classList.toggle('hidden');
@@ -243,24 +192,22 @@
 
     // Sidebar toggle function
     function toggleSidebar() {
-        const sidebar = document.getElementById('home-sidebar');
+        const sidebar = document.getElementById('category-sidebar');
         const toggleButton = document.getElementById('sidebarToggle');
-        const logo = document.querySelector('a[href="/"]');
-        const container = document.getElementById('toggleLogoContainer');
         const currentMargin = sidebar.style.marginLeft;
 
         if (currentMargin === '0px') {
-            // Close sidebar - button goes to left of logo
             sidebar.style.marginLeft = '-256px';
-            container.insertBefore(toggleButton, logo);
+            toggleButton.classList.remove('order-2');
+            toggleButton.classList.add('order-first');
         } else {
-            // Open sidebar - button goes to right of logo
             sidebar.style.marginLeft = '0';
-            container.insertBefore(toggleButton, logo.nextSibling);
+            toggleButton.classList.remove('order-first');
+            toggleButton.classList.add('order-2');
         }
     }
 
-    // Close menu when clicking outside
+    // Close user menu when clicking outside
     document.addEventListener('click', (event) => {
         const userMenu = document.getElementById('userMenu');
         const userButton = event.target.closest('button[onclick="toggleUserMenu()"]');
@@ -271,4 +218,8 @@
     });
 </script>
 
+<!-- Load home.js for editor functionality -->
 <script src="/public/js/home.js"></script>
+
+<!-- Load category.js for component rendering -->
+<script src="/public/js/category.js"></script>

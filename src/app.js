@@ -8,6 +8,7 @@ import { requestLogger } from "./middlewares/requestLogger.js";
 import { sessionConfig } from "./middlewares/sessionConfig.js";
 import { setSessionLocals } from "./middlewares/auth.js";
 import lastSeenMiddleware from "./middlewares/lastSeen.js";
+import { formatDate, substring } from './utils/handlebars-helpers.js';
 
 const app = express();
 
@@ -36,6 +37,8 @@ app.engine(
             and: (a, b) => a && b,
             not: (a) => !a,
             json: (obj) => JSON.stringify(obj),
+            formatDate: formatDate,
+            substring: substring
         },
         partialsDir: [path.join(__dirname, "views/partials/")]
     })
