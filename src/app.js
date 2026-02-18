@@ -3,7 +3,8 @@ import configRoutes from "./routes/index.js";
 import handlebars from "express-handlebars";
 import path from "path";
 import { fileURLToPath } from "url";
-
+import dotenv from "dotenv";
+dotenv.config();
 import { requestLogger } from "./middlewares/requestLogger.js";
 import { sessionConfig } from "./middlewares/sessionConfig.js";
 import { setSessionLocals } from "./middlewares/auth.js";
