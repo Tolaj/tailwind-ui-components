@@ -1,8 +1,8 @@
 <aside id="{{sidebarId}}"
-    class="w-64 bg-white border-r border-gray-300 min-h-screen sticky top-0 overflow-y-auto transition-all duration-300 ease-in-out"
+    class=" w-64 bg-white border-r border-gray-300 min-h-screen sticky top-0 overflow-y-auto transition-all duration-300 ease-in-out"
     style="margin-left: -256px;">
 
-    <div class="p-6">
+    <div class="p-6 fixed">
         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Navigation</h3>
         <nav class="space-y-1">
             <a href="/"
@@ -58,7 +58,7 @@
             </a>
         </nav>
 
-        {{#if showCategoryInfo}}
+        {{#if (eq activePage 'category')}}
         <!-- Divider -->
         <div class="my-6 border-t border-gray-200"></div>
 
@@ -66,7 +66,7 @@
         <div class="px-3 py-2 bg-gray-50 rounded-lg">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Current Category</p>
             <p class="text-sm font-medium text-gray-800">{{categoryName}}</p>
-            <p class="text-xs text-gray-500 mt-1">{{componentCount}} components</p>
+            <p class="text-xs text-gray-500 mt-1">{{components.length}} components</p>
         </div>
         {{/if}}
     </div>

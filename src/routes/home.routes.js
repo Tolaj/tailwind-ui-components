@@ -151,7 +151,7 @@ router.get("/category/:category", async (req, res) => {
             components: components,
             categoryName: categoryInfo.name,
             categorySlug: category,
-            allCategories: allCategories
+            categories: allCategories
         });
     } catch (error) {
         console.error('Error loading category:', error);

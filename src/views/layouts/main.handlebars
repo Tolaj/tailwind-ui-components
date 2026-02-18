@@ -20,13 +20,15 @@
 
 </head>
 
-<body class="min-h-screen bg-tertiary flex items-center justify-center">
-    <div class="flex w-full h-screen  rounded-3xl shadow-sm">
-        {{!-- {{> sidebar }} --}}
-        <div id="mainContainer" data-user='{{{ json user }}}'
-            class=" flex-1 flex flex-col   m-4 rounded-2xl  overflow-hidden">
-            {{{body}}}
-        </div>
+<body class="min-h-screen bg-tertiary">
+
+    {{> header}}
+    <div id="mainContainer" data-user='{{{ json user }}}' class="flex mt-20 m-4 overflow-hidden min-h-screen">
+        <!-- Sidebar Navigation -->
+        {{> sidebar sidebarId="sidebar" }}
+
+        {{{body}}}
+
     </div>
 
     <div id="auth-toast" class="fixed top-5 right-5 z-50 space-y-3"></div>
@@ -65,7 +67,7 @@
         </button>
     </div> --}}
 
-
+    <script src="/public/js/main.js"></script>
     <script src="/public/js/theme.js"></script>
     <script src="/public/js/utils.js"></script>
 </body>
