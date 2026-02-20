@@ -53,26 +53,34 @@
 import mongoose from "mongoose";
 import { mongoConfig } from './settings.js';
 
-let cached = global.mongoose;
+let isConnected = false; // Cached connection for Vercel serverless
 
-if (!cached) cached = global.mongoose = { conn: null, promise: null };
-
-export default async function connectDB() {
-  if (cached.conn) return cached.conn;
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(mongoConfig.serverUrl, {
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-    }).then((mongoose) => {
-      console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
-      return mongoose;
-    }).catch((err) => {
-      console.error("❌ MongoDB connection error:", err);
-      throw err;
-    });
+const connectDB = async () => {
+  // If already connected, skip re-connecting
+  if (isConnected) {
+    console.log("MongoDB already connected.");
+    return;
+  }
+  // Ensure env variable exists
+  if (!process.env.MONGO_URI) {
+    throw new Error("❌ Missing MONGO_URI in environment variables!");
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
-}
+  try {
+    const conn = await mongoose.connect(mongoConfig.serverUrl, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      minPoolSize: 1,
+      maxPoolSize: 1,
+    });
+
+    isConnected = conn.connections[0].readyState === 1;
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    throw err;
+  }
+};
+
+export default connectDB;
