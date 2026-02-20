@@ -2,16 +2,21 @@ import serverless from "serverless-http";
 import connectDB from "../config/mongoConnection.js";
 import app from "../app.js";
 
-let handler;
+let server;
 
-export default async function (req, res) {
-    // ensure DB connected FIRST
-    await connectDB();
+export default async function handler(req, res) {
+    try {
+        // FORCE connection first
+        await connectDB();
 
-    // create handler only once
-    if (!handler) {
-        handler = serverless(app);
+        if (!server) {
+            server = serverless(app);
+        }
+
+        return server(req, res);
+
+    } catch (err) {
+        console.error("Mongo connection failed:", err);
+        res.status(500).send("Database connection failed");
     }
-
-    return handler(req, res);
 }

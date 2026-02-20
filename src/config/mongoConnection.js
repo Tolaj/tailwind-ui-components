@@ -74,25 +74,33 @@
 
 // export default connectDB;
 
-
 import mongoose from "mongoose";
 
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// disable buffering (important for serverless)
 mongoose.set("bufferCommands", false);
 
-if (!global.mongoose) {
-  global.mongoose = { conn: null, promise: null };
+if (!global._mongoose) {
+  global._mongoose = { conn: null, promise: null };
 }
 
 export default async function connectDB() {
-  if (global.mongoose.conn) return global.mongoose.conn;
-
-  if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(process.env.MONGODB_URI);
+  if (global._mongoose.conn) {
+    return global._mongoose.conn;
   }
 
-  global.mongoose.conn = await global.mongoose.promise;
+  if (!global._mongoose.promise) {
+    console.log("Creating new MongoDB connection...");
 
-  console.log("Mongo connected");
+    global._mongoose.promise = mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000,
+    });
+  }
 
-  return global.mongoose.conn;
+  global._mongoose.conn = await global._mongoose.promise;
+
+  console.log("✅ MongoDB connected. ReadyState:", mongoose.connection.readyState);
+
+  return global._mongoose.conn;
 }
