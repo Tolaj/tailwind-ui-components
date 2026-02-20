@@ -21,8 +21,7 @@
     "express-handlebars": "^8.0.4",
     "express-session": "^1.18.2",
     "mongodb": "^7.0.0",
-    "mongoose": "^9.0.2",
-    "serverless-http": "^4.0.0"
+    "mongoose": "^7.5.0"
   },
   "devDependencies": {
     "eslint": "^9.39.2",
