@@ -2,11 +2,12 @@ import connectDB from "../config/mongoConnection.js";
 import app from "../app.js";
 
 export default async function handler(req, res) {
-    try {
-        await connectDB();
-        return app(req, res);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send("Server error");
-    }
+    await connectDB(); // MUST be awaited BEFORE app()
+
+    return new Promise((resolve, reject) => {
+        app(req, res, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
 }
