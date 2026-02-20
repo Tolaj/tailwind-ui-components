@@ -49,38 +49,57 @@
 
 // export default connectDB;
 
-// lib/mongodb.js
+// import mongoose from "mongoose";
+// import { mongoConfig } from "./settings.js";
+
+// let isConnected = false;
+
+// const connectDB = async () => {
+//   if (isConnected) {
+//     console.log("MongoDB already connected.");
+//     return;
+//   }
+
+//   try {
+//     const conn = await mongoose.connect(mongoConfig.serverUrl);
+
+//     isConnected = conn.connection.readyState === 1;
+
+//     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+//   } catch (err) {
+//     console.error("❌ MongoDB Connection Error:", err.message);
+//     process.exit(1);
+//   }
+// };
+
+// export default connectDB;
+
 import mongoose from "mongoose";
-import { mongoConfig } from './settings.js';
+import { mongoConfig } from "./settings.js";
 
-let isConnected = false; // Cached connection for Vercel serverless
+let cached = global.mongoose;
 
-const connectDB = async () => {
-  // If already connected, skip re-connecting
-  if (isConnected) {
-    console.log("MongoDB already connected.");
-    return;
+if (!cached) {
+  cached = global.mongoose = {
+    conn: null,
+    promise: null,
+  };
+}
+
+async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
   }
-  // Ensure env variable exists
-  if (!process.env.MONGO_URI) {
-    throw new Error("❌ Missing MONGO_URI in environment variables!");
-  }
 
-  try {
-    const conn = await mongoose.connect(mongoConfig.serverUrl, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      minPoolSize: 1,
-      maxPoolSize: 1,
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(mongoConfig.serverUrl).then((mongoose) => {
+      console.log("✅ MongoDB connected");
+      return mongoose;
     });
-
-    isConnected = conn.connections[0].readyState === 1;
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error("❌ MongoDB Connection Error:", err.message);
-    throw err;
   }
-};
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
 
 export default connectDB;
