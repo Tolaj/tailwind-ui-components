@@ -1,4 +1,9 @@
 
+function sanitizePreviewInputs(previewDiv) {
+    previewDiv.querySelectorAll('input, textarea, select').forEach(el => {
+        el.setAttribute('form', 'none');
+    });
+}
 function updatePreview() {
     const html = document.getElementById('htmlEditor').value;
     const preview = document.getElementById('preview');
@@ -124,6 +129,7 @@ const handleChangeEditor = (e) => {
     console.log(elementsDescription)
     elementsDescription.forEach(description => {
         const element = createElementFromDescription(description, true);
+        sanitizePreviewInputs(element)
         preview.appendChild(element);
     });
 };
