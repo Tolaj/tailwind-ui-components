@@ -49,27 +49,33 @@
 
 // export default connectDB;
 
+
 import mongoose from "mongoose";
 import { mongoConfig } from "./settings.js";
 
-let isConnected = false;
+let cached = global.mongoose;
 
-const connectDB = async () => {
-  if (isConnected) {
-    console.log("MongoDB already connected.");
-    return;
+if (!cached) {
+  cached = global.mongoose = {
+    conn: null,
+    promise: null,
+  };
+}
+
+async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
   }
 
-  try {
-    const conn = await mongoose.connect(mongoConfig.serverUrl);
-
-    isConnected = conn.connection.readyState === 1;
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error("❌ MongoDB Connection Error:", err.message);
-    process.exit(1);
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(mongoConfig.serverUrl).then((mongoose) => {
+      console.log("✅ MongoDB connected");
+      return mongoose;
+    });
   }
-};
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
 
 export default connectDB;
