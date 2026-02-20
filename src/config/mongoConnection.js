@@ -74,35 +74,25 @@
 
 // export default connectDB;
 
-import mongoose from "mongoose";
-import { mongoConfig } from "./settings.js";
 
-// ✅ ADD THIS LINE (CRITICAL FIX)
+import mongoose from "mongoose";
+
 mongoose.set("bufferCommands", false);
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = {
-    conn: null,
-    promise: null,
-  };
+if (!global.mongoose) {
+  global.mongoose = { conn: null, promise: null };
 }
 
-async function connectDB() {
-  if (cached.conn) return cached.conn;
+export default async function connectDB() {
+  if (global.mongoose.conn) return global.mongoose.conn;
 
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(mongoConfig.serverUrl, {
-      serverSelectionTimeoutMS: 30000,
-    });
+  if (!global.mongoose.promise) {
+    global.mongoose.promise = mongoose.connect(process.env.MONGODB_URI);
   }
 
-  cached.conn = await cached.promise;
+  global.mongoose.conn = await global.mongoose.promise;
 
-  console.log("✅ MongoDB connected");
+  console.log("Mongo connected");
 
-  return cached.conn;
+  return global.mongoose.conn;
 }
-
-export default connectDB;

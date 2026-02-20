@@ -1,13 +1,17 @@
+import serverless from "serverless-http";
 import connectDB from "../config/mongoConnection.js";
 import app from "../app.js";
 
-export default async function handler(req, res) {
-    await connectDB(); // MUST be awaited BEFORE app()
+let handler;
 
-    return new Promise((resolve, reject) => {
-        app(req, res, (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+export default async function (req, res) {
+    // ensure DB connected FIRST
+    await connectDB();
+
+    // create handler only once
+    if (!handler) {
+        handler = serverless(app);
+    }
+
+    return handler(req, res);
 }
