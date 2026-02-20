@@ -76,31 +76,34 @@
 
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+let isConnected = false; // Cached connection for Vercel serverless
 
-// disable buffering (important for serverless)
-mongoose.set("bufferCommands", false);
-
-if (!global._mongoose) {
-  global._mongoose = { conn: null, promise: null };
-}
-
-export default async function connectDB() {
-  if (global._mongoose.conn) {
-    return global._mongoose.conn;
+const connectDB = async () => {
+  // If already connected, skip re-connecting
+  if (isConnected) {
+    console.log("MongoDB already connected.");
+    return;
+  }
+  // Ensure env variable exists
+  if (!process.env.MONGO_URI) {
+    throw new Error("❌ Missing MONGO_URI in environment variables!");
   }
 
-  if (!global._mongoose.promise) {
-    console.log("Creating new MongoDB connection...");
-
-    global._mongoose.promise = mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 30000,
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      minPoolSize: 1,
+      maxPoolSize: 1,
     });
+
+    isConnected = conn.connections[0].readyState === 1;
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    throw err;
   }
+};
 
-  global._mongoose.conn = await global._mongoose.promise;
-
-  console.log("✅ MongoDB connected. ReadyState:", mongoose.connection.readyState);
-
-  return global._mongoose.conn;
-}
+export default connectDB;

@@ -47,4 +47,4 @@ const componentSchema = new mongoose.Schema(
     }
 );
 
-export default mongoose.models.Component || mongoose.model("Component", componentSchema);
+export default mongoose.model("Component", componentSchema);
