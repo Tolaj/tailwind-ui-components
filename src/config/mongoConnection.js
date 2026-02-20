@@ -77,6 +77,9 @@
 import mongoose from "mongoose";
 import { mongoConfig } from "./settings.js";
 
+// ✅ ADD THIS LINE (CRITICAL FIX)
+mongoose.set("bufferCommands", false);
+
 let cached = global.mongoose;
 
 if (!cached) {
@@ -87,18 +90,18 @@ if (!cached) {
 }
 
 async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
-  }
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(mongoConfig.serverUrl).then((mongoose) => {
-      console.log("✅ MongoDB connected");
-      return mongoose;
+    cached.promise = mongoose.connect(mongoConfig.serverUrl, {
+      serverSelectionTimeoutMS: 30000,
     });
   }
 
   cached.conn = await cached.promise;
+
+  console.log("✅ MongoDB connected");
+
   return cached.conn;
 }
 
