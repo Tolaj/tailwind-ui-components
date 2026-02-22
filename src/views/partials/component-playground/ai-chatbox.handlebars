@@ -1,0 +1,89 @@
+{{!-- <!-- AI Chatbox _____________________________________________________________ -->
+<div class="border-t border-neutral-900 bg-black p-4 flex flex-col gap-3">
+
+    <!-- Messages Area -->
+    <div id="aiMessages" class="flex flex-col gap-2 max-h-32 overflow-y-auto hidden">
+        <!-- Messages injected here by JS -->
+    </div>
+
+    <!-- Input Area -->
+    <div class="flex items-center gap-2 relative">
+        <input type="text" id="aiPromptInput" placeholder="Describe a component to generate or modify..." class="flex-1 bg-neutral-950 border border-neutral-800 text-sm text-white px-4 py-3 rounded-2xl
+                   focus:outline-none focus:border-white placeholder-neutral-600 transition-all duration-200
+                   pr-12" />
+
+        <button id="aiGenerateBtn" type="button" onclick="handleAIGenerate()"
+            class="absolute right-2 flex items-center justify-center hover:opacity-80 transition-opacity"
+            title="Generate with AI">
+            <!-- Default: send icon -->
+            <svg id="aiSendIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                class="size-9 text-white">
+                <path fill-rule="evenodd"
+                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm.53 5.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 1 0 1.06 1.06l1.72-1.72v5.69a.75.75 0 0 0 1.5 0v-5.69l1.72 1.72a.75.75 0 1 0 1.06-1.06l-3-3Z"
+                    clip-rule="evenodd" />
+            </svg>
+            <!-- Loading spinner (hidden by default) -->
+            <svg id="aiSpinner" class="size-8 text-white animate-spin hidden" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </button>
+    </div>
+
+</div>
+<!-- AI Chatbox _____________________________________________________________ --> --}}
+
+<!-- AI Chatbox _____________________________________________________________ -->
+<div class="border-t border-neutral-900 bg-black p-4 flex flex-col gap-3">
+
+    <!-- Messages Area -->
+    <div id="aiMessages" class="flex flex-col gap-2 max-h-32 overflow-y-auto hidden">
+    </div>
+
+    <!-- Skeleton Loader (hidden by default) -->
+    <div id="aiSkeleton" class="hidden flex-col gap-2 px-1">
+        <div class="flex items-center gap-2 mb-1">
+            <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span class="text-xs text-neutral-500 animate-pulse">Generating
+                component...</span>
+        </div>
+        <div class="space-y-1.5">
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-full"></div>
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-5/6"></div>
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-full"></div>
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-4/6"></div>
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-full"></div>
+            <div class="h-2.5 bg-neutral-800 rounded animate-pulse w-3/6"></div>
+        </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="flex items-center gap-2 relative">
+        <input type="text" id="aiPromptInput" placeholder="Describe a component to generate or modify..." class="flex-1 bg-neutral-950 border border-neutral-800 text-sm text-white px-4 py-3 rounded-2xl
+                   focus:outline-none focus:border-white placeholder-neutral-600 transition-all duration-200 pr-12" />
+
+        <button id="aiGenerateBtn" type="button" onclick="handleAIGenerate()"
+            class="absolute right-2 flex items-center justify-center hover:opacity-80 transition-opacity"
+            title="Generate with AI">
+            <!-- Send icon -->
+            <svg id="aiSendIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                class="size-9 text-white">
+                <path fill-rule="evenodd"
+                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm.53 5.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 1 0 1.06 1.06l1.72-1.72v5.69a.75.75 0 0 0 1.5 0v-5.69l1.72 1.72a.75.75 0 1 0 1.06-1.06l-3-3Z"
+                    clip-rule="evenodd" />
+            </svg>
+            <!-- Spinner (hidden by default) -->
+            <svg id="aiSpinner" class="size-8 text-emerald-500 animate-spin hidden" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </button>
+    </div>
+
+</div>

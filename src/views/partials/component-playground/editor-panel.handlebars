@@ -1,0 +1,17 @@
+<div class="flex-1 flex w-1/3 flex-col bg-primary border-r border-gray-800">
+
+    <div class="flex items-center justify-between px-6 py-3 bg-primary/50 border-b border-gray-800">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-gray-400">index.html</span>
+            <div class="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+        </div>
+        <span class="text-xs text-gray-600 font-mono">HTML</span>
+    </div>
+
+    <textarea id="htmlEditor" name="htmlEditor" required
+        class="flex-1 w-full p-6 bg-primary text-green-500 focus:outline-none resize-none code-editor text-sm editor-scrollbar"
+        spellcheck="false" oninput="handleChangeEditor(event)"></textarea>
+
+    {{> component-playground/ai-chatbox}}
+
+</div>

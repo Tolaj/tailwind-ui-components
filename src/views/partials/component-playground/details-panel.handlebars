@@ -1,0 +1,73 @@
+<!-- Details Panel -->
+<div id="detailsPanel" class="flex-1 w-1/3 flex hidden flex-col border-l border-gray-800 gap-4 bg-white relative">
+    <div class="flex items-center justify-between px-6 py-3 border-y border-gray-800 bg-primary/50 bg-primary">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-gray-400">Details</span>
+        </div>
+    </div>
+
+    <div class="flex flex-col px-4">
+        <div>
+            <label for="title" class="text-primary p-1">Title</label>
+            <input type="text" id="title" name="title" placeholder="Header"
+                class="w-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
+                required>
+        </div>
+    </div>
+
+    <div class="flex flex-col px-4">
+        <div>
+            <label for="category" class="text-primary p-1">Category</label>
+            <select id="category" name="category"
+                class="w-full px-4 mt-2 py-3.5 text-gray-900 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
+                required>
+                <option value="" disabled selected>Select a category</option>
+                <option value="marketing-hero">Hero Sections</option>
+                <option value="marketing-hero-forms">Hero Forms</option>
+                <option value="marketing-icons">Icon Sections</option>
+                <option value="marketing-pricing">Pricing Sections</option>
+                <option value="marketing-faq">FAQ Sections</option>
+                <option value="marketing-blog">Blog Sections</option>
+                <option value="marketing-testimonials">Testimonials</option>
+                <option value="marketing-team">Team Sections</option>
+                <option value="marketing-features">Features</option>
+                <option value="marketing-announcements">Announcement Banners</option>
+                <option value="marketing-cards">Card Sections</option>
+                <option value="marketing-clients">Clients Sections</option>
+                <option value="marketing-galleries">Galleries</option>
+                <option value="marketing-timeline">Timeline</option>
+                <option value="ui-dropdowns">Dropdowns</option>
+                <option value="ui-selects">Selects</option>
+                <option value="ui-buttons">Button Groups</option>
+                <option value="ui-modals">Modals</option>
+                <option value="ui-cookie-banners">Cookie Banners</option>
+                <option value="navigation-navbars">Navbars / Headers</option>
+                <option value="navigation-mega-menu">Mega Menu</option>
+                <option value="layout-basic">Layouts</option>
+                <option value="forms-authentication">Authentication</option>
+                <option value="forms-feedback">Feedback</option>
+                <option value="forms-subscribe">Subscribe</option>
+                <option value="forms-textarea">Textarea Inputs</option>
+                <option value="pages-pricing">Pricing Page</option>
+                <option value="ecommerce-products">Product Listings</option>
+                <option value="apps-general">Application Components</option>
+                <option value="apps-invoice">Invoice</option>
+                <option value="apps-tables">Tables</option>
+                <option value="apps-stats">Stats</option>
+                <option value="apps-charts">Charts</option>
+                <option value="apps-ai-prompt">AI Prompt</option>
+                <option value="footer-contact">Contact Sections</option>
+                <option value="footer-footers">Footers</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="flex flex-col px-4 h-full mb-32">
+        <div class="h-full">
+            <label for="description" class="text-primary p-1">Description</label>
+            <textarea id="description" name="description" placeholder="Describe your component"
+                class="w-full h-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
+                required></textarea>
+        </div>
+    </div>
+</div>

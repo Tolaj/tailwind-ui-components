@@ -1,5 +1,6 @@
 // Category page specific functionality
 // This file works alongside home.js and uses the existing createElementFromDescription function
+import { createDescriptionFromElement, createElementFromDescription } from "./element-description/index.js"
 
 (function () {
     'use strict';
