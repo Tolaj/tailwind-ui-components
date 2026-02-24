@@ -797,7 +797,7 @@ export const handleAIGenerate = async () => {
     let firstChunkReceived = false;
 
     try {
-        const response = await fetch("/api/ai/generate-stream", {
+        const response = await fetch("/api/myllama/generate-stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt, currentHtml }),
