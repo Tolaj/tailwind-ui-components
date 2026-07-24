@@ -3,7 +3,6 @@ import authRoutes from "./auth.routes.js";
 import componentRoutes from "./component.routes.js";
 import homeRoutes from "./home.routes.js";
 import aiRoutes from "./ai.routes.js";
-import myLlamaRoutes from "./llama.local.routes.js";
 
 import {
     redirectIfAuthenticated,
@@ -15,7 +14,6 @@ const constructorMethod = (app) => {
     app.use("/auth", redirectIfAuthenticated, noCacheAuth, authRoutes)
     app.use("/api/components", componentRoutes);
     app.use("/api/ai", aiRoutes);
-    app.use("/api/myllama", myLlamaRoutes);
 
 
     // Home page

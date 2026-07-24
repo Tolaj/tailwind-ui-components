@@ -1,74 +1,9 @@
-// import { Router } from "express";
-// import Anthropic from "@anthropic-ai/sdk";
-// import { ensureAuthAPI } from "../middlewares/auth.js";
-// import dotenv from "dotenv";
-// dotenv.config();
-// const router = Router();
-// const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-// /**
-//  * POST /api/ai/generate
-//  * Body: { prompt: string, currentHtml?: string }
-//  * Returns: { success: true, html: string }
-//  */
-// router.post("/generate", ensureAuthAPI, async (req, res) => {
-//     const { prompt, currentHtml } = req.body;
-
-//     if (!prompt || !prompt.trim()) {
-//         return res.status(400).json({ success: false, message: "Prompt is required" });
-//     }
-
-//     const systemPrompt = `You are an expert frontend developer specialising in Tailwind CSS and HTML.
-// Your ONLY job is to output a single, self-contained HTML snippet that uses Tailwind CSS utility classes.
-
-// Rules:
-// - Output ONLY raw HTML. No markdown, no code fences, no explanations.
-// - Use only Tailwind CSS classes for styling (loaded via CDN, so all utilities are available).
-// - Do NOT include <html>, <head>, <body>, or <script> tags.
-// - The snippet must be visually polished and production-quality.
-// - If the user provides existing HTML to modify, improve it according to their instructions while keeping the overall structure intact.`;
-
-//     const userMessage = currentHtml
-//         ? `Here is my current HTML component:\n\n${currentHtml}\n\nPlease make the following change: ${prompt}`
-//         : `Create a Tailwind CSS HTML component for: ${prompt}`;
-
-//     try {
-//         const message = await client.messages.create({
-//             model: "claude-opus-4-6",
-//             max_tokens: 4096,
-//             system: systemPrompt,
-//             messages: [{ role: "user", content: userMessage }],
-//         });
-
-//         const rawText = message.content
-//             .filter((block) => block.type === "text")
-//             .map((block) => block.text)
-//             .join("");
-
-//         // Strip any accidental markdown code fences the model may have added
-//         const html = rawText
-//             .replace(/^```[\w]*\n?/gm, "")
-//             .replace(/```$/gm, "")
-//             .trim();
-
-//         return res.status(200).json({ success: true, html });
-//     } catch (error) {
-//         console.error("AI generate error:", error);
-//         return res.status(500).json({ success: false, message: error.message });
-//     }
-// });
-
-// export default router;
-
-
-
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { ensureAuthAPI } from "../middlewares/auth.js";
-import dotenv from "dotenv";
-dotenv.config();
+import User from "../models/user.model.js";
+
 const router = Router();
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are an expert frontend developer specialising in Tailwind CSS and HTML.
 Your ONLY job is to output a single, self-contained HTML snippet that uses Tailwind CSS utility classes.
@@ -80,11 +15,6 @@ Rules:
 - The snippet must be visually polished and production-quality.
 - If the user provides existing HTML to modify, improve it according to their instructions while keeping the overall structure intact.`;
 
-/**
- * POST /api/ai/generate-stream
- * Streams Claude response as Server-Sent Events.
- * Body: { prompt: string, currentHtml?: string }
- */
 router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
     const { prompt, currentHtml } = req.body;
 
@@ -92,7 +22,13 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
         return res.status(400).json({ success: false, message: "Prompt is required" });
     }
 
-    // SSE headers
+    const user = await User.findById(req.session.user.id);
+    if (!user?.llmSettings?.enabled) {
+        return res.status(403).json({ success: false, message: "AI is not enabled. Configure it in Settings." });
+    }
+
+    const { provider, anthropicApiKey, localLlmUrl } = user.llmSettings;
+
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -106,20 +42,65 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
     const sendEvent = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
 
     try {
-        const stream = client.messages.stream({
-            model: "claude-opus-4-6",
-            max_tokens: 4096,
-            system: SYSTEM_PROMPT,
-            messages: [{ role: "user", content: userMessage }],
-        });
+        if (provider === "anthropic") {
+            if (!anthropicApiKey) {
+                sendEvent({ type: "error", message: "Anthropic API key not configured" });
+                return res.end();
+            }
+            const client = new Anthropic({ apiKey: anthropicApiKey });
+            const stream = client.messages.stream({
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 4096,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: "user", content: userMessage }],
+            });
 
-        for await (const event of stream) {
-            if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
-                sendEvent({ type: "delta", text: event.delta.text });
+            for await (const event of stream) {
+                if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+                    sendEvent({ type: "delta", text: event.delta.text });
+                }
+            }
+            sendEvent({ type: "done" });
+        } else {
+            if (!localLlmUrl) {
+                sendEvent({ type: "error", message: "Local LLM URL not configured" });
+                return res.end();
+            }
+            const response = await fetch(`${localLlmUrl}/v1/chat/completions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    messages: [
+                        { role: "system", content: SYSTEM_PROMPT },
+                        { role: "user", content: userMessage },
+                    ],
+                    max_tokens: 10000,
+                    temperature: 1,
+                    stream: true,
+                }),
+            });
+
+            if (!response.ok) throw new Error(`LLM server error: ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+                for (const line of lines) {
+                    const raw = line.replace("data: ", "").trim();
+                    if (raw === "[DONE]") { sendEvent({ type: "done" }); break; }
+                    try {
+                        const parsed = JSON.parse(raw);
+                        const text = parsed?.choices?.[0]?.delta?.content;
+                        if (text) sendEvent({ type: "delta", text });
+                    } catch {}
+                }
             }
         }
-
-        sendEvent({ type: "done" });
     } catch (error) {
         console.error("AI stream error:", error);
         sendEvent({ type: "error", message: error.message });

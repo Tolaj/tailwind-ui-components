@@ -12,6 +12,8 @@
         class="flex-1 w-full p-6 bg-primary text-green-500 focus:outline-none resize-none code-editor text-sm editor-scrollbar"
         spellcheck="false" oninput="handleChangeEditor(event)"></textarea>
 
+    {{#if user.llmEnabled}}
     {{> component-playground/ai-chatbox}}
+    {{/if}}
 
 </div>

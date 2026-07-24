@@ -67,9 +67,16 @@
         </button>
     </div> --}}
 
+    {{#if user}}
+    {{> settings-modal}}
+    {{/if}}
+
     <script src="/public/js/main.js"></script>
     <script src="/public/js/theme.js"></script>
     <script src="/public/js/utils.js"></script>
+    {{#if user}}
+    <script src="/public/js/settings.js"></script>
+    {{/if}}
 </body>
 
 </html>
