@@ -2,38 +2,61 @@ import * as userService from "../services/user.service.js";
 
 export const createUser = async (req, res) => {
     try {
-        const user = await userService.createUser(req.body);
-        res.status(201).json(user);
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: "Name, email, and password are required" });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        const existingUser = await userService.getUserByEmail(email);
+        if (existingUser) {
+            return res.status(409).json({ message: "An account with this email already exists" });
+        }
+
+        const user = await userService.createUser({ name, email, password });
+        const { password: _, ...userWithoutPassword } = user.toObject();
+        res.status(201).json(userWithoutPassword);
     } catch (error) {
-        res.status(404).json(error);
+        res.status(400).json({ message: error.message || "Failed to create user" });
     }
 };
 
 export const getUsers = async (req, res) => {
-    const users = await userService.getAllUsers();
-    res.json(users);
+    try {
+        const users = await userService.getAllUsers();
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Failed to fetch users" });
+    }
 };
 
 export const userSignIn = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, password } = req.body;
 
-        if (!email) {
-            return res.status(400).json({ message: "Email is required" });
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
         }
 
         const user = await userService.getUserByEmail(email);
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Remove sensitive fields
-        const { password, ...userData } = user.toObject();
+        if (user.password !== password) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        const { password: _, ...userData } = user.toObject();
 
         req.session.user = {
             id: userData._id,
-            last_name: userData.name,
+            name: userData.name,
             email: userData.email,
         };
 

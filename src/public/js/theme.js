@@ -10,7 +10,7 @@ const applyCustomTheme = () => {
 }
 
 const handleThemeToggle = () => {
-    themeDropdown = document.getElementById("themeDropdown");
+    const themeDropdown = document.getElementById("themeDropdown");
 
     const isClosed = themeDropdown.classList.contains("hidden");
 

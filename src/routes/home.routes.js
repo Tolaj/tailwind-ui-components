@@ -46,33 +46,36 @@ const categories = {
 // Home page - Shows only categories that have components
 router.get("/", async (req, res) => {
     try {
-        const components = await Component.find({ isPublished: true }).lean();
-
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-        const categoryCounts = {};
-        const categoryNewCounts = {};
-
-        components.forEach(component => {
-            const cat = component.category;
-            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
-
-            if (new Date(component.createdAt) >= oneMonthAgo) {
-                categoryNewCounts[cat] = (categoryNewCounts[cat] || 0) + 1;
+        const results = await Component.aggregate([
+            { $match: { isPublished: true } },
+            {
+                $group: {
+                    _id: "$category",
+                    count: { $sum: 1 },
+                    newCount: {
+                        $sum: { $cond: [{ $gte: ["$createdAt", oneMonthAgo] }, 1, 0] }
+                    }
+                }
             }
-        });
+        ]);
 
-        const categoryCards = Object.keys(categoryCounts)
-            .filter(key => categoryCounts[key] > 0)
-            .map(key => ({
-                slug: key,
-                name: categories[key]?.name || key,
-                group: categories[key]?.group || 'Other',
-                count: categoryCounts[key],
-                newCount: categoryNewCounts[key] || 0,
-                hasNew: categoryNewCounts[key] > 0
-            }));
+        let totalComponents = 0;
+        const categoryCards = results
+            .filter(r => r.count > 0)
+            .map(r => {
+                totalComponents += r.count;
+                return {
+                    slug: r._id,
+                    name: categories[r._id]?.name || r._id,
+                    group: categories[r._id]?.group || 'Other',
+                    count: r.count,
+                    newCount: r.newCount,
+                    hasNew: r.newCount > 0
+                };
+            });
 
         res.status(200).render("main/home", {
             activePage: 'home',
@@ -80,7 +83,7 @@ router.get("/", async (req, res) => {
             title: 'Tailwind UI Components',
             user: req.session.user || null,
             categories: categoryCards,
-            totalComponents: components.length  // ✅ Add total count
+            totalComponents
         });
     } catch (error) {
         console.error('Error loading home page:', error);
@@ -97,23 +100,19 @@ router.get("/category/:category", async (req, res) => {
     try {
         const { category } = req.params;
 
-        // Get all components for counts
-        const allComponents = await Component.find({ isPublished: true }).lean();
+        // Get category counts for sidebar via aggregation
+        const countResults = await Component.aggregate([
+            { $match: { isPublished: true } },
+            { $group: { _id: "$category", count: { $sum: 1 } } }
+        ]);
 
-        // Get category counts for sidebar
-        const categoryCounts = {};
-        allComponents.forEach(component => {
-            categoryCounts[component.category] = (categoryCounts[component.category] || 0) + 1;
-        });
-
-        // Build sidebar categories list
-        const allCategories = Object.keys(categoryCounts)
-            .filter(key => categoryCounts[key] > 0)
-            .map(key => ({
-                slug: key,
-                name: categories[key]?.name || key,
-                count: categoryCounts[key],
-                isActive: key === category
+        const allCategories = countResults
+            .filter(r => r.count > 0)
+            .map(r => ({
+                slug: r._id,
+                name: categories[r._id]?.name || r._id,
+                count: r.count,
+                isActive: r._id === category
             }));
 
         // Get components for current category
@@ -121,7 +120,7 @@ router.get("/category/:category", async (req, res) => {
             category: category,
             isPublished: true
         })
-            .populate('createdBy', 'name email last_name')
+            .populate('createdBy', 'name email')
             .sort('-createdAt')
             .lean();
 
@@ -166,8 +165,11 @@ router.get("/category/:category", async (req, res) => {
 // Component detail page
 router.get("/component/:id", async (req, res) => {
     try {
-        const component = await Component.findById(req.params.id)
-            .populate('createdBy', 'name email last_name');
+        const component = await Component.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { views: 1 } },
+            { new: true }
+        ).populate('createdBy', 'name email');
 
         if (!component) {
             return res.status(404).render("error", {
@@ -176,9 +178,6 @@ router.get("/component/:id", async (req, res) => {
                 message: "The component you're looking for doesn't exist.",
             });
         }
-
-        component.views += 1;
-        await component.save();
 
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);

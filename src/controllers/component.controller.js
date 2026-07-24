@@ -30,8 +30,11 @@ export const getAllComponents = async (req, res) => {
 // Get single component
 export const getComponentById = async (req, res) => {
     try {
-        const component = await Component.findById(req.params.id)
-            .populate('createdBy', 'name email');
+        const component = await Component.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { views: 1 } },
+            { new: true }
+        ).populate('createdBy', 'name email');
 
         if (!component) {
             return res.status(404).json({
@@ -39,10 +42,6 @@ export const getComponentById = async (req, res) => {
                 message: 'Component not found'
             });
         }
-
-        // Increment views
-        component.views += 1;
-        await component.save();
 
         res.status(200).json({
             success: true,

@@ -7,17 +7,18 @@ dotenv.config();
 
 const sessionConfig = session({
     name: 'SlackOverflowSession',
-    secret: process.env.SESSION_SECRET || 'team18-secret-key',
+    secret: process.env.SESSION_SECRET || 'change-this-secret-in-env',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: mongoConfig.serverUrl,
         dbName: mongoConfig.database,
         collectionName: "sessions",
-        ttl: 60 * 60 * 24 * 2,
+        ttl: 60 * 60 * 2,
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 2,
+        httpOnly: true,
     },
 });
 

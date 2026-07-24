@@ -8,7 +8,7 @@ dotenv.config();
 import { requestLogger } from "./middlewares/requestLogger.js";
 import { sessionConfig } from "./middlewares/sessionConfig.js";
 import { setSessionLocals } from "./middlewares/auth.js";
-import lastSeenMiddleware from "./middlewares/lastSeen.js";
+
 import { formatDate, substring } from './utils/handlebars-helpers.js';
 
 const app = express();
@@ -21,7 +21,6 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionConfig);
-app.use(lastSeenMiddleware);
 
 // handlebars setup
 app.use(setSessionLocals);

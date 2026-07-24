@@ -6,7 +6,6 @@ import aiRoutes from "./ai.routes.js";
 import myLlamaRoutes from "./llama.local.routes.js";
 
 import {
-    ensureAuth,
     redirectIfAuthenticated,
     noCacheAuth,
 } from "../middlewares/auth.js";
@@ -22,16 +21,6 @@ const constructorMethod = (app) => {
     // Home page
     app.use("/", homeRoutes);
 
-
-    // Add this temporary debug route to your routes/index.js
-    app.get("/api/debug/session", ensureAuth, (req, res) => {
-        res.json({
-            fullSession: req.session,
-            user: req.session.user,
-            userId: req.session.user?._id,
-            userKeys: Object.keys(req.session.user || {})
-        });
-    });
 
     app.use("/{*splat}", (req, res) => {
         res.status(404).render("error", {

@@ -8,10 +8,14 @@ const showToast = (message, type = "info") => {
   else if (type === "error") toast.classList.add("bg-red-500");
   else toast.classList.add("bg-gray-700");
 
-  toast.innerHTML = `
-    <span>${message}</span>
-    <button class="text-white text-lg leading-none focus:outline-none" onclick="this.parentElement.remove()">×</button>
-  `;
+  const span = document.createElement("span");
+  span.textContent = message;
+  const btn = document.createElement("button");
+  btn.className = "text-white text-lg leading-none focus:outline-none";
+  btn.textContent = "×";
+  btn.addEventListener("click", () => toast.remove());
+  toast.appendChild(span);
+  toast.appendChild(btn);
 
   authToast.appendChild(toast);
 
