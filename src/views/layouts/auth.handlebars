@@ -4,14 +4,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>{{title}} — Windcraft</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/public/css/style.css" />
+    <script src="/public/js/tailwind.config.js"></script>
 </head>
 
-<body class="min-h-screen bg-[#F9FAFE]  flex items-center justify-center">
+<body class="min-h-screen bg-tertiary">
 
+    <!-- Header bar matching dashboard -->
+    <div class="fixed bg-white px-3 py-1 top-0 inset-x-0 z-20 pt-6 mx-6">
+        <div class="flex justify-between items-center bg-white border-y border-gray-400 px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center py-2 gap-4">
+                <a href="/" class="flex items-center gap-2">
+                    <span class="font-bold text-lg text-gray-800 px-2">
+                        <img class="h-7" src="/public/images/logo.png" alt="Windcraft" />
+                    </span>
+                </a>
+            </div>
+        </div>
+    </div>
 
-    <main>
+    <main class="flex items-center justify-center min-h-screen pt-24 pb-12 px-4">
         {{{body}}}
     </main>
 
