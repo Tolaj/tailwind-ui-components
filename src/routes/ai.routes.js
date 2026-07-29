@@ -49,7 +49,7 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
             }
             const client = new Anthropic({ apiKey: anthropicApiKey });
             const stream = client.messages.stream({
-                model: "claude-sonnet-4-20250514",
+                model: "claude-haiku-4-5-20251001",
                 max_tokens: 4096,
                 system: SYSTEM_PROMPT,
                 messages: [{ role: "user", content: userMessage }],
@@ -103,7 +103,15 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
         }
     } catch (error) {
         console.error("AI stream error:", error);
-        sendEvent({ type: "error", message: error.message });
+        let msg = error.message;
+        if (error.status === 404) {
+            msg = "Model not found. Check that your API key has billing enabled at console.anthropic.com and credits are loaded.";
+        } else if (error.status === 401) {
+            msg = "Invalid API key. Please check your key in Settings.";
+        } else if (error.status === 429) {
+            msg = "Rate limit exceeded. Please wait and try again.";
+        }
+        sendEvent({ type: "error", message: `Error: ${msg}` });
     } finally {
         res.end();
     }
