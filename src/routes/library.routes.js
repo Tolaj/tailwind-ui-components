@@ -2,6 +2,7 @@ import express from "express";
 import Component from "../models/component.model.js";
 import User from "../models/user.model.js";
 import { categories } from "./home.routes.js";
+import { buildDesignGuide } from "../services/guide.service.js";
 
 const router = express.Router();
 
@@ -48,6 +49,18 @@ router.get("/", async (req, res) => {
     } catch (error) {
         console.error("Library error:", error);
         res.status(500).render("error", { layout: "main", title: "Error", message: "Failed to load your library" });
+    }
+});
+
+router.get("/design-guide.md", async (req, res) => {
+    try {
+        const { markdown } = await buildDesignGuide(req.session.user.id);
+        res.type("text/markdown; charset=utf-8");
+        if (req.query.download) res.attachment("design-guide.md");
+        res.send(markdown);
+    } catch (error) {
+        console.error("Design guide error:", error);
+        res.status(500).type("text/plain").send("Could not build the design guide");
     }
 });
 

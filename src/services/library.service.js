@@ -9,7 +9,7 @@ export async function searchLibrary(userId, { query = "", tag = "", limit = 10, 
     const filter = { createdBy: userId };
     if (referenceOnly) filter.useAsReference = { $ne: false };
     if (tag) filter.tags = String(tag).toLowerCase();
-    const all = await Component.find(filter).select("title description category tags version htmlCode updatedAt").sort("-updatedAt").lean();
+    const all = await Component.find(filter).select("title description category tags version htmlCode spec updatedAt").sort("-updatedAt").lean();
 
     const terms = words(query);
     if (!terms.length) return all.slice(0, limit);

@@ -105,7 +105,7 @@ const codeEl = document.getElementById("libCode");
 const historyEl = document.getElementById("libHistory");
 const copyBtn = document.getElementById("libCopy");
 const tabsEl = document.getElementById("libTabs");
-const TABS = [["html", "HTML"], ["react", "React"], ["vue", "Vue"], ["svelte", "Svelte"], ["history", "History"]];
+const TABS = [["spec", "Spec"], ["html", "HTML"], ["react", "React"], ["vue", "Vue"], ["svelte", "Svelte"], ["history", "History"]];
 const cache = {};
 let current = null;
 
@@ -135,7 +135,11 @@ async function showTab(tab) {
 
     const key = `${current.id}:${tab}`;
     codeEl.textContent = "Loading…";
-    if (!cache[key]) {
+    if (!cache[key] && tab === "spec") {
+        const res = await fetch(`/api/components/${current.id}/spec`);
+        const json = await res.json();
+        cache[key] = json.success ? json.markdown : json.message;
+    } else if (!cache[key]) {
         const res = await fetch(`/api/components/${current.id}/export?format=${tab}`);
         const json = await res.json();
         cache[key] = json.success ? json.code : json.message;
@@ -143,7 +147,26 @@ async function showTab(tab) {
     if (current.tab === tab) codeEl.textContent = cache[key];
 }
 
+const downloadBtn = document.getElementById("libDownload");
+
+async function openGuide() {
+    current = { id: "__guide", tab: "guide" };
+    document.getElementById("libModalTitle").textContent = "Design guide";
+    tabsEl.innerHTML = `<span class="px-2 text-[13px] text-gray-500">Generated from your components. Agents read it with <code class="font-mono">get_design_guide</code>; you can also paste it into a CLAUDE.md.</span>`;
+    historyEl.classList.add("hidden");
+    codeEl.classList.remove("hidden");
+    copyBtn.classList.remove("hidden");
+    downloadBtn.classList.remove("hidden");
+    downloadBtn.classList.add("inline-flex");
+    codeEl.textContent = "Loading…";
+    modal.showModal();
+    const res = await fetch("/library/design-guide.md");
+    codeEl.textContent = await res.text();
+}
+
 function openModal(id, tab) {
+    downloadBtn.classList.add("hidden");
+    downloadBtn.classList.remove("inline-flex");
     const item = items.find((i) => i.id === id);
     current = { id, tab };
     document.getElementById("libModalTitle").textContent = `${item.title}  ·  v${item.version}`;
@@ -205,6 +228,7 @@ grid.addEventListener("click", async (e) => {
     }
 });
 
+document.getElementById("guideBtn").addEventListener("click", openGuide);
 document.getElementById("newComponentBtn").addEventListener("click", openForNew);
 
 // ── MCP token ────────────────────────────────────────────────────────────────

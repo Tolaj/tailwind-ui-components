@@ -6,13 +6,20 @@ import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../utils/exporters.js";
 import { searchLibrary } from "../services/library.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
+import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
+import { buildDesignGuide } from "../services/guide.service.js";
 
 const router = Router();
 
 const TOOLS = [
     {
+        name: "get_design_guide",
+        description: "START HERE. Returns a markdown design guide for the user's library: how to use it, their design tokens (colors, type, radius, spacing), conventions, and a compact index of every component with a one-line purpose. Read this before writing UI.",
+        inputSchema: { type: "object", properties: {} },
+    },
+    {
         name: "search_components",
-        description: "Search the user's component library by keyword and/or tag. Returns id, title, description, tags and version.",
+        description: "Search the user's component library by keyword and/or tag. Returns a compact card per match (id, title, summary, use-when, tags, main colors, flags). Fetch full code with get_component only for the ones you will use.",
         inputSchema: {
             type: "object",
             properties: {
@@ -63,7 +70,22 @@ async function callTool(userId, name, args = {}) {
     switch (name) {
         case "search_components": {
             const results = await searchLibrary(userId, { query: args.query, tag: args.tag, limit: Math.min(Number(args.limit) || 10, 25) });
-            return text(results.map((c) => ({ id: String(c._id), title: c.title, description: c.description, tags: c.tags, category: c.category, version: c.version })));
+            return text(results.map((c) => {
+                const spec = c.spec || extractSpec(c.htmlCode);
+                return {
+                    id: String(c._id),
+                    title: c.title,
+                    summary: spec.summary || c.description,
+                    useWhen: spec.useWhen || undefined,
+                    tags: c.tags,
+                    category: c.category,
+                    version: c.version,
+                    mainColors: (spec.tokens?.colors || []).slice(0, 3).map((t) => t.name),
+                    responsive: spec.responsive,
+                    darkMode: spec.darkMode,
+                    needsJs: Boolean(spec.needs?.javascript),
+                };
+            }));
         }
         case "get_component": {
             const format = String(args.format || "html").toLowerCase();
@@ -71,7 +93,7 @@ async function callTool(userId, name, args = {}) {
             if (!/^[a-f0-9]{24}$/i.test(String(args.id))) return fail("Invalid component id");
             const c = await Component.findOne({ _id: args.id, createdBy: userId }).lean();
             if (!c) return fail("Component not found in your library");
-            return text(`# ${c.title} (v${c.version}, ${format})\n${c.description}\n\n${exportComponent(c.htmlCode, format, c.title)}`);
+            return text(`${specToMarkdown(c)}\n\n---\n\n${exportComponent(c.htmlCode, format, c.title)}`);
         }
         case "save_component": {
             if (!args.title || !args.description || !args.htmlCode) return fail("title, description and htmlCode are required");
@@ -81,10 +103,16 @@ async function callTool(userId, name, args = {}) {
                 htmlCode: args.htmlCode,
                 category: args.category || "apps-general",
                 tags: normalizeTags(args.tags),
+                spec: buildSpec(args.htmlCode),
                 createdBy: userId,
                 isPublished: false,
             });
+            enrichSpecWithAI(c._id, userId);
             return text({ id: String(c._id), message: "Saved to your library (private)" });
+        }
+        case "get_design_guide": {
+            const { markdown } = await buildDesignGuide(userId);
+            return text(markdown);
         }
         case "list_tags": {
             const rows = await Component.aggregate([
@@ -127,7 +155,7 @@ router.post("/", async (req, res) => {
                     protocolVersion: params?.protocolVersion || "2025-03-26",
                     capabilities: { tools: {} },
                     serverInfo: { name: "tailwind-ui-library", version: "1.0.0" },
-                    instructions: "The user's private component library. Search it before writing new UI so output matches their existing components, and save good new components back with save_component.",
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, and save good new components back with save_component.",
                 });
             case "ping":
                 return reply({});

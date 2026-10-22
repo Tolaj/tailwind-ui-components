@@ -28,7 +28,7 @@
                 <pre id="connectCmd" class="flex-1 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[12px] leading-5 text-gray-900"></pre>
                 <button type="button" id="copyCmdBtn" class="h-auto rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50">Copy</button>
             </div>
-            <p class="mt-2 text-xs text-gray-500">Tools: <code class="font-mono">search_components</code>, <code class="font-mono">get_component</code>, <code class="font-mono">save_component</code>, <code class="font-mono">list_tags</code></p>
+            <p class="mt-2 text-xs text-gray-500">Tools: <code class="font-mono">get_design_guide</code>, <code class="font-mono">search_components</code>, <code class="font-mono">get_component</code>, <code class="font-mono">save_component</code>, <code class="font-mono">list_tags</code></p>
         </div>
     </section>
 
@@ -36,6 +36,7 @@
     <div class="mb-4 flex flex-wrap items-center gap-3">
         <input id="libSearch" type="search" placeholder="Search {{count}} components"
             class="h-9 w-72 rounded-md border border-gray-300 bg-white px-3 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900" />
+        <button type="button" id="guideBtn" class="h-9 rounded-md border border-gray-300 bg-white px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50" title="A markdown summary of your design system, generated from your components">Design guide</button>
         <div id="tagBar" class="flex flex-wrap items-center gap-1.5">
             <button type="button" data-tag="" class="tag-chip rounded-full border border-gray-900 bg-black px-3 py-1 text-xs font-medium text-white">All</button>
             {{#each tags}}
@@ -60,8 +61,9 @@
     </div>
     <div class="flex items-center gap-1 border-b border-gray-200 px-4 py-2" id="libTabs"></div>
     <div class="relative">
+        <a id="libDownload" href="/library/design-guide.md?download=1" class="absolute right-16 top-3 hidden h-7 items-center rounded-md border border-gray-300 bg-white px-2.5 text-xs font-medium hover:bg-gray-50">Download .md</a>
         <button type="button" id="libCopy" class="absolute right-3 top-3 hidden h-7 rounded-md border border-gray-300 bg-white px-2.5 text-xs font-medium hover:bg-gray-50">Copy</button>
-        <pre id="libCode" class="max-h-[60vh] overflow-auto bg-gray-50 p-5 font-mono text-[12px] leading-5 text-gray-900"></pre>
+        <pre id="libCode" class="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words bg-gray-50 p-5 font-mono text-[12px] leading-5 text-gray-900"></pre>
         <div id="libHistory" class="hidden max-h-[60vh] overflow-auto divide-y divide-gray-100"></div>
     </div>
 </dialog>

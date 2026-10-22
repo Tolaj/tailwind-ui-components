@@ -1,5 +1,6 @@
 import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../utils/exporters.js";
+import { buildSpec, specToMarkdown, enrichSpecWithAI } from "../services/spec.service.js";
 
 export const normalizeTags = (tags) => {
     const list = Array.isArray(tags) ? tags : String(tags || "").split(",");
@@ -80,9 +81,12 @@ export const createComponent = async (req, res) => {
             htmlCode,
             elementsDescription: elementsDescription || [],
             tags: normalizeTags(tags),
+            spec: buildSpec(htmlCode),
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
+
+        enrichSpecWithAI(component._id, req.session.user.id);
 
         res.status(201).json({
             success: true,
@@ -118,11 +122,14 @@ export const updateComponent = async (req, res) => {
         }
 
         const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference } = req.body;
+        let codeChanged = false;
 
         if (htmlCode && htmlCode !== component.htmlCode) {
             component.versions.push({ version: component.version, htmlCode: component.htmlCode, note: note || "" });
             component.version += 1;
             component.htmlCode = htmlCode;
+            component.spec = buildSpec(htmlCode, component.spec);
+            codeChanged = true;
         }
         if (title) component.title = title;
         if (category) component.category = category;
@@ -133,6 +140,7 @@ export const updateComponent = async (req, res) => {
         if (typeof isPublished !== 'undefined') component.isPublished = isPublished === true || isPublished === "true";
 
         const updated = await component.save();
+        if (codeChanged) enrichSpecWithAI(updated._id, req.session.user.id);
 
         res.status(200).json({
             success: true,
@@ -250,7 +258,9 @@ export const restoreVersion = async (req, res) => {
         component.version += 1;
         component.htmlCode = target.htmlCode;
         component.elementsDescription = [];
+        component.spec = buildSpec(component.htmlCode, component.spec);
         await component.save();
+        enrichSpecWithAI(component._id, req.session.user.id);
         res.status(200).json({ success: true, data: component });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -303,9 +313,25 @@ export const forkComponent = async (req, res) => {
             tags: source.tags,
             createdBy: userId,
             forkedFrom: source._id,
+            spec: source.spec || buildSpec(source.htmlCode),
             isPublished: false,
         });
         res.status(201).json({ success: true, existing: false, id: String(copy._id) });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+// Spec card (owner only): structured analysis + markdown for humans and agents
+export const getSpec = async (req, res) => {
+    try {
+        const component = await Component.findById(req.params.id).lean();
+        if (!component || String(component.createdBy) !== req.session.user.id) {
+            return res.status(404).json({ success: false, message: 'Component not found' });
+        }
+        const spec = component.spec || buildSpec(component.htmlCode);
+        res.status(200).json({ success: true, spec, markdown: specToMarkdown({ ...component, spec }) });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

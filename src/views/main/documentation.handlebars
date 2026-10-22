@@ -616,6 +616,14 @@
                 <p class="mt-3 text-sm">Then just talk normally, for example: <em>"Build a landing page. Check my
                         component library first and reuse my hero and pricing components."</em></p>
 
+                <h3 class="mt-6 text-lg font-semibold text-gray-900">How the agent knows what to use</h3>
+                <p class="mt-2 text-sm">Agents shouldn't read everything. So the app prepares two summaries for them, automatically:</p>
+                <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm">
+                    <li><strong>Spec card</strong> (one per component): the colors, text sizes, radius and spacing it uses, how it is built, whether it works on mobile and in dark mode, and whether it needs JavaScript. If AI is on, it also gets a one-line <em>summary</em> and <em>use when / avoid when</em>. It updates whenever the code changes. Open it with <strong>Export</strong> then the <strong>Spec</strong> tab.</li>
+                    <li><strong>Design guide</strong> (one per library): your most-used colors, fonts and spacing, plus a short index of every component. Open it with the <strong>Design guide</strong> button in Library. You can download it or paste it into a <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">CLAUDE.md</code>.</li>
+                </ul>
+                <p class="mt-3 text-sm">The agent reads the guide first, searches, reads the short cards of a few matches, and only then fetches the full code for the one or two it will use.</p>
+
                 <h3 class="mt-6 text-lg font-semibold text-gray-900">What the agent can do</h3>
                 <div class="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
                     <table class="w-full text-left text-sm">

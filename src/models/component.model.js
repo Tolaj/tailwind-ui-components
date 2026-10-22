@@ -42,6 +42,10 @@ const componentSchema = new mongoose.Schema(
             ref: "User",
             default: []
         },
+        spec: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null
+        },
         forkedFrom: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Component",

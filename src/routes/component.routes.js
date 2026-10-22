@@ -9,7 +9,8 @@ import {
     getVersions,
     restoreVersion,
     exportComponentCode,
-    forkComponent
+    forkComponent,
+    getSpec
 } from "../controllers/component.controller.js";
 import { ensureAuthAPI } from "../middlewares/auth.js";  // Changed import
 
@@ -18,6 +19,7 @@ const router = express.Router();
 // Public routes
 router.get("/", getAllComponents);
 router.get("/:id/export", exportComponentCode);
+router.get("/:id/spec", ensureAuthAPI, getSpec);
 router.get("/:id/versions", ensureAuthAPI, getVersions);
 router.post("/:id/versions/:version/restore", ensureAuthAPI, restoreVersion);
 router.get("/:id", getComponentById);

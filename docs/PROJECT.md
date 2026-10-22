@@ -77,7 +77,10 @@ A personal component library that AI can read and write; the public gallery stay
 - AI grounding: `routes/ai.routes.js` adds the 3 best-matching library components (keyword score, `services/library.service.js`) to the system prompt; the client shows "Using your library: ...".
 - MCP: `POST /mcp` (stateless JSON-RPC, Bearer token). Tools: `search_components`, `get_component`, `save_component`, `list_tags`. Token from `POST /users/api-token` (stored as sha256 hash on the user, shown once).
 - Editor preview is a sandboxed iframe that supports HTML + Tailwind, `<style>`, `<link>`, `<script>` (`public/js/playground/component-source.js`).
-- Not built yet: teams/shared workspaces, Figma/Storybook export, per-component AI memory.
+- Spec cards: `services/spec.service.js` `extractSpec()` parses classes/HTML into tokens, structure, needs, responsive/dark flags (deterministic, stored in `component.spec`, rebuilt on code change). `enrichSpecWithAI()` adds summary/useWhen/avoidWhen using the owner's AI settings, fire-and-forget. `GET /api/components/:id/spec`.
+- Design guide: `services/guide.service.js` builds markdown (usage rules, aggregated tokens, conventions, component index). `GET /library/design-guide.md`, MCP `get_design_guide`, and its tokens section is added to the AI generation prompt.
+- MCP flow for agents: get_design_guide -> search_components (compact cards) -> get_component (spec + code) -> save_component.
+- Not built yet: embeddings over spec cards, teams/shared workspaces, Figma/Storybook export, per-component AI memory.
 
 ## Environment Variables
 See `.env.example`. Key vars: `MONGO_URI`, `SESSION_SECRET`, `PORT`, `ANTHROPIC_API_KEY`, Gmail OAuth vars.

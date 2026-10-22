@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ensureAuthAPI } from "../middlewares/auth.js";
 import User from "../models/user.model.js";
 import { searchLibrary } from "../services/library.service.js";
+import { buildDesignGuide } from "../services/guide.service.js";
 
 const router = Router();
 
@@ -43,6 +44,8 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
             const refs = (await searchLibrary(req.session.user.id, { query: prompt, limit: 3, referenceOnly: true })).filter((c) => c.htmlCode);
             if (refs.length) {
                 referenceTitles = refs.map((c) => c.title);
+                const { tokensMarkdown } = await buildDesignGuide(req.session.user.id, { referenceOnly: true });
+                if (tokensMarkdown) system += `\n\nThis is a summary of the user's design system, derived from their library:\n${tokensMarkdown}`;
                 system += `\n\nThe user keeps a design library. These are their existing components. Match their visual language (colors, spacing, radius, typography, class conventions) and reuse their patterns where they fit. Do not copy them verbatim unless asked.\n\n` +
                     refs.map((c, i) => `--- Reference ${i + 1}: ${c.title} ---\n${c.htmlCode.slice(0, 2500)}`).join("\n\n");
             }
