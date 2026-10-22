@@ -1,73 +1,98 @@
-<!-- Details Panel -->
-<div id="detailsPanel" class="flex-1 w-1/3 flex hidden flex-col border-l border-gray-800 gap-4 bg-white relative">
-    <div class="flex items-center justify-between px-6 py-3 border-y border-gray-800 bg-primary/50 bg-primary">
-        <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-gray-400">Details</span>
-        </div>
+{{!-- Details Panel --}}
+<div id="detailsPanel" class="absolute inset-0 hidden flex-col bg-gray-950 z-10">
+
+    {{!-- Details Header --}}
+    <div class="flex items-center gap-2 px-5 py-3 bg-gray-900/50 border-b border-white/10">
+        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+        </svg>
+        <span class="text-sm font-medium text-gray-300">Component Details</span>
     </div>
 
-    <div class="flex flex-col px-4">
-        <div>
-            <label for="title" class="text-primary p-1">Title</label>
-            <input type="text" id="title" name="title" placeholder="Header"
-                class="w-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
-                required>
-        </div>
-    </div>
+    <div class="flex-1 overflow-y-auto p-8">
+        <div class="max-w-xl mx-auto space-y-6">
 
-    <div class="flex flex-col px-4">
-        <div>
-            <label for="category" class="text-primary p-1">Category</label>
-            <select id="category" name="category"
-                class="w-full px-4 mt-2 py-3.5 text-gray-900 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
-                required>
-                <option value="" disabled selected>Select a category</option>
-                <option value="marketing-hero">Hero Sections</option>
-                <option value="marketing-hero-forms">Hero Forms</option>
-                <option value="marketing-icons">Icon Sections</option>
-                <option value="marketing-pricing">Pricing Sections</option>
-                <option value="marketing-faq">FAQ Sections</option>
-                <option value="marketing-blog">Blog Sections</option>
-                <option value="marketing-testimonials">Testimonials</option>
-                <option value="marketing-team">Team Sections</option>
-                <option value="marketing-features">Features</option>
-                <option value="marketing-announcements">Announcement Banners</option>
-                <option value="marketing-cards">Card Sections</option>
-                <option value="marketing-clients">Clients Sections</option>
-                <option value="marketing-galleries">Galleries</option>
-                <option value="marketing-timeline">Timeline</option>
-                <option value="ui-dropdowns">Dropdowns</option>
-                <option value="ui-selects">Selects</option>
-                <option value="ui-buttons">Button Groups</option>
-                <option value="ui-modals">Modals</option>
-                <option value="ui-cookie-banners">Cookie Banners</option>
-                <option value="navigation-navbars">Navbars / Headers</option>
-                <option value="navigation-mega-menu">Mega Menu</option>
-                <option value="layout-basic">Layouts</option>
-                <option value="forms-authentication">Authentication</option>
-                <option value="forms-feedback">Feedback</option>
-                <option value="forms-subscribe">Subscribe</option>
-                <option value="forms-textarea">Textarea Inputs</option>
-                <option value="pages-pricing">Pricing Page</option>
-                <option value="ecommerce-products">Product Listings</option>
-                <option value="apps-general">Application Components</option>
-                <option value="apps-invoice">Invoice</option>
-                <option value="apps-tables">Tables</option>
-                <option value="apps-stats">Stats</option>
-                <option value="apps-charts">Charts</option>
-                <option value="apps-ai-prompt">AI Prompt</option>
-                <option value="footer-contact">Contact Sections</option>
-                <option value="footer-footers">Footers</option>
-            </select>
-        </div>
-    </div>
+            {{!-- Title --}}
+            <div class="space-y-2">
+                <label for="title" class="block text-sm font-medium text-gray-300">Title</label>
+                <input type="text" id="title" name="title" placeholder="e.g. Gradient Hero Section"
+                    class="w-full px-4 py-3 bg-gray-900 text-white placeholder-gray-600 border border-white/10 rounded-xl focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-all"
+                    required>
+            </div>
 
-    <div class="flex flex-col px-4 h-full mb-32">
-        <div class="h-full">
-            <label for="description" class="text-primary p-1">Description</label>
-            <textarea id="description" name="description" placeholder="Describe your component"
-                class="w-full h-full px-4 mt-2 py-3.5 text-gray-900 placeholder-gray-300 bg-white border border-gray-400 rounded-xl focus:border-primary focus:outline-none transition-colors"
-                required></textarea>
+            {{!-- Category --}}
+            <div class="space-y-2">
+                <label for="category" class="block text-sm font-medium text-gray-300">Category</label>
+                <select id="category" name="category"
+                    class="w-full px-4 py-3 bg-gray-900 text-white border border-white/10 rounded-xl focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-all appearance-none"
+                    required>
+                    <option value="" disabled selected class="text-gray-600">Select a category</option>
+                    <optgroup label="Marketing">
+                        <option value="marketing-hero">Hero Sections</option>
+                        <option value="marketing-hero-forms">Hero Forms</option>
+                        <option value="marketing-icons">Icon Sections</option>
+                        <option value="marketing-pricing">Pricing Sections</option>
+                        <option value="marketing-faq">FAQ Sections</option>
+                        <option value="marketing-blog">Blog Sections</option>
+                        <option value="marketing-testimonials">Testimonials</option>
+                        <option value="marketing-team">Team Sections</option>
+                        <option value="marketing-features">Features</option>
+                        <option value="marketing-announcements">Announcement Banners</option>
+                        <option value="marketing-cards">Card Sections</option>
+                        <option value="marketing-clients">Clients Sections</option>
+                        <option value="marketing-galleries">Galleries</option>
+                        <option value="marketing-timeline">Timeline</option>
+                    </optgroup>
+                    <optgroup label="UI Components">
+                        <option value="ui-dropdowns">Dropdowns</option>
+                        <option value="ui-selects">Selects</option>
+                        <option value="ui-buttons">Button Groups</option>
+                        <option value="ui-modals">Modals</option>
+                        <option value="ui-cookie-banners">Cookie Banners</option>
+                    </optgroup>
+                    <optgroup label="Navigation">
+                        <option value="navigation-navbars">Navbars / Headers</option>
+                        <option value="navigation-mega-menu">Mega Menu</option>
+                    </optgroup>
+                    <optgroup label="Layout">
+                        <option value="layout-basic">Layouts</option>
+                    </optgroup>
+                    <optgroup label="Forms">
+                        <option value="forms-authentication">Authentication</option>
+                        <option value="forms-feedback">Feedback</option>
+                        <option value="forms-subscribe">Subscribe</option>
+                        <option value="forms-textarea">Textarea Inputs</option>
+                    </optgroup>
+                    <optgroup label="Pages">
+                        <option value="pages-pricing">Pricing Page</option>
+                    </optgroup>
+                    <optgroup label="E-Commerce">
+                        <option value="ecommerce-products">Product Listings</option>
+                    </optgroup>
+                    <optgroup label="Applications">
+                        <option value="apps-general">Application Components</option>
+                        <option value="apps-invoice">Invoice</option>
+                        <option value="apps-tables">Tables</option>
+                        <option value="apps-stats">Stats</option>
+                        <option value="apps-charts">Charts</option>
+                        <option value="apps-ai-prompt">AI Prompt</option>
+                    </optgroup>
+                    <optgroup label="Footer">
+                        <option value="footer-contact">Contact Sections</option>
+                        <option value="footer-footers">Footers</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            {{!-- Description --}}
+            <div class="space-y-2">
+                <label for="description" class="block text-sm font-medium text-gray-300">Description</label>
+                <textarea id="description" name="description" rows="5" placeholder="Describe what this component does and when to use it..."
+                    class="w-full px-4 py-3 bg-gray-900 text-white placeholder-gray-600 border border-white/10 rounded-xl focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-all resize-none"
+                    required></textarea>
+            </div>
+
         </div>
     </div>
 </div>

@@ -4,51 +4,70 @@
         class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
 
         <el-dialog-backdrop
-            class="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in">
+            class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in">
         </el-dialog-backdrop>
 
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div class="flex min-h-full items-center justify-center p-4">
 
             <el-dialog-panel
-                class="relative transform w-[80%] overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8">
+                class="relative transform w-[90%] max-w-7xl overflow-hidden rounded-2xl bg-gray-950 text-left shadow-2xl ring-1 ring-white/10 transition-all">
 
-                <div class="h-[600px] flex flex-col">
+                {{!-- Header Bar --}}
+                <div class="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-gray-900/80">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 cursor-pointer" onclick="handleClose()"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                        </div>
+                        <div class="h-4 w-px bg-white/10"></div>
+                        <span class="text-sm font-medium text-gray-300">Component Editor</span>
+                    </div>
 
-                    <form id="componentForm" class="flex-1 flex min-h-0" method="POST" action="javascript:void(0);"
+                    {{!-- Step Indicator --}}
+                    <div class="flex items-center gap-2">
+                        <div id="stepIndicator1" class="flex items-center gap-1.5">
+                            <div class="w-2 h-2 rounded-full bg-white"></div>
+                            <span class="text-xs text-white font-medium">Code</span>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <div id="stepIndicator2" class="flex items-center gap-1.5">
+                            <div class="w-2 h-2 rounded-full bg-gray-600"></div>
+                            <span class="text-xs text-gray-500 font-medium">Details</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="cancelBtn" type="button" onclick="handleClose()"
+                            class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button id="backBtn" type="button" onclick="handleBack()"
+                            class="hidden px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                            Back
+                        </button>
+                        <button id="nextBtn" type="button" onclick="handleNext()"
+                            class="px-4 py-1.5 text-xs font-medium text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition-colors">
+                            Next
+                        </button>
+                        <button id="submitBtn" type="submit" form="componentForm"
+                            class="hidden px-4 py-1.5 text-xs font-medium text-gray-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors">
+                            Publish
+                        </button>
+                    </div>
+                </div>
+
+                <div class="h-[calc(100vh-10rem)] flex flex-col">
+                    <form id="componentForm" class="flex-1 flex min-h-0 relative" method="POST" action="javascript:void(0);"
                         onsubmit="handleSave(event)">
 
                         {{> component-playground/editor-panel}}
-
                         {{> component-playground/preview-panel}}
-
                         {{> component-playground/details-panel}}
 
-                        <!-- Buttons -->
-                        <div class="bg-white rounded-xl flex justify-end m-2 absolute right-0 bottom-0">
-                            <div
-                                class="border border-gray-400 w-fit p-1 gap-2 flex items-center justify-center rounded-xl">
-                                <button id="cancelBtn" type="reset" onclick="handleClose()"
-                                    class="p-1 hover:bg-primary hover:text-secondary rounded-md hover:cursor-pointer">
-                                    Cancel
-                                </button>
-                                <button id="backBtn" type="button" onclick="handleBack()"
-                                    class="hidden p-1 hover:bg-primary hover:text-secondary rounded-md hover:cursor-pointer">
-                                    Back
-                                </button>
-                                <div>|</div>
-                                <button id="nextBtn" type="button" onclick="handleNext()"
-                                    class="p-1 hover:bg-primary hover:text-secondary rounded-md hover:cursor-pointer">
-                                    Next
-                                </button>
-                                <button id="submitBtn" type="submit"
-                                    class="p-1 hidden hover:bg-primary hover:text-secondary rounded-md hover:cursor-pointer">
-                                    Submit
-                                </button>
-                            </div>
-                        </div>
-
                     </form>
-
                 </div>
 
             </el-dialog-panel>
@@ -58,17 +77,7 @@
     </dialog>
 </el-dialog>
 
-
 <script>
-    document.getElementById("htmlEditor").placeholder =
-        `<!DOCTYPE html>
-<html>
-  <head>
-    <title>Document</title>
-  </head>
-  <body>
-    
-  </body>
-</html>`;
+    document.getElementById("htmlEditor").placeholder = '<div class="p-8">\n  <h1 class="text-3xl font-bold">Hello World</h1>\n  <p class="text-gray-600 mt-2">Start writing your component HTML here...</p>\n</div>';
 </script>
 <script type="module" src="/public/js/playground/playground.js"></script>
