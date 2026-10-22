@@ -1,4 +1,6 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+import User from "../models/user.model.js";
 import * as userService from "../services/user.service.js";
 
 export const createUser = async (req, res) => {
@@ -133,3 +135,17 @@ export const updateLlmSettings = async (req, res) => {
     }
 };
 
+
+
+export const createApiToken = async (req, res) => {
+    try {
+        const token = `twl_${crypto.randomBytes(24).toString("hex")}`;
+        await User.findByIdAndUpdate(req.session.user.id, {
+            apiTokenHash: crypto.createHash("sha256").update(token).digest("hex"),
+            apiTokenPrefix: token.slice(0, 8),
+        });
+        res.status(200).json({ success: true, token });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

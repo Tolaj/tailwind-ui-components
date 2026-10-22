@@ -1,0 +1,83 @@
+<main class="min-w-0 flex-1 p-6">
+    <div class="mx-auto max-w-3xl space-y-14 pb-24 text-[15px] leading-7 text-gray-700">
+
+        <header>
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">About</p>
+            <h1 class="mt-2 text-4xl font-semibold tracking-[-0.04em] text-gray-900">A component library your AI tools can actually use</h1>
+            <p class="mt-4 text-lg text-gray-600">Windcraft started as a place to browse and edit Tailwind components. It is now a place to <em>keep</em> them, so everything you build, and everything AI builds for you, stays consistent.</p>
+        </header>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The problem</h2>
+            <p class="mt-3">AI can write a good pricing section in seconds. What it can't do is remember <em>your</em> pricing section: your colors, your spacing, your buttons. Every new chat starts from zero, and your UI slowly drifts into ten slightly different styles.</p>
+            <svg viewBox="0 0 760 170" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img" aria-label="Without a library each AI chat produces a different style; with a library they match">
+                <text x="190" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#111">Without a library</text>
+                <rect x="30" y="45" width="90" height="90" rx="12" fill="#fecaca"/><rect x="145" y="45" width="90" height="90" rx="4" fill="#bfdbfe"/><rect x="260" y="45" width="90" height="90" rx="30" fill="#bbf7d0"/>
+                <text x="190" y="156" text-anchor="middle" font-size="11" fill="#6b7280">three chats, three styles</text>
+                <path d="M380 90 H410" stroke="#111" stroke-width="1.5"/><text x="395" y="80" text-anchor="middle" font-size="16" fill="#111">vs</text>
+                <text x="570" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#111">With your library</text>
+                <rect x="430" y="45" width="90" height="90" rx="12" fill="#e5e7eb"/><rect x="545" y="45" width="90" height="90" rx="12" fill="#e5e7eb"/><rect x="660" y="45" width="70" height="90" rx="12" fill="#e5e7eb"/>
+                <text x="580" y="156" text-anchor="middle" font-size="11" fill="#6b7280">one consistent style</text>
+            </svg>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">What this app does about it</h2>
+            <ul class="mt-4 space-y-3">
+                <li class="flex gap-3"><span class="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">1</span><span><strong class="text-gray-900">Keeps your components</strong> with tags and version history, so you can find them and undo changes.</span></li>
+                <li class="flex gap-3"><span class="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">2</span><span><strong class="text-gray-900">Grounds AI in your own work.</strong> When you generate a component, the best matches from your library are shown to the AI as examples.</span></li>
+                <li class="flex gap-3"><span class="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">3</span><span><strong class="text-gray-900">Exports anywhere:</strong> HTML, React, Vue and Svelte.</span></li>
+                <li class="flex gap-3"><span class="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">4</span><span><strong class="text-gray-900">Plugs into coding agents</strong> over MCP, so Claude Code and Cursor read from, and save to, the same library.</span></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Library and Gallery, in one line each</h2>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <div class="rounded-xl border border-gray-900 bg-black p-5 text-white"><p class="font-semibold">Library</p><p class="mt-1 text-sm text-gray-300">Private. Yours. The only thing AI and agents read.</p></div>
+                <div class="rounded-xl border border-gray-200 bg-white p-5"><p class="font-semibold text-gray-900">Gallery</p><p class="mt-1 text-sm text-gray-600">Public. For discovery and starting points. Save a copy to your library to use it.</p></div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Who it's for</h2>
+            <ul class="mt-3 list-disc space-y-1.5 pl-5">
+                <li><strong>Developers and designers</strong> who build many pages and want them to look related.</li>
+                <li><strong>Anyone using AI to build UI</strong> who is tired of re-explaining their style every time.</li>
+                <li><strong>Small teams</strong> who want one place for approved components (shared workspaces are planned, see below).</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Principles</h2>
+            <dl class="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white text-sm">
+                <div class="grid gap-1 p-4 sm:grid-cols-[180px_1fr]"><dt class="font-medium text-gray-900">Yours stays yours</dt><dd>Private components are visible only to you. AI reads only your own library, never the public gallery.</dd></div>
+                <div class="grid gap-1 p-4 sm:grid-cols-[180px_1fr]"><dt class="font-medium text-gray-900">Nothing is lost</dt><dd>Every edit keeps the previous version.</dd></div>
+                <div class="grid gap-1 p-4 sm:grid-cols-[180px_1fr]"><dt class="font-medium text-gray-900">No lock-in</dt><dd>Export to plain code any time. Your components are just HTML.</dd></div>
+                <div class="grid gap-1 p-4 sm:grid-cols-[180px_1fr]"><dt class="font-medium text-gray-900">Safe previews</dt><dd>Pasted code runs in a sandbox and can't reach your account.</dd></div>
+                <div class="grid gap-1 p-4 sm:grid-cols-[180px_1fr]"><dt class="font-medium text-gray-900">Bring your own AI</dt><dd>Use your Anthropic key or a local model. You choose the provider.</dd></div>
+            </dl>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">What's coming</h2>
+            <p class="mt-3 text-sm text-gray-600">Plans, not promises. Ordered by how much they would help.</p>
+            <ol class="mt-4 space-y-2 text-sm">
+                <li class="rounded-lg border border-gray-200 bg-white p-3"><strong class="text-gray-900">Smarter matching.</strong> Find references by meaning ("plans" finds "pricing"), not just keywords.</li>
+                <li class="rounded-lg border border-gray-200 bg-white p-3"><strong class="text-gray-900">Teams.</strong> Shared workspaces with members, so a library can be a team's source of truth.</li>
+                <li class="rounded-lg border border-gray-200 bg-white p-3"><strong class="text-gray-900">Design tokens.</strong> Store brand colors, fonts and radius, and hand them to AI and agents directly.</li>
+                <li class="rounded-lg border border-gray-200 bg-white p-3"><strong class="text-gray-900">Quality checks.</strong> Automatic mobile, accessibility and dark-mode checks with a badge per component.</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Built with</h2>
+            <p class="mt-3">Node.js and Express, Handlebars, MongoDB, Tailwind CSS, and the Anthropic API (or a local model). The source is on <a class="font-medium text-gray-900 underline" href="https://github.com/Tolaj/tailwind-ui-components" target="_blank" rel="noopener">GitHub</a>.</p>
+            <div class="mt-6 flex flex-wrap gap-3">
+                <a href="/documentation" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">Read the documentation</a>
+                <a href="/library" class="inline-flex h-10 items-center rounded-md border border-gray-300 px-5 text-sm font-medium text-gray-800 hover:bg-gray-50">Open your library</a>
+            </div>
+        </section>
+
+    </div>
+</main>

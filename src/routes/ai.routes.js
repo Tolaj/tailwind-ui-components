@@ -2,6 +2,7 @@ import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { ensureAuthAPI } from "../middlewares/auth.js";
 import User from "../models/user.model.js";
+import { searchLibrary } from "../services/library.service.js";
 
 const router = Router();
 
@@ -35,11 +36,27 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
+    let system = SYSTEM_PROMPT;
+    let referenceTitles = [];
+    if (req.body.useLibrary !== false) {
+        try {
+            const refs = (await searchLibrary(req.session.user.id, { query: prompt, limit: 3, referenceOnly: true })).filter((c) => c.htmlCode);
+            if (refs.length) {
+                referenceTitles = refs.map((c) => c.title);
+                system += `\n\nThe user keeps a design library. These are their existing components. Match their visual language (colors, spacing, radius, typography, class conventions) and reuse their patterns where they fit. Do not copy them verbatim unless asked.\n\n` +
+                    refs.map((c, i) => `--- Reference ${i + 1}: ${c.title} ---\n${c.htmlCode.slice(0, 2500)}`).join("\n\n");
+            }
+        } catch (e) {
+            console.error("Library grounding failed:", e.message);
+        }
+    }
+
     const userMessage = currentHtml
         ? `Here is my current HTML component:\n\n${currentHtml}\n\nPlease make the following change: ${prompt}`
         : `Create a Tailwind CSS HTML component for: ${prompt}`;
 
     const sendEvent = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+    if (referenceTitles.length) sendEvent({ type: "context", titles: referenceTitles });
 
     try {
         if (provider === "anthropic") {
@@ -51,7 +68,7 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
             const stream = client.messages.stream({
                 model: "claude-haiku-4-5-20251001",
                 max_tokens: 4096,
-                system: SYSTEM_PROMPT,
+                system,
                 messages: [{ role: "user", content: userMessage }],
             });
 
@@ -71,7 +88,7 @@ router.post("/generate-stream", ensureAuthAPI, async (req, res) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     messages: [
-                        { role: "system", content: SYSTEM_PROMPT },
+                        { role: "system", content: system },
                         { role: "user", content: userMessage },
                     ],
                     max_tokens: 10000,

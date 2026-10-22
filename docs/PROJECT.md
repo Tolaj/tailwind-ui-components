@@ -69,6 +69,16 @@ src/
 - `GET|POST|PUT|DELETE /api/components` — Component CRUD
 - `POST /api/ai/generate-stream` — AI streaming endpoint (SSE)
 
+## Library (primary focus)
+A personal component library that AI can read and write; the public gallery stays as-is.
+- `GET /library` (auth) — your components: search, tags, preview, export, history, edit. `/my-components` redirects here.
+- Components have `tags`, `version`, and `versions[]` snapshots (taken on every htmlCode change). Restore: `POST /api/components/:id/versions/:v/restore`.
+- Export: `GET /api/components/:id/export?format=html|react|vue|svelte` (`utils/exporters.js`).
+- AI grounding: `routes/ai.routes.js` adds the 3 best-matching library components (keyword score, `services/library.service.js`) to the system prompt; the client shows "Using your library: ...".
+- MCP: `POST /mcp` (stateless JSON-RPC, Bearer token). Tools: `search_components`, `get_component`, `save_component`, `list_tags`. Token from `POST /users/api-token` (stored as sha256 hash on the user, shown once).
+- Editor preview is a sandboxed iframe that supports HTML + Tailwind, `<style>`, `<link>`, `<script>` (`public/js/playground/component-source.js`).
+- Not built yet: teams/shared workspaces, Figma/Storybook export, per-component AI memory.
+
 ## Environment Variables
 See `.env.example`. Key vars: `MONGO_URI`, `SESSION_SECRET`, `PORT`, `ANTHROPIC_API_KEY`, Gmail OAuth vars.
 

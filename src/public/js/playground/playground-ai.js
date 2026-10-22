@@ -828,6 +828,11 @@ export const handleAIGenerate = async () => {
                 let parsed;
                 try { parsed = JSON.parse(line.slice(5).trim()); } catch { continue; }
 
+                if (parsed.type === "context") {
+                    addAIMessage(`Using your library: ${parsed.titles.join(", ")}`, "ai");
+                    continue;
+                }
+
                 if (parsed.type === "delta") {
                     if (!firstChunkReceived) {
                         firstChunkReceived = true;

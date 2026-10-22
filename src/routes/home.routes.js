@@ -200,4 +200,5 @@ router.get("/component/:id", async (req, res) => {
     }
 });
 
+export { categories };
 export default router;

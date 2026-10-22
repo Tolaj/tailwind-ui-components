@@ -68,6 +68,19 @@
                 <option>HTML</option>
             </select>
 
+            <!-- Save to library -->
+            {{#if @root.user}}
+            <button onclick="saveToLibrary('{{_id}}', this)" title="Save a private copy to your library"
+                class="h-8 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">
+                Save to library
+            </button>
+            {{else}}
+            <a href="/auth/sign-in" title="Sign in to save to your library"
+                class="inline-flex h-8 items-center rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">
+                Save to library
+            </a>
+            {{/if}}
+
             <!-- Copy -->
             <button onclick="copyCode('{{_id}}')" id="copy-btn-{{_id}}"
                 class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="Copy code">

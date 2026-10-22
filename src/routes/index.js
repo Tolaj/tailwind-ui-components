@@ -3,10 +3,14 @@ import authRoutes from "./auth.routes.js";
 import componentRoutes from "./component.routes.js";
 import homeRoutes from "./home.routes.js";
 import aiRoutes from "./ai.routes.js";
+import mcpRoutes from "./mcp.routes.js";
+import libraryRoutes from "./library.routes.js";
+import infoRoutes from "./info.routes.js";
 
 import {
     redirectIfAuthenticated,
     noCacheAuth,
+    ensureAuth,
 } from "../middlewares/auth.js";
 
 const constructorMethod = (app) => {
@@ -14,7 +18,12 @@ const constructorMethod = (app) => {
     app.use("/auth", redirectIfAuthenticated, noCacheAuth, authRoutes)
     app.use("/api/components", componentRoutes);
     app.use("/api/ai", aiRoutes);
+    app.use("/mcp", mcpRoutes);
+    app.get("/my-components", (req, res) => res.redirect("/library"));
+    app.use("/library", ensureAuth, libraryRoutes);
 
+
+    app.use("/", infoRoutes);
 
     // Home page
     app.use("/", homeRoutes);

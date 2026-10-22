@@ -72,6 +72,20 @@
             </div>
 
             <div class="space-y-1.5">
+                <label for="tags" class="block text-[13px] font-medium text-neutral-800">Tags</label>
+                <input type="text" id="tags" name="tags" placeholder="hero, dark, saas (comma separated)" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900">
+                <p class="text-xs text-neutral-500">Tags make components easy to find, and help AI and coding agents pick the right one.</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="isPublished" class="block text-[13px] font-medium text-neutral-800">Visibility</label>
+                <select id="isPublished" name="isPublished" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900">
+                    <option value="true">Public gallery and my library</option>
+                    <option value="false">My library only (private)</option>
+                </select>
+            </div>
+
+            <div class="space-y-1.5">
                 <label for="description" class="block text-[13px] font-medium text-neutral-800">Description</label>
                 <textarea id="description" name="description" rows="5" placeholder="Describe what this component does and when to use it"
                     class="w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 py-2.5 resize-none" required></textarea>

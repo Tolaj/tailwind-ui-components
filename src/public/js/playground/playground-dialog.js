@@ -82,8 +82,35 @@ export const handleClose = () => {
     isDetailsOpen = false;
     updateStepIndicators(1);
 
+    document.getElementById("componentForm").reset();
+    setEditingComponent(null);
     dialog.close()
 }
+
+let editingId = null;
+
+function setEditingComponent(item) {
+    editingId = item ? item.id : null;
+    document.getElementById("editorTitle").textContent = item ? "Edit component" : "New component";
+}
+
+export const openForNew = () => {
+    setEditingComponent(null);
+    document.getElementById("dialog").showModal();
+};
+
+export const openForEdit = (item) => {
+    setEditingComponent(item);
+    const editor = document.getElementById("htmlEditor");
+    editor.value = item.htmlCode;
+    document.getElementById("title").value = item.title;
+    document.getElementById("category").value = item.category;
+    document.getElementById("description").value = item.description;
+    document.getElementById("tags").value = (item.tags || []).join(", ");
+    document.getElementById("isPublished").value = String(item.isPublished);
+    document.getElementById("dialog").showModal();
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+};
 
 
 export const handleSave = async (e) => {
@@ -116,8 +143,8 @@ export const handleSave = async (e) => {
     submitBtn.textContent = 'Publishing...';
 
     try {
-        const response = await fetch('/api/components', {
-            method: 'POST',
+        const response = await fetch(editingId ? `/api/components/${editingId}` : '/api/components', {
+            method: editingId ? 'PUT' : 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -130,7 +157,7 @@ export const handleSave = async (e) => {
             throw new Error(result.message);
         }
 
-        alert('Component published successfully!');
+        alert(editingId ? 'Component updated' : 'Component published successfully!');
         handleClose();
         window.location.reload();
 

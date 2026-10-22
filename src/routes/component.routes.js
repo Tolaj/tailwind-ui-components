@@ -5,7 +5,11 @@ import {
     createComponent,
     updateComponent,
     deleteComponent,
-    toggleLike
+    toggleLike,
+    getVersions,
+    restoreVersion,
+    exportComponentCode,
+    forkComponent
 } from "../controllers/component.controller.js";
 import { ensureAuthAPI } from "../middlewares/auth.js";  // Changed import
 
@@ -13,12 +17,16 @@ const router = express.Router();
 
 // Public routes
 router.get("/", getAllComponents);
+router.get("/:id/export", exportComponentCode);
+router.get("/:id/versions", ensureAuthAPI, getVersions);
+router.post("/:id/versions/:version/restore", ensureAuthAPI, restoreVersion);
 router.get("/:id", getComponentById);
 
 // Protected routes - using ensureAuthAPI instead of ensureAuth
 router.post("/", ensureAuthAPI, createComponent);
 router.put("/:id", ensureAuthAPI, updateComponent);
 router.delete("/:id", ensureAuthAPI, deleteComponent);
+router.post("/:id/fork", ensureAuthAPI, forkComponent);
 router.post("/:id/like", ensureAuthAPI, toggleLike);
 
 export default router;
