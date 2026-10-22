@@ -42,6 +42,8 @@ const serverMetadata = (req, res) => {
         authorization_endpoint: `${base}/oauth/authorize`,
         token_endpoint: `${base}/oauth/token`,
         registration_endpoint: `${base}/oauth/register`,
+        revocation_endpoint: `${base}/oauth/revoke`,
+        revocation_endpoint_auth_methods_supported: ["none"],
         response_types_supported: ["code"],
         grant_types_supported: ["authorization_code", "refresh_token"],
         code_challenge_methods_supported: ["S256"],
@@ -55,8 +57,20 @@ for (const path of ["/.well-known/oauth-authorization-server", "/.well-known/oau
 
 // ── Dynamic client registration (RFC 7591) ───────────────────────────────────
 
+// Registration is open (clients register themselves), so cap it per address.
+const registerHits = new Map();
+const registerLimited = (ip) => {
+    const now = Date.now();
+    const recent = (registerHits.get(ip) || []).filter((t) => now - t < 60 * 60 * 1000);
+    recent.push(now);
+    registerHits.set(ip, recent);
+    if (registerHits.size > 5000) registerHits.clear();
+    return recent.length > 30;
+};
+
 router.options("/oauth/register", openCors);
 router.post("/oauth/register", openCors, express.json(), async (req, res) => {
+    if (registerLimited(req.ip)) return res.status(429).json({ error: "too_many_requests", error_description: "Too many registrations, try again later" });
     const { client_name, redirect_uris } = req.body || {};
     if (!Array.isArray(redirect_uris) || redirect_uris.length < 1 || redirect_uris.length > 5 || !redirect_uris.every((u) => typeof u === "string" && isValidRedirectUri(u))) {
         return res.status(400).json({ error: "invalid_redirect_uri", error_description: "Provide 1 to 5 redirect URIs (https, or http on localhost)" });
@@ -190,6 +204,19 @@ router.post("/oauth/token", openCors, express.urlencoded({ extended: false }), e
         console.error("OAuth token error:", error);
         return tokenError(res, 500, "server_error", "Could not issue token");
     }
+});
+
+// RFC 7009: lets a client drop its own token. Always answers 200, as the spec asks.
+router.options("/oauth/revoke", openCors);
+router.post("/oauth/revoke", openCors, express.urlencoded({ extended: false }), express.json(), async (req, res) => {
+    const b = req.body || {};
+    try {
+        if (b.token && b.client_id) await OAuthToken.deleteMany({ tokenHash: sha256(String(b.token)), clientId: String(b.client_id), type: { $in: ["access", "refresh"] } });
+    } catch (error) {
+        console.error("OAuth revoke error:", error);
+    }
+    noStore(res);
+    res.status(200).end();
 });
 
 export default router;

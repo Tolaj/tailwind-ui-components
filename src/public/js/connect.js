@@ -25,3 +25,25 @@ document.addEventListener("click", async (e) => {
     const res = await fetch(`/connect/apps/${encodeURIComponent(btn.dataset.revoke)}/revoke`, { method: "POST" });
     if ((await res.json()).success) location.reload();
 });
+
+document.getElementById("checkBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const list = document.getElementById("checkList");
+    btn.disabled = true;
+    btn.textContent = "Testing...";
+    list.classList.remove("hidden");
+    list.innerHTML = '<li class="text-gray-500">Checking your server...</li>';
+    try {
+        const res = await fetch("/connect/check");
+        const json = await res.json();
+        const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+        list.innerHTML =
+            `<li class="font-medium ${json.allOk ? "text-green-700" : "text-red-700"}">${json.allOk ? "All checks passed. Claude can connect." : "Some checks failed."} <span class="font-normal text-gray-500">${esc(json.base)}</span></li>` +
+            json.checks.map((c) => `<li class="flex gap-2"><span class="${c.ok ? "text-green-700" : "text-red-700"} font-semibold">${c.ok ? "✓" : "✗"}</span><span><span class="text-gray-900">${esc(c.label)}</span>${c.detail ? ` <span class="text-gray-500">${esc(c.detail)}</span>` : ""}${c.fix ? `<br><span class="text-amber-800">${esc(c.fix)}</span>` : ""}</span></li>`).join("");
+    } catch (err) {
+        list.innerHTML = `<li class="text-red-700">The test could not run: ${err.message}</li>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Run test";
+    }
+});

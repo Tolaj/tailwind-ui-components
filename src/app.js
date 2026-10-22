@@ -12,6 +12,9 @@ import { formatDate, substring } from './utils/handlebars-helpers.js';
 
 const app = express();
 
+// Behind a proxy (Vercel, Render, nginx) req.protocol must come from X-Forwarded-Proto so URLs and cookies are https.
+app.set("trust proxy", 1);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -47,6 +50,19 @@ app.set("view engine", "handlebars");
 app.set("views", path.join(__dirname, "views"));
 
 configRoutes(app);
+
+// Machine clients (MCP and OAuth) must get JSON errors, not an HTML error page.
+app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    const status = err.status || err.statusCode || 500;
+    if (req.path.startsWith("/mcp")) {
+        return res.status(status).json({ jsonrpc: "2.0", id: null, error: { code: status === 400 ? -32700 : -32603, message: status === 400 ? "Parse error: send valid JSON" : "Internal error" } });
+    }
+    if (req.path.startsWith("/oauth")) {
+        return res.status(status).json({ error: status === 400 ? "invalid_request" : "server_error", error_description: err.message });
+    }
+    return next(err);
+});
 
 
 export default app;

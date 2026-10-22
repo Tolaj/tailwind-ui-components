@@ -48,6 +48,14 @@
                 <li>In a chat or design, ask: <em>"Use my component library to build a pricing page."</em></li>
             </ol>
 
+            <div class="mt-5 rounded-lg border border-gray-200 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div><p class="text-sm font-medium text-gray-900">Test the connection</p><p class="text-xs text-gray-500">Runs the same steps Claude runs against your address and shows what to fix.</p></div>
+                    <button type="button" id="checkBtn" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50 disabled:opacity-50">Run test</button>
+                </div>
+                <ul id="checkList" class="mt-3 hidden space-y-1.5 text-sm"></ul>
+            </div>
+
             <h3 class="mt-5 text-sm font-semibold text-gray-900">Connected apps</h3>
             {{#if apps.length}}
             <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">

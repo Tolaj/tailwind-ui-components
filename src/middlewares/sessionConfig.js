@@ -16,6 +16,8 @@ const sessionConfig = session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 2,
         httpOnly: true,
+        sameSite: 'lax',
+        secure: 'auto',
     },
 });
 

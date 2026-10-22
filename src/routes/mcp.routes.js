@@ -170,41 +170,116 @@ const authenticate = async (req) => {
     return oauthUserId ? { _id: oauthUserId } : null;
 };
 
-router.get("/", (req, res) => res.status(405).set("Allow", "POST").json({ error: "Use POST (stateless MCP over HTTP)" }));
+const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+
+const TITLES = {
+    get_design_guide: "Read the design guide",
+    search_components: "Search components",
+    get_component: "Get a component",
+    save_component: "Save a component",
+    save_design: "Save a finished design",
+    list_tags: "List tags",
+};
+const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags"]);
+
+// Hints let clients (Claude shows these in its permission UI) treat read tools as safe.
+const ANNOTATED_TOOLS = TOOLS.map((t) => ({
+    ...t,
+    title: TITLES[t.name] || t.name,
+    annotations: {
+        title: TITLES[t.name] || t.name,
+        readOnlyHint: READ_ONLY.has(t.name),
+        destructiveHint: false,
+        idempotentHint: READ_ONLY.has(t.name),
+        openWorldHint: false,
+    },
+}));
+
+// Browser-based MCP clients call this from another origin. Auth is a Bearer token, never cookies.
+router.use((req, res, next) => {
+    res.set({
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, Mcp-Session-Id, MCP-Protocol-Version",
+        "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+        "Access-Control-Expose-Headers": "WWW-Authenticate, Mcp-Session-Id",
+        "Access-Control-Max-Age": "600",
+    });
+    if (req.method === "OPTIONS") return res.status(204).end();
+    next();
+});
+
+// This server is stateless: no server-initiated stream and no sessions.
+router.all("/", (req, res, next) => {
+    if (req.method === "POST") return next();
+    res.status(405).set("Allow", "POST, OPTIONS").json({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Method not allowed. Use POST." } });
+});
+
+const rpcError = (id, code, message) => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
+
+/** Handles one JSON-RPC message. Returns the response object, or null for notifications. */
+async function handleRpc(msg, userId) {
+    if (!msg || typeof msg !== "object" || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") {
+        return rpcError(msg && msg.id, -32600, "Invalid Request");
+    }
+    const { id, method, params } = msg;
+    const isNotification = id === undefined || id === null;
+    const ok = (result) => ({ jsonrpc: "2.0", id, result });
+
+    try {
+        switch (method) {
+            case "initialize": {
+                const asked = params && params.protocolVersion;
+                return ok({
+                    protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
+                    capabilities: { tools: { listChanged: false } },
+                    serverInfo: { name: "tailwind-ui-library", title: "Windcraft component library", version: "1.0.0" },
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it with save_design so it is split into reusable sections.",
+                });
+            }
+            case "ping":
+                return isNotification ? null : ok({});
+            case "tools/list":
+                return ok({ tools: ANNOTATED_TOOLS });
+            case "tools/call":
+                if (!params || typeof params.name !== "string") return rpcError(id, -32602, "tools/call needs a tool name");
+                return ok(await callTool(userId, params.name, params.arguments));
+            case "resources/list":
+                return ok({ resources: [] });
+            case "prompts/list":
+                return ok({ prompts: [] });
+            default:
+                if (isNotification || method.startsWith("notifications/")) return null;
+                return rpcError(id, -32601, `Method not found: ${method}`);
+        }
+    } catch (e) {
+        console.error("MCP error:", e);
+        return rpcError(id, -32603, "Internal error");
+    }
+}
 
 router.post("/", async (req, res) => {
     const user = await authenticate(req);
     if (!user) {
-        return res.status(401).set("WWW-Authenticate", `Bearer resource_metadata="${publicBase(req)}/.well-known/oauth-protected-resource"`).json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Missing or invalid API token" } });
+        return res
+            .status(401)
+            .set("WWW-Authenticate", `Bearer resource_metadata="${publicBase(req)}/.well-known/oauth-protected-resource"`)
+            .json(rpcError(null, -32001, "Authorization required"));
     }
 
-    const { id, method, params } = req.body || {};
-    const reply = (result) => res.json({ jsonrpc: "2.0", id, result });
-    const error = (code, message) => res.json({ jsonrpc: "2.0", id, error: { code, message } });
-
-    try {
-        switch (method) {
-            case "initialize":
-                return reply({
-                    protocolVersion: params?.protocolVersion || "2025-03-26",
-                    capabilities: { tools: {} },
-                    serverInfo: { name: "tailwind-ui-library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it with save_design so it is split into reusable sections.",
-                });
-            case "ping":
-                return reply({});
-            case "tools/list":
-                return reply({ tools: TOOLS });
-            case "tools/call":
-                return reply(await callTool(String(user._id), params?.name, params?.arguments));
-            default:
-                if (id === undefined || String(method).startsWith("notifications/")) return res.status(202).end();
-                return error(-32601, `Method not found: ${method}`);
-        }
-    } catch (e) {
-        console.error("MCP error:", e);
-        return error(-32603, "Internal error");
+    const body = req.body;
+    if (body === undefined || body === null || typeof body !== "object") {
+        return res.status(400).json(rpcError(null, -32700, "Parse error: send a JSON-RPC 2.0 message"));
     }
+
+    const userId = String(user._id);
+    if (Array.isArray(body)) {
+        if (!body.length) return res.status(400).json(rpcError(null, -32600, "Empty batch"));
+        const out = (await Promise.all(body.map((m) => handleRpc(m, userId)))).filter(Boolean);
+        return out.length ? res.json(out) : res.status(202).end();
+    }
+
+    const response = await handleRpc(body, userId);
+    return response ? res.json(response) : res.status(202).end();
 });
 
 export default router;
