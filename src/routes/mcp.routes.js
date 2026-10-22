@@ -8,6 +8,7 @@ import { searchLibrary } from "../services/library.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
 import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
+import { importDesign } from "../services/import.service.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
 import { publicBase } from "../utils/publicUrl.js";
 
@@ -56,6 +57,21 @@ const TOOLS = [
                 category: { type: "string", description: "Gallery category slug, default apps-general" },
             },
             required: ["title", "description", "htmlCode"],
+        },
+    },
+    {
+        name: "save_design",
+        description: "Save a finished design (a full page or screen as HTML, with its <style> and <script>) to the user's library. By default it is split into one component per section (header, hero, pricing, footer...) plus the whole page, so each piece is reusable. Call this whenever you finish designing a screen the user wants to keep.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                title: { type: "string", description: "Name of the design or screen, e.g. 'Landing page'" },
+                html: { type: "string", description: "Complete HTML of the design" },
+                description: { type: "string", description: "One sentence about what it is" },
+                tags: { type: "array", items: { type: "string" } },
+                split: { type: "boolean", description: "Split into sections (default true)" },
+            },
+            required: ["title", "html"],
         },
     },
     {
@@ -112,6 +128,18 @@ async function callTool(userId, name, args = {}) {
             enrichSpecWithAI(c._id, userId);
             return text({ id: String(c._id), message: "Saved to your library (private)" });
         }
+        case "save_design": {
+            if (!args.html || !args.title) return fail("title and html are required");
+            try {
+                const result = await importDesign(userId, {
+                    title: args.title, html: args.html, description: args.description,
+                    tags: args.tags, split: args.split !== false,
+                });
+                return text({ ...result, message: `Saved "${result.page.title}" and ${result.sections.length} section component(s) to your library (private).` });
+            } catch (e) {
+                return fail(e.message);
+            }
+        }
         case "get_design_guide": {
             const { markdown } = await buildDesignGuide(userId);
             return text(markdown);
@@ -161,7 +189,7 @@ router.post("/", async (req, res) => {
                     protocolVersion: params?.protocolVersion || "2025-03-26",
                     capabilities: { tools: {} },
                     serverInfo: { name: "tailwind-ui-library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, and save good new components back with save_component.",
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it with save_design so it is split into reusable sections.",
                 });
             case "ping":
                 return reply({});

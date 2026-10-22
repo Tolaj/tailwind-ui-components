@@ -5,8 +5,7 @@
             <p class="mt-1 text-sm text-gray-500">Your components. Reused by AI generation, exportable to any framework, and readable by your coding agents.</p>
         </div>
         <div class="flex items-center gap-2">
-        <input type="file" id="importInput" accept=".html,.htm,text/html" multiple class="hidden">
-        <button type="button" id="importBtn" class="h-9 rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50" title="Import HTML files, for example designs from Claude Design">Import HTML</button>
+                <button type="button" id="importBtn" class="h-9 rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50" title="Import HTML files, for example designs from Claude Design">Import HTML</button>
         <button type="button" id="newComponentBtn"
             class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New component</button>
         </div>
@@ -70,6 +69,38 @@
         <button type="button" id="libCopy" class="absolute right-3 top-3 hidden h-7 rounded-md border border-gray-300 bg-white px-2.5 text-xs font-medium hover:bg-gray-50">Copy</button>
         <pre id="libCode" class="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words bg-gray-50 p-5 font-mono text-[12px] leading-5 text-gray-900"></pre>
         <div id="libHistory" class="hidden max-h-[60vh] overflow-auto divide-y divide-gray-100"></div>
+    </div>
+</dialog>
+
+{{!-- Import modal --}}
+<dialog id="importModal" class="m-auto w-[min(640px,92vw)] rounded-xl border border-gray-200 p-0 shadow-[0_16px_48px_rgba(0,0,0,0.2)] backdrop:bg-black/40">
+    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+        <h3 class="text-sm font-semibold text-gray-900">Import designs</h3>
+        <button type="button" id="importClose" class="h-7 w-7 rounded text-gray-500 hover:bg-gray-100" aria-label="Close">✕</button>
+    </div>
+    <div class="space-y-4 p-5">
+        <label id="dropZone" class="block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-500">
+            <span class="block text-sm font-medium text-gray-900">Drop HTML or .zip files here</span>
+            <span class="mt-1 block text-xs text-gray-500">or click to choose. A zip can hold many pages.</span>
+            <input type="file" id="importInput" accept=".html,.htm,.zip,text/html,application/zip" multiple class="hidden">
+        </label>
+        <ul id="importFiles" class="hidden max-h-28 divide-y divide-gray-100 overflow-auto rounded-lg border border-gray-200 text-sm"></ul>
+
+        <div>
+            <p class="mb-1.5 text-xs font-medium text-gray-600">Or paste HTML</p>
+            <input id="pasteTitle" type="text" placeholder="Name (optional)" class="mb-2 h-9 w-full rounded-md border border-gray-300 px-3 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900">
+            <textarea id="pasteHtml" rows="5" spellcheck="false" placeholder="<!doctype html> ..." class="w-full rounded-md border border-gray-300 p-3 font-mono text-[12px] leading-5 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"></textarea>
+        </div>
+
+        <label class="flex cursor-pointer items-start gap-2 text-sm text-gray-700">
+            <input id="splitToggle" type="checkbox" checked class="mt-1 h-4 w-4 rounded border-gray-300 accent-black">
+            <span><strong class="text-gray-900">Split pages into sections.</strong> Each page is saved whole, and its header, hero, pricing, footer and so on are saved as separate components you can reuse.</span>
+        </label>
+        <p id="importStatus" class="hidden text-sm"></p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-gray-200 px-5 py-3">
+        <button type="button" id="importCancel" class="h-9 rounded-md border border-gray-300 px-4 text-sm font-medium text-gray-800 hover:bg-gray-50">Cancel</button>
+        <button type="button" id="importGo" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50">Import</button>
     </div>
 </dialog>
 
