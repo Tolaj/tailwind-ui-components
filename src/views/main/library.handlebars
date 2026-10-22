@@ -6,8 +6,8 @@
         </div>
         <div class="flex items-center gap-2">
                 <button type="button" id="importBtn" class="h-9 rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50" title="Import HTML files, for example designs from Claude Design">Import HTML</button>
-        <a href="/design/new" id="newComponentBtn"
-            class="inline-flex h-9 items-center rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New component</a>
+        <button type="button" command="show-modal" commandfor="dialog" id="newComponentBtn"
+            class="inline-flex h-9 items-center rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New component</button>
         </div>
     </div>
 
@@ -103,6 +103,8 @@
         <button type="button" id="importGo" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50">Import</button>
     </div>
 </dialog>
+
+{{> component-playground/index}}
 
 <script id="libraryData" type="application/json">{{{libraryJson}}}</script>
 <script>window.__LIB = { mcpUrl: "{{mcpUrl}}" };</script>

@@ -10,9 +10,9 @@ export function agentMain() {
     const hoverBox = document.createElement("div");
     const selBox = document.createElement("div");
     const tagLabel = document.createElement("div");
-    hoverBox.style.cssText = "position:absolute;border:1px solid #3b82f6;background:rgba(59,130,246,.07);pointer-events:none;display:none;box-sizing:border-box;";
-    selBox.style.cssText = "position:absolute;border:2px solid #2563eb;pointer-events:none;display:none;box-sizing:border-box;";
-    tagLabel.style.cssText = "position:absolute;background:#2563eb;color:#fff;font:600 11px/1 system-ui,sans-serif;padding:3px 6px;border-radius:3px;display:none;white-space:nowrap;pointer-events:none;";
+    hoverBox.style.cssText = "position:absolute;border:1px solid #0d99ff;background:rgba(13,153,255,.06);pointer-events:none;display:none;box-sizing:border-box;";
+    selBox.style.cssText = "position:absolute;border:1.5px solid #0d99ff;pointer-events:none;display:none;box-sizing:border-box;";
+    tagLabel.style.cssText = "position:absolute;background:#0d99ff;color:#fff;font:500 11px/1 Inter,system-ui,sans-serif;padding:3px 6px;border-radius:2px;display:none;white-space:nowrap;pointer-events:none;";
     overlay.append(hoverBox, selBox, tagLabel);
     root.appendChild(overlay);
 
@@ -60,11 +60,10 @@ export function agentMain() {
         } else tagLabel.style.display = "none";
     };
 
-    const ATTRS = ["src", "href", "alt", "placeholder", "type", "value", "title", "id", "name", "target", "srcset"];
-    const describe = (el) => {
+        const describe = (el) => {
         if (!el) return null;
         const attrs = {};
-        ATTRS.forEach((a) => { if (el.hasAttribute(a)) attrs[a] = el.getAttribute(a); });
+        Array.prototype.forEach.call(el.attributes, (a) => { if (a.name !== "class" && a.name !== "style" && a.name !== "contenteditable") attrs[a.name] = a.value; });
         const crumbs = [];
         for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
             crumbs.unshift({ tag: n.tagName.toLowerCase(), path: n === document.body ? [] : pathOf(n) });
@@ -73,6 +72,7 @@ export function agentMain() {
             path: el === document.body ? [] : pathOf(el),
             tag: el.tagName.toLowerCase(),
             classes: el.getAttribute("class") || "",
+            style: el.getAttribute("style") || "",
             leaf: el.children.length === 0,
             text: el.children.length === 0 ? el.textContent : null,
             attrs,
@@ -163,7 +163,7 @@ export function agentMain() {
     const mutate = {
         setClasses: (el, m) => { m.value ? el.setAttribute("class", m.value) : el.removeAttribute("class"); },
         setText: (el, m) => { if (el.children.length === 0) el.textContent = m.text; },
-        setAttr: (el, m) => { m.value === null || m.value === "" ? el.removeAttribute(m.name) : el.setAttribute(m.name, m.value); },
+        setAttr: (el, m) => { m.value === null ? el.removeAttribute(m.name) : el.setAttribute(m.name, m.value); },
         remove: (el) => { const p = el.parentElement; el.remove(); sel = p && p !== document.documentElement ? p : null; },
         duplicate: (el) => { const c = el.cloneNode(true); el.after(c); sel = c; },
         move: (el, m) => {

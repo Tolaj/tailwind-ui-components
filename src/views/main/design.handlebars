@@ -1,7 +1,7 @@
 <div class="flex h-screen flex-col">
-    <header class="flex h-12 shrink-0 items-center gap-3 border-b border-neutral-200 bg-white px-3 text-[13px]">
+    <header class="flex h-10 shrink-0 items-center gap-2 border-b border-neutral-200 bg-white px-2 text-[12px]">
         <a href="/library" id="backLink" class="flex items-center gap-1 rounded-md px-2 py-1 text-neutral-600 hover:bg-neutral-100" title="Back to library">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>Library</a>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg><span id="backLabel">Library</span></a>
         <div class="h-5 w-px bg-neutral-200"></div>
         <button id="detailsBtn" type="button" class="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 hover:bg-neutral-100" title="Name, category, tags and visibility">
             <span id="titleText" class="truncate font-semibold text-neutral-900"></span>
@@ -10,10 +10,10 @@
         </button>
 
         <div class="relative">
-            <button id="addBtn" type="button" class="h-8 rounded-md border border-neutral-300 px-3 text-xs font-medium hover:bg-neutral-50">+ Add</button>
+            <button id="addBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs font-medium hover:bg-neutral-50">+ Add</button>
             <div id="addMenu" class="absolute left-0 top-9 z-30 hidden w-48 rounded-lg border border-neutral-200 bg-white p-1 shadow-[0_6px_20px_rgba(0,0,0,.12)]"></div>
         </div>
-        <button id="codeBtn" type="button" class="h-8 rounded-md border border-neutral-300 px-3 text-xs font-medium hover:bg-neutral-50" title="View and edit the HTML">Code</button>
+        <button id="codeBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs font-medium hover:bg-neutral-50" title="View and edit the HTML">Code</button>
 
         <div class="ml-auto flex items-center gap-2">
             <div class="flex items-center gap-0.5">
@@ -26,24 +26,25 @@
                 <button type="button" data-device="768" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium">Tablet</button>
                 <button type="button" data-device="390" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium">Mobile</button>
             </div>
-            <select id="zoomSel" class="h-8 rounded-md border border-neutral-300 bg-white px-2 text-xs"><option value="fit">Fit</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option></select>
+            <select id="zoomSel" class="h-7 rounded-md border border-neutral-200 bg-white px-1 text-xs"><option value="fit">Fit</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option></select>
             <div id="modeSeg" class="seg flex overflow-hidden rounded-md border border-neutral-300">
                 <button type="button" data-mode="edit" class="is-on px-2.5 py-1 text-xs font-medium">Edit</button>
                 <button type="button" data-mode="preview" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium" title="Run it with its JavaScript">Preview</button>
             </div>
             <span id="saveState" class="min-w-[70px] text-right text-xs text-neutral-500"></span>
-            <button id="saveBtn" type="button" class="h-8 rounded-md bg-black px-4 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-40">Save</button>
+            <button id="saveBtn" type="button" class="h-7 rounded-md bg-[#0d99ff] px-4 text-xs font-semibold text-white hover:bg-[#0a84e0] disabled:opacity-40">Save</button>
         </div>
     </header>
 
     <div class="flex min-h-0 flex-1">
-        <aside class="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
-            <div class="border-b border-neutral-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Layers</div>
+        <aside class="flex w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
+            <div class="border-b border-neutral-200 px-3 py-2.5 text-[11px] font-semibold">Layers</div>
             <div id="layers" class="min-h-0 flex-1 overflow-auto p-1 text-[12px]"></div>
         </aside>
 
         <section class="relative flex min-w-0 flex-1 flex-col">
             <main id="canvas" class="relative min-h-0 flex-1 overflow-auto bg-neutral-100 p-6">
+                <div id="frameLabel" class="mx-auto mb-1.5 truncate text-[11px] text-neutral-500"></div>
                 <div id="frameWrap" class="mx-auto">
                     <iframe id="frame" title="Design canvas" sandbox="allow-scripts" class="block origin-top-left bg-white shadow-[0_1px_3px_rgba(0,0,0,.15)]" style="border:0;transform-origin:0 0"></iframe>
                 </div>
@@ -76,9 +77,8 @@
             </div>
         </section>
 
-        <aside class="flex w-72 shrink-0 flex-col border-l border-neutral-200 bg-white">
-            <div class="border-b border-neutral-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Inspector</div>
-            <div id="inspector" class="min-h-0 flex-1 overflow-auto text-[12px]"></div>
+        <aside class="flex w-[288px] shrink-0 flex-col border-l border-neutral-200 bg-white">
+            <div id="inspector" class="min-h-0 flex-1 overflow-auto"></div>
         </aside>
     </div>
 </div>

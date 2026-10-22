@@ -1,12 +1,38 @@
 import { parseComponentSource, buildPreviewDocument } from "../playground/component-source.js";
 import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
-import { HUES, SHADES, getGroup, setGroup } from "./class-groups.js";
+import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
+import { ui, variant, val, renderInspectorHtml, mountDatalists } from "./inspector.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const data = JSON.parse($("designData").textContent);
+
+// Coming from the quick Add Component dialog: pick up the code and details it handed over.
+if (!data.id && new URLSearchParams(window.location.search).has("draft")) {
+    try {
+        const d = JSON.parse(sessionStorage.getItem("wc:draft") || "null");
+        if (d) {
+            Object.assign(data, {
+                htmlCode: d.html || "", title: d.title || "", category: d.category || "", description: d.description || "",
+                tags: String(d.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: d.isPublished !== "false",
+            });
+            sessionStorage.removeItem("wc:draft");
+        }
+    } catch { /* ignore a bad draft */ }
+    window.history.replaceState({}, "", "/design/new");
+}
+
+// Back returns to wherever the editor was opened from (the Library link is the fallback).
+try {
+    const ref = document.referrer ? new URL(document.referrer) : null;
+    if (ref && ref.origin === window.location.origin && !ref.pathname.startsWith("/design")) {
+        $("backLink").href = ref.href;
+        $("backLink").title = "Back";
+        $("backLabel").textContent = "Back";
+    }
+} catch { /* keep the Library link */ }
 let parsed = parseComponentSource(data.htmlCode);
 const model = { markup: parsed.markup };
 const isTailwindScript = (s) => s.src && /tailwindcss/i.test(s.src);
@@ -107,12 +133,14 @@ function layout() {
     frame.style.height = `${h}px`;
     frame.style.transform = scale === 1 ? "none" : `scale(${scale})`;
     const wrap = $("frameWrap");
+    $("frameLabel").style.width = `${device * scale}px`;
+    $("frameLabel").textContent = `${{ 1280: "Desktop", 768: "Tablet", 390: "Mobile" }[device] || "Custom"}  ·  ${device}  ·  ${Math.round(scale * 100)}%`;
     wrap.style.width = `${device * scale}px`;
     wrap.style.height = `${h * scale}px`;
 }
 
 // ── Messages from the frame ──────────────────────────────────────────────────
-const inspectorEditing = () => $("inspector").contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-live]") && $("inspector").contains(document.activeElement));
 
 window.addEventListener("message", (e) => {
     if (e.source !== frame.contentWindow) return;
@@ -154,7 +182,7 @@ function layerNode(n, depth) {
     const has = n.children.length > 0;
     const isCollapsed = collapsed.has(key);
     const isSel = selected && pathKey(selected.path) === key;
-    const row = `<div class="layer-row flex cursor-pointer items-center gap-1 rounded px-1 py-[3px] ${isSel ? "is-selected" : "hover:bg-neutral-100"}" style="padding-left:${depth * 12 + 4}px" data-path="${key}" ${n.tag === "body" ? "" : 'draggable="true"'}>
+    const row = `<div class="layer-row cursor-pointer gap-1 px-1 ${isSel ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-path="${key}" ${n.tag === "body" ? "" : 'draggable="true"'}>
         <span data-caret="${key}" class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400">${has ? (isCollapsed ? "▸" : "▾") : ""}</span>
         <span class="shrink-0 font-mono text-[11px] text-neutral-500">${n.tag}</span>
         <span class="truncate text-neutral-800">${esc(n.label)}</span></div>`;
@@ -205,105 +233,55 @@ $("layers").addEventListener("drop", (e) => {
 });
 $("layers").addEventListener("dragend", () => { clearDrop(); dragPath = null; });
 
-// ── Inspector ────────────────────────────────────────────────────────────────
-const SIZES = ["xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl"];
-const WEIGHTS = ["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black"];
-const STEPS = ["0", "1", "2", "3", "4", "5", "6", "8", "10", "12", "16", "20", "24"];
-const RADII = [["none", "None"], ["sm", "Small"], ["md", "Medium"], ["lg", "Large"], ["xl", "XL"], ["2xl", "2XL"], ["3xl", "3XL"], ["full", "Full"]];
-const SHADOWS = ["sm", "md", "lg", "xl", "2xl"];
-
-const section = (title, body) => `<div class="border-b border-neutral-200 p-3"><p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">${title}</p><div class="space-y-2">${body}</div></div>`;
-const row = (label, control) => `<label class="flex items-center gap-2"><span class="w-16 shrink-0 text-neutral-500">${label}</span><div class="min-w-0 flex-1">${control}</div></label>`;
-
-function select(group, current, options, prefix) {
-    const opts = [`<option value="">-</option>`, ...options.map(([v, label]) => `<option value="${prefix}${v}" ${current === `${prefix}${v}` ? "selected" : ""}>${label}</option>`)].join("");
-    return `<select class="field" data-group="${group}">${opts}</select>`;
-}
-const simple = (arr) => arr.map((v) => [v, v]);
-
-function segmented(group, current, items) {
-    return `<div class="seg flex overflow-hidden rounded-md border border-neutral-300">${items.map(([value, label], i) =>
-        `<button type="button" data-act="class" data-group="${group}" data-value="${current === value ? "" : value}" class="flex-1 px-1.5 py-1 text-[11px] ${i ? "border-l border-neutral-300" : ""} ${current === value ? "is-on" : ""}">${label}</button>`).join("")}</div>`;
-}
-
-function palette(group, prefix, current) {
-    const swatch = (name, bg) => `<button type="button" title="${name}" data-act="class" data-group="${group}" data-value="${current === `${prefix}${name}` ? "" : `${prefix}${name}`}" class="swatch ${bg} ${current === `${prefix}${name}` ? "is-on" : ""}"></button>`;
-    const special = [["black", "bg-black"], ["white", "bg-white"], ["transparent", "swatch-t"]];
-    const hues = HUES.map((h) => `<div class="flex gap-1">${SHADES.map((s) => swatch(`${h}-${s}`, `bg-${h}-${s}`)).join("")}</div>`).join("");
-    return `<div class="flex flex-wrap gap-1">${special.map(([n, bg]) => swatch(n, bg)).join("")}</div><div class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">${hues}</div>`;
-}
+// ── Inspector (see inspector.js for the controls) ───────────────────────────
+const insp = $("inspector");
 
 function renderInspector() {
-    const el = $("inspector");
-    if (!selected) {
-        el.innerHTML = `<div class="p-4 text-neutral-500">Select an element on the canvas, or in Layers, to edit it.</div>`;
-        return;
-    }
-    const s = selected;
-    const c = s.classes;
-    const g = (k) => getGroup(c, k);
-    const isBody = s.tag === "body";
-    const crumbs = s.crumbs.map((cr, i) => `<button type="button" data-crumb="${pathKey(cr.path)}" class="rounded px-1 hover:bg-neutral-100 ${i === s.crumbs.length - 1 ? "font-semibold text-neutral-900" : "text-neutral-500"}">${cr.tag}</button>`).join('<span class="text-neutral-300">/</span>');
-
-    const attrFields = [];
-    if (s.tag === "img") attrFields.push(["src", "Image URL"], ["alt", "Alt text"]);
-    if (s.tag === "a") attrFields.push(["href", "Link"], ["target", "Target"]);
-    if (["input", "textarea"].includes(s.tag)) attrFields.push(["placeholder", "Placeholder"], ["type", "Type"], ["value", "Value"]);
-    if (s.tag === "button") attrFields.push(["type", "Type"]);
-    attrFields.push(["id", "ID"]);
-
-    const content =
-        (s.leaf && !["img", "input", "hr", "br"].includes(s.tag) ? `<textarea class="field" rows="3" data-field="text" placeholder="Text">${esc(s.text)}</textarea>` : "") +
-        attrFields.map(([a, label]) => row(label, `<input class="field" data-attr="${a}" value="${esc(s.attrs[a] || "")}">`)).join("");
-
-    el.innerHTML =
-        `<div class="flex flex-wrap items-center gap-0.5 border-b border-neutral-200 px-3 py-2 text-[11px]">${crumbs}</div>` +
-        (isBody ? "" : `<div class="flex gap-1 border-b border-neutral-200 p-2">
-            <button type="button" data-do="up" class="h-7 flex-1 rounded-md border border-neutral-300 text-[11px] hover:bg-neutral-50" title="Move earlier">Up</button>
-            <button type="button" data-do="down" class="h-7 flex-1 rounded-md border border-neutral-300 text-[11px] hover:bg-neutral-50" title="Move later">Down</button>
-            <button type="button" data-do="duplicate" class="h-7 flex-1 rounded-md border border-neutral-300 text-[11px] hover:bg-neutral-50" title="Ctrl/Cmd+D">Duplicate</button>
-            <button type="button" data-do="remove" class="h-7 flex-1 rounded-md border border-neutral-300 text-[11px] text-red-700 hover:bg-red-50" title="Delete">Delete</button></div>`) +
-        section("Ask AI", `<textarea id="aiInput" class="field" rows="2" placeholder="e.g. make this a dark card with a larger title"></textarea><button type="button" data-do="ai" class="h-8 w-full rounded-md bg-black text-[12px] font-medium text-white hover:bg-neutral-800">Apply to this element</button><p id="aiNote" class="hidden text-[11px]"></p>`) +
-        (content ? section("Content", content) : "") +
-        section("Typography",
-            row("Size", select("fontSize", g("fontSize"), simple(SIZES), "text-")) +
-            row("Weight", select("fontWeight", g("fontWeight"), simple(WEIGHTS), "font-")) +
-            row("Align", segmented("textAlign", g("textAlign"), [["text-left", "Left"], ["text-center", "Center"], ["text-right", "Right"]])) +
-            `<p class="text-neutral-500">Color</p>${palette("textColor", "text-", g("textColor"))}`) +
-        section("Fill", palette("bgColor", "bg-", g("bgColor"))) +
-        section("Spacing",
-            row("Padding", select("p", g("p"), simple(STEPS), "p-")) +
-            row("Pad X", select("px", g("px"), simple(STEPS), "px-")) +
-            row("Pad Y", select("py", g("py"), simple(STEPS), "py-")) +
-            row("Top", select("mt", g("mt"), simple(STEPS), "mt-")) +
-            row("Bottom", select("mb", g("mb"), simple(STEPS), "mb-")) +
-            row("Gap", select("gap", g("gap"), simple(STEPS), "gap-"))) +
-        section("Shape",
-            row("Radius", select("radius", g("radius"), RADII, "rounded-")) +
-            row("Shadow", select("shadow", g("shadow"), simple(SHADOWS), "shadow-")) +
-            row("Border", select("borderWidth", g("borderWidth"), [["", "1px"], ["-2", "2px"], ["-4", "4px"]], "border")) +
-            `<p class="text-neutral-500">Border color</p>${palette("borderColor", "border-", g("borderColor"))}`) +
-        section("Layout",
-            row("Display", select("display", g("display"), simple(["block", "flex", "grid", "inline-block", "hidden"]), "")) +
-            row("Direction", segmented("flexDir", g("flexDir"), [["flex-row", "Row"], ["flex-col", "Column"]])) +
-            row("Justify", select("justify", g("justify"), simple(["start", "center", "end", "between", "around", "evenly"]), "justify-")) +
-            row("Align", select("items", g("items"), simple(["start", "center", "end", "stretch", "baseline"]), "items-")) +
-            row("Width", select("width", g("width"), simple(["auto", "full", "fit", "screen", "1/2", "1/3", "2/3", "1/4", "3/4"]), "w-"))) +
-        section("Classes", `<textarea class="field" rows="4" data-field="classes" spellcheck="false">${esc(c)}</textarea>`);
+    const top = insp.scrollTop;
+    insp.innerHTML = renderInspectorHtml(selected);
+    insp.scrollTop = top;
 }
 
-function applyGroup(group, value) {
-    const next = setGroup(selected.classes, group, value);
+function applyValue(key, value) {
+    if (!selected) return;
+    const next = setGroup(selected.classes, key, value, variant());
+    if (next === null) return renderInspector();
     selected.classes = next;
     cmd({ cmd: "setClasses", path: selected.path, value: next });
 }
 
-$("inspector").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-act='class']");
-    if (b) return applyGroup(b.dataset.group, b.dataset.value);
-    const crumb = e.target.closest("[data-crumb]");
+function applyColor(key, name, op) {
+    const o = op === undefined ? (val(selected, key).match(/\/(\d+)$/) || [])[1] || "" : op;
+    const base = /^(#|rgb|hsl)/.test(name) ? `[${name.replace(/\s+/g, "_")}]` : name;
+    applyValue(key, base ? base + (o && o !== "100" ? `/${o}` : "") : "");
+}
+
+function setDevice(w) {
+    device = w;
+    document.querySelectorAll("#deviceSeg button").forEach((b) => b.classList.toggle("is-on", b.dataset.device === String(w)));
+    if (mode === "preview") loadFrame();
+    layout();
+}
+
+const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClasses", path: selected.path, value: next }); };
+
+insp.addEventListener("click", (e) => {
+    const t = e.target;
+    const tab = t.closest("[data-tab]");
+    if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
+    const sec = t.closest("[data-sec]");
+    if (sec) { ui.open.has(sec.dataset.sec) ? ui.open.delete(sec.dataset.sec) : ui.open.add(sec.dataset.sec); return renderInspector(); }
+    const sg = t.closest("[data-seg]");
+    if (sg) return applyValue(sg.dataset.seg, sg.dataset.v);
+    const pal = t.closest("[data-pal]");
+    if (pal) { ui.palette = ui.palette === pal.dataset.pal ? null : pal.dataset.pal; return renderInspector(); }
+    const cv = t.closest("[data-cv]");
+    if (cv && ui.palette) return applyColor(ui.palette, cv.dataset.cv);
+    const crumb = t.closest("[data-crumb]");
     if (crumb) return send({ cmd: "select", path: parsePath(crumb.dataset.crumb) });
-    const d = e.target.closest("[data-do]");
+    const rm = t.closest("[data-rm]");
+    if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
+    const d = t.closest("[data-do]");
     if (!d || !selected) return;
     const path = selected.path;
     if (d.dataset.do === "up") cmd({ cmd: "move", path, dir: -1 });
@@ -312,15 +290,52 @@ $("inspector").addEventListener("click", (e) => {
     if (d.dataset.do === "remove") cmd({ cmd: "remove", path });
     if (d.dataset.do === "ai") askAI();
 });
-$("inspector").addEventListener("change", (e) => {
-    if (e.target.matches("select[data-group]")) applyGroup(e.target.dataset.group, e.target.value);
+
+insp.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!selected) return;
+    if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
+    if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());
+    if (t.dataset.cop !== undefined) {
+        const name = val(selected, t.dataset.cop).replace(/\/\d+$/, "");
+        return name ? applyColor(t.dataset.cop, name, t.value.trim()) : renderInspector();
+    }
+    if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value);
+    if (t.matches("[data-bp]")) { ui.bp = t.value; setDevice(BREAKPOINT_WIDTH[ui.bp]); return renderInspector(); }
+    if (t.matches("[data-st]")) { ui.st = t.value; return renderInspector(); }
+    const stRow = t.closest("[data-stylerow]");
+    if (stRow) {
+        const css = [...insp.querySelectorAll("[data-stylerow]")]
+            .map((r) => { const [k, v] = r.querySelectorAll("input"); return k.value.trim() && v.value.trim() ? `${k.value.trim()}: ${v.value.trim()}` : ""; })
+            .filter(Boolean).join("; ");
+        return cmd({ cmd: "setAttr", path: selected.path, name: "style", value: css ? css + ";" : null });
+    }
+    const aRow = t.closest("[data-arow]");
+    if (aRow) {
+        const [k, v] = aRow.querySelectorAll("input");
+        const old = aRow.dataset.old;
+        if (old && old !== k.value.trim()) cmd({ cmd: "setAttr", path: selected.path, name: old, value: null });
+        if (k.value.trim()) cmd({ cmd: "setAttr", path: selected.path, name: k.value.trim(), value: v.value });
+    }
 });
-$("inspector").addEventListener("input", (e) => {
+
+insp.addEventListener("input", (e) => {
     if (!selected) return;
     const t = e.target;
     if (t.dataset.field === "text") cmd({ cmd: "setText", path: selected.path, text: t.value }, "text");
     else if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
-    else if (t.dataset.attr) cmd({ cmd: "setAttr", path: selected.path, name: t.dataset.attr, value: t.value }, `attr-${t.dataset.attr}`);
+    else if (t.dataset.attr) cmd({ cmd: "setAttr", path: selected.path, name: t.dataset.attr, value: t.value === "" ? null : t.value }, `attr-${t.dataset.attr}`);
+});
+
+insp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.matches("[data-addclass]") && selected) {
+        e.preventDefault();
+        const add = e.target.value.split(/\s+/).filter(Boolean);
+        if (!add.length) return;
+        const cur = selected.classes.split(/\s+/).filter(Boolean);
+        setClassString([...cur, ...add.filter((c) => !cur.includes(c))].join(" "));
+        e.target.value = "";
+    }
 });
 
 // ── Ask AI about the selected element ────────────────────────────────────────
@@ -373,14 +388,7 @@ async function askAI() {
 function setSeg(id, attr, value) {
     document.querySelectorAll(`#${id} button`).forEach((b) => b.classList.toggle("is-on", b.dataset[attr] === String(value)));
 }
-$("deviceSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-device]");
-    if (!b) return;
-    device = Number(b.dataset.device);
-    setSeg("deviceSeg", "device", device);
-    if (mode === "preview") loadFrame();
-    layout();
-});
+$("deviceSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-device]"); if (b) setDevice(Number(b.dataset.device)); });
 $("modeSeg").addEventListener("click", (e) => {
     const b = e.target.closest("[data-mode]");
     if (!b || b.dataset.mode === mode) return;
@@ -609,6 +617,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
 });
 
 // ── Go ───────────────────────────────────────────────────────────────────────
+mountDatalists();
 updateChrome();
 renderInspector();
 loadFrame();

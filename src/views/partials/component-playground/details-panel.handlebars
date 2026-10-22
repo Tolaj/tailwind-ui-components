@@ -1,0 +1,95 @@
+{{!-- Details Panel --}}
+<div id="detailsPanel" class="absolute inset-0 z-10 hidden flex-col overflow-y-auto bg-neutral-50">
+    <div class="mx-auto w-full max-w-lg px-6 py-12">
+        <h3 class="text-2xl font-semibold tracking-[-0.035em] text-neutral-900">Component details</h3>
+        <p class="mt-1 text-sm text-neutral-500">Tell people what this component is so they can find it.</p>
+
+        <div class="mt-8 space-y-5 rounded-lg border border-neutral-200 bg-white p-6">
+            <div class="space-y-1.5">
+                <label for="title" class="block text-[13px] font-medium text-neutral-800">Title</label>
+                <input type="text" id="title" name="title" placeholder="Gradient hero section" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900" required>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="category" class="block text-[13px] font-medium text-neutral-800">Category</label>
+                <select id="category" name="category" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900" required>
+                    <option value="" disabled selected class="text-gray-400">Select a category</option>
+                    <optgroup label="Marketing">
+                        <option value="marketing-hero">Hero Sections</option>
+                        <option value="marketing-hero-forms">Hero Forms</option>
+                        <option value="marketing-icons">Icon Sections</option>
+                        <option value="marketing-pricing">Pricing Sections</option>
+                        <option value="marketing-faq">FAQ Sections</option>
+                        <option value="marketing-blog">Blog Sections</option>
+                        <option value="marketing-testimonials">Testimonials</option>
+                        <option value="marketing-team">Team Sections</option>
+                        <option value="marketing-features">Features</option>
+                        <option value="marketing-announcements">Announcement Banners</option>
+                        <option value="marketing-cards">Card Sections</option>
+                        <option value="marketing-clients">Clients Sections</option>
+                        <option value="marketing-galleries">Galleries</option>
+                        <option value="marketing-timeline">Timeline</option>
+                    </optgroup>
+                    <optgroup label="UI Components">
+                        <option value="ui-dropdowns">Dropdowns</option>
+                        <option value="ui-selects">Selects</option>
+                        <option value="ui-buttons">Button Groups</option>
+                        <option value="ui-modals">Modals</option>
+                        <option value="ui-cookie-banners">Cookie Banners</option>
+                    </optgroup>
+                    <optgroup label="Navigation">
+                        <option value="navigation-navbars">Navbars / Headers</option>
+                        <option value="navigation-mega-menu">Mega Menu</option>
+                    </optgroup>
+                    <optgroup label="Layout">
+                        <option value="layout-basic">Layouts</option>
+                    </optgroup>
+                    <optgroup label="Forms">
+                        <option value="forms-authentication">Authentication</option>
+                        <option value="forms-feedback">Feedback</option>
+                        <option value="forms-subscribe">Subscribe</option>
+                        <option value="forms-textarea">Textarea Inputs</option>
+                    </optgroup>
+                    <optgroup label="Pages">
+                        <option value="pages-pricing">Pricing Page</option>
+                    </optgroup>
+                    <optgroup label="E-Commerce">
+                        <option value="ecommerce-products">Product Listings</option>
+                    </optgroup>
+                    <optgroup label="Applications">
+                        <option value="apps-general">Application Components</option>
+                        <option value="apps-invoice">Invoice</option>
+                        <option value="apps-tables">Tables</option>
+                        <option value="apps-stats">Stats</option>
+                        <option value="apps-charts">Charts</option>
+                        <option value="apps-ai-prompt">AI Prompt</option>
+                    </optgroup>
+                    <optgroup label="Footer">
+                        <option value="footer-contact">Contact Sections</option>
+                        <option value="footer-footers">Footers</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="tags" class="block text-[13px] font-medium text-neutral-800">Tags</label>
+                <input type="text" id="tags" name="tags" placeholder="hero, dark, saas (comma separated)" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900">
+                <p class="text-xs text-neutral-500">Tags make components easy to find, and help AI and coding agents pick the right one.</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="isPublished" class="block text-[13px] font-medium text-neutral-800">Visibility</label>
+                <select id="isPublished" name="isPublished" class="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900">
+                    <option value="true">Public gallery and my library</option>
+                    <option value="false">My library only (private)</option>
+                </select>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="description" class="block text-[13px] font-medium text-neutral-800">Description</label>
+                <textarea id="description" name="description" rows="5" placeholder="Describe what this component does and when to use it"
+                    class="w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 py-2.5 resize-none" required></textarea>
+            </div>
+        </div>
+    </div>
+</div>
