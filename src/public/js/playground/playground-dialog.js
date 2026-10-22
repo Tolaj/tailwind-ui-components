@@ -9,17 +9,16 @@ function updateStepIndicators(step) {
     const s2Text = document.querySelector('#stepIndicator2 span');
     if (!s1Dot) return;
 
-    if (step === 1) {
-        s1Dot.className = 'w-2 h-2 rounded-full bg-white';
-        s1Text.className = 'text-xs text-white font-medium';
-        s2Dot.className = 'w-2 h-2 rounded-full bg-gray-600';
-        s2Text.className = 'text-xs text-gray-500 font-medium';
-    } else {
-        s1Dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
-        s1Text.className = 'text-xs text-emerald-400 font-medium';
-        s2Dot.className = 'w-2 h-2 rounded-full bg-white';
-        s2Text.className = 'text-xs text-white font-medium';
-    }
+    const on = 'h-2 w-2 rounded-full bg-neutral-900';
+    const off = 'h-2 w-2 rounded-full bg-neutral-300';
+    const done = 'h-2 w-2 rounded-full bg-[#0b7a3e]';
+    const textOn = 'font-medium text-neutral-900';
+    const textOff = 'font-medium text-neutral-400';
+
+    s1Dot.className = step === 1 ? on : done;
+    s1Text.className = textOn;
+    s2Dot.className = step === 1 ? off : on;
+    s2Text.className = step === 1 ? textOff : textOn;
 }
 
 export const handleNext = () => {

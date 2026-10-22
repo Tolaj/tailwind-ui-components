@@ -15,8 +15,8 @@
 //     const msg = document.createElement("div");
 //     msg.className =
 //         role === "user"
-//             ? "ml-auto bg-white text-black text-xs px-3 py-2 rounded-xl max-w-[85%] break-words"
-//             : "bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-3 py-2 rounded-xl max-w-[85%] break-words";
+//             ? "ml-auto bg-black text-white text-xs px-3 py-2 rounded-md max-w-[85%] break-words"
+//             : "bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs px-3 py-2 rounded-md max-w-[85%] break-words";
 //     msg.textContent = text;
 //     container.appendChild(msg);
 //     container.scrollTop = container.scrollHeight;
@@ -112,8 +112,8 @@
 //     container.classList.remove("hidden");
 //     const msg = document.createElement("div");
 //     msg.className = role === "user"
-//         ? "ml-auto bg-white text-black text-xs px-3 py-2 rounded-xl max-w-[85%] break-words"
-//         : "bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-3 py-2 rounded-xl max-w-[85%] break-words";
+//         ? "ml-auto bg-black text-white text-xs px-3 py-2 rounded-md max-w-[85%] break-words"
+//         : "bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs px-3 py-2 rounded-md max-w-[85%] break-words";
 //     msg.textContent = text;
 //     container.appendChild(msg);
 //     container.scrollTop = container.scrollHeight;
@@ -281,8 +281,8 @@
 //     container.classList.remove("hidden");
 //     const msg = document.createElement("div");
 //     msg.className = role === "user"
-//         ? "ml-auto bg-white text-black text-xs px-3 py-2 rounded-xl max-w-[85%] break-words"
-//         : "bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-3 py-2 rounded-xl max-w-[85%] break-words";
+//         ? "ml-auto bg-black text-white text-xs px-3 py-2 rounded-md max-w-[85%] break-words"
+//         : "bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs px-3 py-2 rounded-md max-w-[85%] break-words";
 //     msg.textContent = text;
 //     container.appendChild(msg);
 //     container.scrollTop = container.scrollHeight;
@@ -563,8 +563,8 @@ const addAIMessage = (text, role = "ai") => {
     container.classList.remove("hidden");
     const msg = document.createElement("div");
     msg.className = role === "user"
-        ? "ml-auto bg-white text-black text-xs px-3 py-2 rounded-xl max-w-[85%] break-words"
-        : "bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-3 py-2 rounded-xl max-w-[85%] break-words";
+        ? "ml-auto bg-black text-white text-xs px-3 py-2 rounded-md max-w-[85%] break-words"
+        : "bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs px-3 py-2 rounded-md max-w-[85%] break-words";
     msg.textContent = text;
     container.appendChild(msg);
     container.scrollTop = container.scrollHeight;

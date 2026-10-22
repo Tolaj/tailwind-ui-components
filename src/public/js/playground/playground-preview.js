@@ -115,16 +115,16 @@ export const handleMovement = () => {
         // Remove if exists
         existingStyle.remove();
         movementButton.classList.remove("bg-slate-200")
-        movementButton.classList.add("text-white")
+        movementButton.classList.add("text-neutral-500")
         movementButton2.classList.remove("bg-slate-200")
-        movementButton2.classList.add("text-white")
+        movementButton2.classList.add("text-neutral-500")
         previewController.setActiveTool("SELECT");
 
     } else {
         movementButton.classList.add("bg-slate-200")
-        movementButton.classList.remove("text-white")
+        movementButton.classList.remove("text-neutral-500")
         movementButton2.classList.add("bg-slate-200")
-        movementButton2.classList.remove("text-white")
+        movementButton2.classList.remove("text-neutral-500")
         // Add if not exists
         const style = document.createElement("style");
         style.id = styleId;

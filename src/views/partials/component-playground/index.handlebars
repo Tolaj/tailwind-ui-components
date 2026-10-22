@@ -4,64 +4,54 @@
         class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
 
         <el-dialog-backdrop
-            class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in">
+            class="fixed inset-0 bg-black/40 transition-opacity data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in">
         </el-dialog-backdrop>
 
-        <div class="flex min-h-full items-center justify-center p-4">
-
+        <div class="flex min-h-full items-center justify-center p-4 sm:p-8">
             <el-dialog-panel
-                class="relative transform w-[90%] max-w-7xl overflow-hidden rounded-2xl bg-gray-950 text-left shadow-2xl ring-1 ring-white/10 transition-all">
+                class="relative w-full max-w-6xl overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-[0_16px_48px_rgba(0,0,0,0.2)]">
 
-                {{!-- Header Bar --}}
-                <div class="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-gray-900/80">
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 cursor-pointer" onclick="handleClose()"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
-                        </div>
-                        <div class="h-4 w-px bg-white/10"></div>
-                        <span class="text-sm font-medium text-gray-300">Component Editor</span>
+                {{!-- Header --}}
+                <header class="flex h-14 items-center justify-between gap-4 border-b border-neutral-200 bg-white px-5">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <h2 class="text-[15px] font-semibold tracking-tight text-neutral-900 truncate">New component</h2>
                     </div>
 
-                    {{!-- Step Indicator --}}
-                    <div class="flex items-center gap-2">
-                        <div id="stepIndicator1" class="flex items-center gap-1.5">
-                            <div class="w-2 h-2 rounded-full bg-white"></div>
-                            <span class="text-xs text-white font-medium">Code</span>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                        <div id="stepIndicator2" class="flex items-center gap-1.5">
-                            <div class="w-2 h-2 rounded-full bg-gray-600"></div>
-                            <span class="text-xs text-gray-500 font-medium">Details</span>
-                        </div>
-                    </div>
+                    <ol class="hidden sm:flex items-center gap-2 text-[13px]" aria-label="Progress">
+                        <li id="stepIndicator1" class="flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-neutral-900"></div>
+                            <span class="font-medium text-neutral-900">Code</span>
+                        </li>
+                        <li aria-hidden="true" class="h-px w-6 bg-neutral-200"></li>
+                        <li id="stepIndicator2" class="flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-neutral-300"></div>
+                            <span class="font-medium text-neutral-400">Details</span>
+                        </li>
+                    </ol>
 
                     <div class="flex items-center gap-2">
                         <button id="cancelBtn" type="button" onclick="handleClose()"
-                            class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                            class="h-9 rounded-md border border-neutral-300 bg-white px-3.5 text-[13px] font-medium text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50">
                             Cancel
                         </button>
                         <button id="backBtn" type="button" onclick="handleBack()"
-                            class="hidden px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                            class="hidden h-9 rounded-md border border-neutral-300 bg-white px-3.5 text-[13px] font-medium text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50">
                             Back
                         </button>
                         <button id="nextBtn" type="button" onclick="handleNext()"
-                            class="px-4 py-1.5 text-xs font-medium text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition-colors">
-                            Next
+                            class="h-9 rounded-md bg-black px-4 text-[13px] font-medium text-white transition-colors hover:bg-neutral-800">
+                            Continue
                         </button>
                         <button id="submitBtn" type="submit" form="componentForm"
-                            class="hidden px-4 py-1.5 text-xs font-medium text-gray-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors">
+                            class="hidden h-9 rounded-md bg-black px-4 text-[13px] font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50">
                             Publish
                         </button>
                     </div>
-                </div>
+                </header>
 
-                <div class="h-[calc(100vh-10rem)] flex flex-col">
-                    <form id="componentForm" class="flex-1 flex min-h-0 relative" method="POST" action="javascript:void(0);"
-                        onsubmit="handleSave(event)">
+                <div class="h-[calc(100vh-10rem)] min-h-[420px] flex flex-col">
+                    <form id="componentForm" class="relative flex min-h-0 flex-1" method="POST"
+                        action="javascript:void(0);" onsubmit="handleSave(event)">
 
                         {{> component-playground/editor-panel}}
                         {{> component-playground/preview-panel}}
@@ -71,13 +61,12 @@
                 </div>
 
             </el-dialog-panel>
-
         </div>
 
     </dialog>
 </el-dialog>
 
 <script>
-    document.getElementById("htmlEditor").placeholder = '<div class="p-8">\n  <h1 class="text-3xl font-bold">Hello World</h1>\n  <p class="text-gray-600 mt-2">Start writing your component HTML here...</p>\n</div>';
+    document.getElementById("htmlEditor").placeholder = '<div class="p-8">\n  <h1 class="text-3xl font-bold">Hello world</h1>\n  <p class="mt-2 text-gray-600">Paste or write your component HTML here.</p>\n</div>';
 </script>
 <script type="module" src="/public/js/playground/playground.js"></script>
