@@ -8,6 +8,7 @@ import libraryRoutes from "./library.routes.js";
 import infoRoutes from "./info.routes.js";
 import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
+import designRoutes from "./design.routes.js";
 
 import {
     redirectIfAuthenticated,
@@ -25,6 +26,7 @@ const constructorMethod = (app) => {
     app.get("/my-components", (req, res) => res.redirect("/library"));
     app.use("/library", ensureAuth, libraryRoutes);
     app.use("/connect", ensureAuth, connectRoutes);
+    app.use("/design", ensureAuth, designRoutes);
 
 
     app.use("/", infoRoutes);

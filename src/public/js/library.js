@@ -65,6 +65,7 @@ function render() {
                     Use as AI reference
                 </label>
                 <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="/design/${i.id}" class="${btn} inline-flex items-center bg-black text-white hover:bg-neutral-800 border-black" title="Open in the visual design editor">Design</a>
                     <button class="${btn}" data-act="export" data-id="${i.id}">Export</button>
                     <button class="${btn}" data-act="history" data-id="${i.id}">History</button>
                     <button class="${btn}" data-act="edit" data-id="${i.id}">Edit</button>
