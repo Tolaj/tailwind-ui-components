@@ -6,9 +6,7 @@ const requestLogger = (req, res, next) => {
     let authStatus = "Non-Authenticated";
 
     if (req.session && req.session.user) {
-        const role =
-            req.session.user.role === "professor" ? "professor" : "student";
-        authStatus = `Authenticated ${role}`;
+        authStatus = `Authenticated (${req.session.user.email})`;
     }
 
     console.log(

@@ -9,7 +9,7 @@ router.get("/sign-in", (req, res) => {
 // Sign Out
 router.get('/sign-out', (req, res) => {
     return req.session.destroy(() => {
-        res.clearCookie('SlackOverflowSession');
+        res.clearCookie('TailwindUISession');
         res.redirect('/auth/sign-in');
     });
 });

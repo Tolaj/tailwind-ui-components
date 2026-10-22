@@ -22,13 +22,6 @@ const noCacheAuth = (req, res, next) => {
     next();
 };
 
-const ensureProfessor = (req, res, next) => {
-    if (!req.session.user || req.session.user.role !== "professor") {
-        return res.status(403).send("Access denied");
-    }
-    next();
-};
-
 const setSessionLocals = (req, res, next) => {
     res.locals.user = req.session?.user || null;
     next();
@@ -47,7 +40,6 @@ const ensureAuthAPI = (req, res, next) => {
 export {
     ensureAuth,
     ensureAuthAPI,
-    ensureProfessor,
     setSessionLocals,
     redirectIfAuthenticated,
     noCacheAuth,
