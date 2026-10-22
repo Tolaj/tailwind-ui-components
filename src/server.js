@@ -6,7 +6,12 @@ import connectDB from "./config/mongoConnection.js";
 
 const PORT = process.env.PORT || 3000;
 
-connectDB();
+// A failed first attempt must not crash the process: every request retries through ensureDb in app.js.
+connectDB().catch(() => {});
+
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled rejection:", reason);
+});
 
 // Vercel runs the exported app as a serverless function; everywhere else we listen.
 if (!process.env.VERCEL) {

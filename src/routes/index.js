@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import usersRoutes from "./user.routes.js";
 import authRoutes from "./auth.routes.js";
 import componentRoutes from "./component.routes.js";
@@ -19,6 +20,17 @@ import {
 } from "../middlewares/auth.js";
 
 const constructorMethod = (app) => {
+    // Health check: open /healthz to see whether the server can reach the database.
+    app.get("/healthz", async (req, res) => {
+        const started = Date.now();
+        try {
+            await mongoose.connection.db.admin().ping();
+            res.json({ ok: true, db: "up", ms: Date.now() - started, serverless: Boolean(process.env.VERCEL), node: process.version });
+        } catch (error) {
+            res.status(503).json({ ok: false, db: "down", ms: Date.now() - started });
+        }
+    });
+
     app.use("/", oauthRoutes);
     app.use("/users", usersRoutes);
     app.use("/auth", redirectIfAuthenticated, noCacheAuth, authRoutes)

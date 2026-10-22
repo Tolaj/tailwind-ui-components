@@ -5,8 +5,7 @@ import { parseDocument, splitSections } from "../public/js/shared/split-sections
 
 const MAX_HTML = 1_000_000;
 
-async function createOne(userId, { title, description, htmlCode, tags, project = null, kind = "component", parent = null, order = 0 }) {
-    return Component.create({
+const buildDoc = (userId, { title, description, htmlCode, tags, project = null, kind = "component", parent = null, order = 0 }) => ({
         title: String(title).slice(0, 80) || "Imported design",
         description: String(description || `Imported design: ${title}`).slice(0, 200),
         category: "apps-general",
@@ -16,8 +15,9 @@ async function createOne(userId, { title, description, htmlCode, tags, project =
         createdBy: userId,
         project, kind, parent, order,
         isPublished: false,
-    });
-}
+});
+
+const createOne = (userId, fields) => Component.create(buildDoc(userId, fields));
 
 /**
  * Saves a design as one "page" component and, when it has clear sections, one component per section.
@@ -41,23 +41,27 @@ export async function importDesign(userId, { title, html, description, tags = []
     });
     created.push(page);
 
-    const sections = [];
+    let sections = [];
     if (split) {
         const assets = [...doc.links, ...doc.styles].join("\n");
-        let order = 0;
-        for (const s of splitSections(doc.body)) {
-            sections.push(await createOne(userId, {
+        sections = await Component.insertMany(
+            splitSections(doc.body).map((s, order) => buildDoc(userId, {
                 title: `${pageTitle}: ${s.name}`,
                 description: `${s.name} section from "${pageTitle}"`,
                 htmlCode: `${assets ? assets + "\n" : ""}${s.html}`,
                 tags: [...baseTags, "section", s.kind],
-                project, kind: "section", parent: project ? page._id : null, order: order++,
-            }));
-        }
+                project, kind: "section", parent: project ? page._id : null, order,
+            }))
+        );
     }
 
     const all = [...created, ...sections];
-    (async () => { for (const c of all.slice(0, 12)) await enrichSpecWithAI(c._id, userId); })();
+    if (process.env.VERCEL) {
+        // Serverless freezes work started after the response, so give the page's AI summary a short, bounded wait.
+        await Promise.race([enrichSpecWithAI(page._id, userId), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    } else {
+        (async () => { for (const c of all.slice(0, 12)) await enrichSpecWithAI(c._id, userId); })();
+    }
 
     return {
         page: { id: String(page._id), title: page.title },
