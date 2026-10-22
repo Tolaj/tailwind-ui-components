@@ -9,9 +9,11 @@
         </button>
         <span id="projStats" class="text-neutral-500"></span>
         <div class="ml-auto flex items-center gap-2">
+            <button id="tidyBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs hover:bg-neutral-50" title="Reset every frame to the automatic arrangement">Tidy up</button>
+            <button id="fitBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs hover:bg-neutral-50" title="Zoom to fit everything (Shift+1)">Fit</button>
             <div class="flex items-center overflow-hidden rounded-md border border-neutral-200">
                 <button id="zoomOut" type="button" class="h-7 w-7 hover:bg-neutral-50" title="Zoom out">−</button>
-                <span id="zoomLabel" class="w-12 text-center text-[11px] text-neutral-600"></span>
+                <button id="zoomLabel" type="button" class="w-12 text-center text-[11px] text-neutral-600 hover:bg-neutral-50" title="Reset to 100%"></button>
                 <button id="zoomIn" type="button" class="h-7 w-7 hover:bg-neutral-50" title="Zoom in">+</button>
             </div>
             <a id="newPageBtn" href="#" class="inline-flex h-7 items-center rounded-md bg-[#0d99ff] px-3 text-xs font-semibold text-white hover:bg-[#0a84e0]">+ New page</a>
@@ -25,12 +27,15 @@
             <div id="outline" class="min-h-0 flex-1 overflow-auto p-1 text-[11px]"></div>
         </aside>
 
-        <main id="board" class="relative min-w-0 flex-1 overflow-auto bg-[#e5e5e5] p-8">
-            <div id="columns" class="flex items-start gap-10"></div>
-            <div id="boardEmpty" class="hidden mx-auto mt-24 max-w-md rounded-xl border border-dashed border-neutral-400 bg-white/70 p-8 text-center">
-                <h2 class="text-sm font-semibold text-neutral-900">This project is empty</h2>
-                <p class="mt-1 text-xs text-neutral-600">Press <strong>+ New page</strong>, or ask Claude to design a page and save it into this project.</p>
+        <main id="board" class="relative min-w-0 flex-1 overflow-hidden bg-[#e5e5e5]" style="cursor:grab;touch-action:none;user-select:none">
+            <div id="world" style="position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform"></div>
+            <div id="boardEmpty" class="pointer-events-none absolute inset-0 hidden items-center justify-center">
+                <div class="max-w-md rounded-xl border border-dashed border-neutral-400 bg-white/70 p-8 text-center">
+                    <h2 class="text-sm font-semibold text-neutral-900">This project is empty</h2>
+                    <p class="mt-1 text-xs text-neutral-600">Press <strong>+ New page</strong>, or ask Claude to design a page and save it into this project.</p>
+                </div>
             </div>
+            <p class="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white/80 px-3 py-1 text-[11px] text-neutral-500">Drag the background to pan, scroll to pan, Ctrl/Cmd + scroll to zoom, drag a frame to move it, double-click to open it</p>
         </main>
 
         <aside class="flex w-72 shrink-0 flex-col border-l border-neutral-200 bg-white">

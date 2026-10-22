@@ -58,6 +58,10 @@ const componentSchema = new mongoose.Schema(
             ref: "Component",
             default: null
         },
+        board: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null
+        },
         order: {
             type: Number,
             default: 0

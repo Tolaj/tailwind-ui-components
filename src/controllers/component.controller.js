@@ -125,8 +125,12 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef } = req.body;
+        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef, board } = req.body;
         let codeChanged = false;
+
+        if (board !== undefined) {
+            component.board = board && Number.isFinite(board.x) && Number.isFinite(board.y) ? { x: Math.round(board.x), y: Math.round(board.y) } : null;
+        }
 
         if (projectRef !== undefined) {
             const target = await resolveProject(req.session.user.id, projectRef);

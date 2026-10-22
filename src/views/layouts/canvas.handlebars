@@ -25,10 +25,16 @@
         .field:focus { outline: none; border-color: #0d99ff; }
         textarea.field { height: auto; padding: 6px 8px; font-family: ui-monospace, monospace; }
 
-        /* project board frames */
-        .frame { position: relative; overflow: hidden; background: #fff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.15); cursor: pointer; }
-        .frame:hover { outline: 1px solid #0d99ff; }
-        .frame.sel { outline: 2px solid #0d99ff; }
+        /* project board: frames live on one infinite plane */
+        .fwrap { position: absolute; }
+        .flabel { position: absolute; left: 0; bottom: 100%; margin-bottom: 6px; white-space: nowrap; font-size: 12px; color: #555; transform-origin: 0 100%; transform: scale(var(--iz, 1)); pointer-events: none; }
+        .flabel span { color: #999; margin-left: 6px; }
+        .fwrap.sel .flabel { color: #0d99ff; }
+        .frame { position: relative; overflow: hidden; background: #fff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.18); cursor: pointer; width: 100%; height: 100%; }
+        .fwrap:hover .frame { outline: calc(1px * var(--iz, 1)) solid #0d99ff; }
+        .fwrap.sel .frame { outline: calc(2px * var(--iz, 1)) solid #0d99ff; }
+        .fwrap.dragging { z-index: 50; cursor: grabbing; }
+        .fwrap.dragging .frame { box-shadow: 0 8px 30px rgba(0,0,0,.25); cursor: grabbing; }
 
         /* inspector */
         #inspector { font-size: 11px; }
