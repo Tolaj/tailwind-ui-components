@@ -1,5 +1,4 @@
 import { parseComponentSource, buildPreviewDocument } from "./playground/component-source.js";
-import { openForEdit, openForNew } from "./playground/playground-dialog.js";
 
 const items = JSON.parse(document.getElementById("libraryData").textContent);
 const grid = document.getElementById("libGrid");
@@ -65,10 +64,9 @@ function render() {
                     Use as AI reference
                 </label>
                 <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="/design/${i.id}" class="${btn} inline-flex items-center bg-black text-white hover:bg-neutral-800 border-black" title="Open in the visual design editor">Design</a>
+                    <a href="/design/${i.id}" class="${btn} inline-flex items-center bg-black text-white hover:bg-neutral-800 border-black" title="Open in the visual editor">Edit</a>
                     <button class="${btn}" data-act="export" data-id="${i.id}">Export</button>
                     <button class="${btn}" data-act="history" data-id="${i.id}">History</button>
-                    <button class="${btn}" data-act="edit" data-id="${i.id}">Edit</button>
                     <button class="${btn} text-red-700 hover:bg-red-50" data-act="delete" data-id="${i.id}">Delete</button>
                 </div>
             </div>
@@ -218,7 +216,6 @@ grid.addEventListener("click", async (e) => {
     const item = items.find((i) => i.id === id);
     if (b.dataset.act === "export") openModal(id, "react");
     if (b.dataset.act === "history") openModal(id, "history");
-    if (b.dataset.act === "edit") openForEdit(item);
     if (b.dataset.act === "delete") {
         if (!confirm(`Delete "${item.title}"? This can't be undone.`)) return;
         const res = await fetch(`/api/components/${id}`, { method: "DELETE" });
@@ -230,7 +227,6 @@ grid.addEventListener("click", async (e) => {
 });
 
 document.getElementById("guideBtn").addEventListener("click", openGuide);
-document.getElementById("newComponentBtn").addEventListener("click", openForNew);
 
 // ── Import designs: drop / choose files (html, zip), paste, optional section split ──
 const importModal = document.getElementById("importModal");

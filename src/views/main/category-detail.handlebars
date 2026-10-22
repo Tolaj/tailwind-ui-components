@@ -22,7 +22,7 @@
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new component.</p>
             {{#if user}}
             <div class="mt-6">
-                <button command="show-modal" commandfor="dialog"
+                <a href="/design/new"
                     class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90">
                     <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
                         fill="currentColor">
@@ -31,7 +31,7 @@
                             clip-rule="evenodd" />
                     </svg>
                     New Component
-                </button>
+                </a>
             </div>
             {{/if}}
         </div>
@@ -43,7 +43,7 @@
 
 
 {{!-- Modals --}}
-{{> component-playground/index}}
+
 
 
 <!-- Load category.js for component rendering -->

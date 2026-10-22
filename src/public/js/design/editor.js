@@ -7,7 +7,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const data = JSON.parse($("designData").textContent);
-const parsed = parseComponentSource(data.htmlCode);
+let parsed = parseComponentSource(data.htmlCode);
 const model = { markup: parsed.markup };
 const isTailwindScript = (s) => s.src && /tailwindcss/i.test(s.src);
 
@@ -20,7 +20,8 @@ let selected = null;
 let tree = null;
 let history = [];
 let hIndex = -1;
-let savedMarkup = parsed.markup;
+let isNew = !data.id;
+let savedMarkup = isNew ? "" : parsed.markup;
 let lastKey = "";
 let lastTime = 0;
 const collapsed = new Set();
@@ -58,14 +59,20 @@ function loadFrame() {
 }
 
 // ── History, dirty state, layout ─────────────────────────────────────────────
-const isDirty = () => model.markup !== savedMarkup;
+const isDirty = () => (isNew ? model.markup.trim() !== "" : model.markup !== savedMarkup);
 
 function updateChrome() {
     $("undoBtn").disabled = hIndex <= 0;
     $("redoBtn").disabled = hIndex >= history.length - 1;
     $("saveBtn").disabled = !isDirty();
-    $("saveState").textContent = isDirty() ? "Unsaved changes" : "Saved";
-    $("versionBadge").textContent = `v${data.version}`;
+    $("saveState").textContent = isNew ? (isDirty() ? "Not saved yet" : "") : isDirty() ? "Unsaved changes" : "Saved";
+    $("versionBadge").textContent = isNew ? "new" : `v${data.version}`;
+    $("titleText").textContent = data.title || "Untitled component";
+    document.title = `${data.title || "New component"} | Windcraft design`;
+    const empty = model.markup.trim() === "";
+    $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
+    $("startCard").classList.toggle("flex", empty && mode === "edit");
+    if (!codeFocused()) syncCode();
 }
 
 function commit(html, key) {
@@ -111,7 +118,7 @@ window.addEventListener("message", (e) => {
     if (e.source !== frame.contentWindow) return;
     const m = e.data || {};
     if (m.type === "ready") {
-        if (!history.length) { history = [m.html]; hIndex = 0; model.markup = m.html; savedMarkup = m.html; }
+        if (!history.length) { history = [m.html]; hIndex = 0; model.markup = m.html; if (!isNew) savedMarkup = m.html; }
         tree = m.tree;
         renderLayers();
         updateChrome();
@@ -391,6 +398,7 @@ window.addEventListener("resize", layout);
 
 async function save() {
     if (!isDirty()) return;
+    if (isNew) return openDetails();
     $("saveBtn").disabled = true;
     $("saveState").textContent = "Saving...";
     try {
@@ -437,6 +445,168 @@ document.addEventListener("keydown", (e) => {
     }
 });
 window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+
+// ── Code panel (two-way with the canvas) ─────────────────────────────────────
+const codeText = $("codeText");
+const codeOpen = () => !$("codePanel").classList.contains("hidden");
+const codeFocused = () => document.activeElement === codeText;
+function syncCode() { if (codeOpen()) codeText.value = model.markup.trim() ? assemble() : ""; }
+function setCodePanel(open) {
+    $("codePanel").classList.toggle("hidden", !open);
+    $("codePanel").classList.toggle("flex", open);
+    $("codeBtn").classList.toggle("bg-neutral-100", open);
+    if (open) { syncCode(); codeText.focus(); }
+    layout();
+}
+$("codeBtn").addEventListener("click", () => setCodePanel(!codeOpen()));
+$("codeClose").addEventListener("click", () => setCodePanel(false));
+let codeTimer = null;
+codeText.addEventListener("input", () => {
+    clearTimeout(codeTimer);
+    codeTimer = setTimeout(() => {
+        parsed = parseComponentSource(codeText.value);
+        commit(parsed.markup, "code");
+        loadFrame();
+    }, 500);
+});
+
+// ── Add menu: build from blocks ──────────────────────────────────────────────
+const BLOCKS = [
+    ["Section", '<section class="p-10"><h2 class="text-2xl font-bold">Section title</h2><p class="mt-2 text-gray-600">Describe this section.</p></section>'],
+    ["Container", '<div class="mx-auto max-w-5xl p-6"></div>'],
+    ["Columns (2)", '<div class="grid grid-cols-1 gap-6 md:grid-cols-2"><div class="p-6">Column one</div><div class="p-6">Column two</div></div>'],
+    ["Heading", '<h2 class="text-3xl font-bold">Heading</h2>'],
+    ["Text", '<p class="text-gray-600">Write something here.</p>'],
+    ["Button", '<a href="#" class="inline-block rounded-md bg-black px-5 py-2.5 text-sm font-medium text-white">Button</a>'],
+    ["Image", '<img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=60" alt="Image" class="rounded-lg">'],
+    ["Card", '<div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"><h3 class="font-semibold">Card title</h3><p class="mt-1 text-sm text-gray-600">Card text.</p></div>'],
+    ["Input", '<input type="text" placeholder="Type here" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">'],
+];
+const CONTAINERS = new Set(["body", "div", "section", "header", "footer", "main", "nav", "ul", "ol", "form", "article", "aside"]);
+$("addMenu").innerHTML = BLOCKS.map(([name], i) => `<button type="button" data-block="${i}" class="block w-full rounded px-3 py-1.5 text-left text-xs hover:bg-neutral-100">${name}</button>`).join("");
+$("addBtn").addEventListener("click", (e) => { e.stopPropagation(); $("addMenu").classList.toggle("hidden"); });
+document.addEventListener("click", () => $("addMenu").classList.add("hidden"));
+$("addMenu").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-block]");
+    if (!b) return;
+    const html = BLOCKS[Number(b.dataset.block)][1];
+    if (model.markup.trim() === "" || !selected) {
+        if (model.markup.trim() === "") { addToEmpty(html); return; }
+        return cmd({ cmd: "insert", path: [], html, position: "inside" });
+    }
+    cmd({ cmd: "insert", path: selected.path, html, position: CONTAINERS.has(selected.tag) ? "inside" : "after" });
+});
+function addToEmpty(html) {
+    model.markup = html;
+    commit(html);
+    loadFrame();
+}
+
+// ── Start screen: AI draft, paste, or a section ──────────────────────────────
+$("startBlank").addEventListener("click", () => addToEmpty(BLOCKS[0][1]));
+$("startPaste").addEventListener("click", () => setCodePanel(true));
+
+async function streamAI(body, onText) {
+    const res = await fetch("/api/ai/generate-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "AI request failed");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "", out = "";
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+            if (!part.startsWith("data:")) continue;
+            let ev; try { ev = JSON.parse(part.slice(5)); } catch { continue; }
+            if (ev.type === "delta") { out += ev.text; onText && onText(out); }
+            if (ev.type === "error") throw new Error(ev.message);
+        }
+    }
+    return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
+}
+
+$("startGo").addEventListener("click", async () => {
+    const prompt = $("startPrompt").value.trim();
+    const note = $("startNote");
+    const say = (msg, bad) => { note.textContent = msg; note.className = `mt-2 text-xs ${bad ? "text-red-700" : "text-neutral-500"}`; };
+    if (!prompt) return say("Describe what you want first.", true);
+    $("startGo").disabled = true;
+    say("Drafting...");
+    try {
+        const html = await streamAI({ prompt, useLibrary: true });
+        if (!html.startsWith("<")) throw new Error("The AI didn't return HTML. Try rephrasing.");
+        parsed = parseComponentSource(html);
+        commit(parsed.markup);
+        loadFrame();
+        if (!data.title) { data.title = prompt.slice(0, 60); updateChrome(); }
+        $("startPrompt").value = "";
+        say("");
+    } catch (err) {
+        say(err.message, true);
+    } finally {
+        $("startGo").disabled = false;
+    }
+});
+
+// ── Details dialog: name, category, tags, visibility ─────────────────────────
+const dlg = $("detailsDlg");
+$("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label="${esc(g.group)}">${g.items.map((i) => `<option value="${i.slug}">${esc(i.name)}</option>`).join("")}</optgroup>`).join("");
+
+function openDetails() {
+    $("dTitle").value = data.title || "";
+    $("dCategory").value = data.category || "";
+    $("dDesc").value = data.description || "";
+    $("dTags").value = (data.tags || []).join(", ");
+    $("dVis").value = String(data.isPublished);
+    $("detailsTitle").textContent = isNew ? "Name and save your component" : "Component details";
+    $("detailsSave").textContent = isNew ? "Create component" : "Save details";
+    $("detailsError").classList.add("hidden");
+    dlg.showModal();
+}
+$("detailsBtn").addEventListener("click", openDetails);
+$("detailsCancel").addEventListener("click", () => dlg.close());
+
+$("detailsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fields = { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value };
+    if (!fields.title || !fields.category || !fields.description) return;
+    const err = $("detailsError");
+    $("detailsSave").disabled = true;
+    try {
+        let res;
+        if (isNew) {
+            const doc = new DOMParser().parseFromString(model.markup, "text/html");
+            res = await fetch("/api/components", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...fields, htmlCode: assemble(), elementsDescription: [...doc.body.children].map((c) => createDescriptionFromElement(c)) }),
+            });
+        } else {
+            res = await fetch(`/api/components/${data.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) });
+        }
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message);
+        Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
+        if (isNew) {
+            data.id = json.data._id;
+            data.version = json.data.version || 1;
+            isNew = false;
+            savedMarkup = model.markup;
+            window.history.replaceState({}, "", `/design/${data.id}`);
+        }
+        dlg.close();
+        updateChrome();
+    } catch (error) {
+        err.textContent = error.message || "Could not save";
+        err.classList.remove("hidden");
+    } finally {
+        $("detailsSave").disabled = false;
+    }
+});
 
 // ── Go ───────────────────────────────────────────────────────────────────────
 updateChrome();

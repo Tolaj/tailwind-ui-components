@@ -24,8 +24,6 @@
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#library">Library</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#canvas">Design canvas</a></li>
-                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#versions">Versions and history</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#export">Export</a></li>
@@ -183,8 +181,7 @@
                         <div>
                             <p class="font-medium text-gray-900">Make your first component</p>
                             <p class="text-sm">Open <a href="/library" class="font-medium underline">Library</a>, press
-                                <strong>New component</strong>, describe what you want in the AI box (or paste code),
-                                and press <strong>Continue</strong> then <strong>Publish</strong>.
+                                <strong>New component</strong>, describe what you want and press <strong>Generate with AI</strong> (or paste code, or start from a section), edit it on the canvas, then press <strong>Save</strong> and fill in the name.
                             </p>
                         </div>
                     </li>
@@ -242,131 +239,41 @@
 
             {{!-- 5 --}}
             <section id="editor" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The editor</h2>
-                <p class="mt-3">Open it with <strong>New component</strong> (Library) or <strong>Add Component</strong>
-                    (top bar). Left side is code, right side is the live result. It has two steps.</p>
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The editor (design canvas)</h2>
+                <p class="mt-3">One editor for creating and changing components. Open it with <strong>New component</strong> (Library) or <strong>Add Component</strong> (top bar) for a new one, or press <strong>Edit</strong> on a card in your <a href="/library" class="font-medium underline">Library</a>. It works like Figma: click things, change them, see the result instantly.</p>
 
-                <svg viewBox="0 0 760 130" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="Editor steps: write code, preview, add details, publish">
-                    <defs>
-                        <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-                            orient="auto-start-reverse">
-                            <path d="M0 0 10 5 0 10z" fill="#111" />
-                        </marker>
-                    </defs>
-                    <rect x="20" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db" /><text x="95"
-                        y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">1. Write or
-                        paste</text><text x="95" y="82" text-anchor="middle" font-size="11" fill="#6b7280">code, or ask
-                        AI</text>
-                    <rect x="210" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db" /><text x="285"
-                        y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">See it live</text><text
-                        x="285" y="82" text-anchor="middle" font-size="11" fill="#6b7280">updates as you type</text>
-                    <rect x="400" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db" /><text x="475"
-                        y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">2. Details</text><text
-                        x="475" y="82" text-anchor="middle" font-size="11" fill="#6b7280">title, tags, visibility</text>
-                    <rect x="590" y="30" width="150" height="70" rx="10" fill="#000" /><text x="665" y="62"
-                        text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Publish</text><text x="665"
-                        y="82" text-anchor="middle" font-size="11" fill="#d1d5db">saved to Library</text>
-                    <path d="M170 65 H208" stroke="#111" stroke-width="1.5" marker-end="url(#a2)" />
-                    <path d="M360 65 H398" stroke="#111" stroke-width="1.5" marker-end="url(#a2)" />
-                    <path d="M550 65 H588" stroke="#111" stroke-width="1.5" marker-end="url(#a2)" />
+                <svg viewBox="0 0 760 130" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img" aria-label="Start, edit, save">
+                    <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#111"/></marker></defs>
+                    <rect x="20" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="95" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">1. Start</text><text x="95" y="82" text-anchor="middle" font-size="11" fill="#6b7280">AI, paste, or a block</text>
+                    <rect x="210" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="285" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">2. Edit</text><text x="285" y="82" text-anchor="middle" font-size="11" fill="#6b7280">click and change</text>
+                    <rect x="400" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="475" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">3. Name it</text><text x="475" y="82" text-anchor="middle" font-size="11" fill="#6b7280">title, tags, visibility</text>
+                    <rect x="590" y="30" width="150" height="70" rx="10" fill="#000"/><text x="665" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Save</text><text x="665" y="82" text-anchor="middle" font-size="11" fill="#d1d5db">into your Library</text>
+                    <path d="M170 65 H208" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/><path d="M360 65 H398" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/><path d="M550 65 H588" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/>
                 </svg>
 
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">What can I paste?</h3>
-                <p class="mt-2">Almost anything. The editor works out what you pasted and shows what it found in the
-                    small badge at the top of the code side.</p>
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-xl border border-gray-200 bg-white p-4">
-                        <p class="font-medium text-gray-900">HTML + Tailwind</p>
-                        <p class="text-sm">Normal tags with Tailwind classes. Tailwind is loaded for you.</p>
-                    </div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4">
-                        <p class="font-medium text-gray-900">HTML + CSS</p>
-                        <p class="text-sm">Include a <code
-                                class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;style&gt;</code> block or a
-                            stylesheet <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;link&gt;</code>.
-                        </p>
-                    </div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4">
-                        <p class="font-medium text-gray-900">HTML + JavaScript</p>
-                        <p class="text-sm">Add a <code
-                                class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;script&gt;</code> and it runs
-                            in the preview (menus, counters, tabs).</p>
-                    </div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4">
-                        <p class="font-medium text-gray-900">A whole page</p>
-                        <p class="text-sm">Full documents with <code
-                                class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;html&gt;</code> and <code
-                                class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;body&gt;</code> work too.</p>
-                    </div>
-                </div>
-                <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><strong
-                        class="text-gray-900">Safe by design.</strong> The preview runs in a sandbox, so pasted code
-                    can't touch your account or the rest of the app.</div>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">The preview toolbar</h3>
-                <ul class="mt-3 space-y-3 text-sm">
-                    <li class="flex items-start gap-3"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-200"><svg
-                                class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
-                            </svg></span>
-                        <span><strong class="text-gray-900">Hand (pan).</strong> On: drag the preview around and scroll
-                            to move, Ctrl/Cmd + scroll to zoom. Off: click buttons and type inside the component to test
-                            it.</span>
-                    </li>
-                    <li class="flex items-start gap-3"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100"><svg
-                                class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                            </svg></span>
-                        <span><strong class="text-gray-900">Reset (circular arrows).</strong> Clears the editor so you
-                            can start over. It asks first.</span>
-                    </li>
-                    <li class="flex items-start gap-3"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100"><svg
-                                class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                            </svg></span>
-                        <span><strong class="text-gray-900">Phone.</strong> Shows your component at phone width (390 px)
-                            so you can check the mobile layout. Press again to go back.</span>
-                    </li>
-                    <li class="flex items-start gap-3"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100"><svg
-                                class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                            </svg></span>
-                        <span><strong class="text-gray-900">Fullscreen.</strong> Fills the screen with the preview. A
-                            small code window opens on the left so you can keep editing. Drag it by its title, resize it
-                            from the corner, or press <strong>&minus;</strong> to shrink it to a title bar
-                            (<strong>+</strong> brings it back). Press <kbd
-                                class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Esc</kbd> to
-                            leave.</span>
-                    </li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Step 2: Details</h3>
+                <h3 class="mt-8 text-lg font-semibold text-gray-900">Starting a new component</h3>
+                <p class="mt-2 text-sm">An empty canvas shows three ways to begin:</p>
                 <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Title</strong> and <strong>Description</strong>: what a person (or an AI) reads to
-                        decide if this is the right component. Be specific: "Pricing table with 3 tiers and a
-                        monthly/yearly switch".</li>
-                    <li><strong>Category</strong>: where it sits in the gallery.</li>
-                    <li><strong>Tags</strong>: short words separated by commas, like <code
-                            class="rounded bg-gray-100 px-1 font-mono text-[13px]">hero, dark, saas</code>. Tags are how
-                        you filter later, and how AI picks references.</li>
-                    <li><strong>Visibility</strong>: <em>Public</em> shows it in the gallery and your library.
-                        <em>Private</em> keeps it in your library only. See <a href="#visibility"
-                            class="font-medium underline">Public or private</a>.
-                    </li>
+                    <li><strong>Generate with AI.</strong> Describe it ("a pricing section with three tiers"). The AI looks at your library so the result matches your style. Needs AI turned on (avatar menu, <em>AI Settings</em>).</li>
+                    <li><strong>Paste HTML or code.</strong> Opens the <strong>Code</strong> panel. Paste HTML with Tailwind, CSS (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;style&gt;</code>), JavaScript (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;script&gt;</code>), or a whole page. The canvas updates as you type.</li>
+                    <li><strong>Start with a section.</strong> Drops in a simple block, then use <strong>+ Add</strong> to build: sections, columns, headings, text, buttons, images, cards and inputs.</li>
                 </ul>
+
+                <h3 class="mt-8 text-lg font-semibold text-gray-900">Editing</h3>
+                <div class="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Layers (left)</p><p class="mt-1 text-sm">The structure as a tree. Click to select, drag to reorder or move inside another layer.</p></div>
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Canvas (middle)</p><p class="mt-1 text-sm">Click anything to select it. Double-click text to type on it. Switch Desktop, Tablet or Mobile, and zoom.</p></div>
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Inspector (right)</p><p class="mt-1 text-sm">Text, links and images, size and weight, colors, spacing, corners, shadow, layout and raw classes.</p></div>
+                </div>
+                <ul class="mt-5 list-disc space-y-1.5 pl-5 text-sm">
+                    <li><strong>Ask AI</strong> (top of the inspector): describe a change to just the selected element, for example "make this a dark card".</li>
+                    <li><strong>Up, Down, Duplicate, Delete</strong> work on the selected element. Shortcuts: <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+Z</kbd> undo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+Z</kbd> redo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+D</kbd> duplicate, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Delete</kbd>, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+S</kbd> save.</li>
+                    <li><strong>Code</strong> shows the full source and stays in sync both ways. <strong>Edit / Preview:</strong> Preview runs the component with its JavaScript so you can try menus and buttons.</li>
+                    <li>Your component's own CSS and scripts are kept exactly as they were. Only the markup you edit changes.</li>
+                </ul>
+
+                <h3 class="mt-8 text-lg font-semibold text-gray-900">Saving</h3>
+                <p class="mt-2 text-sm">For a new component, <strong>Save</strong> asks for the details: <strong>Title</strong> and <strong>Description</strong> (what a person or an AI reads to decide if it fits), <strong>Category</strong>, <strong>Tags</strong> (comma separated, used for search and by AI) and <strong>Visibility</strong> (<em>Public</em> shows it in the gallery too, <em>Private</em> keeps it in your library; see <a href="#visibility" class="font-medium underline">Public or private</a>). After that, <strong>Save</strong> makes a new version each time. Click the title at the top to change the details later.</p>
             </section>
 
             {{!-- 6 --}}
@@ -439,22 +346,7 @@
                 </ul>
             </section>
 
-            {{!-- Design canvas --}}
-            <section id="canvas" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Design canvas</h2>
-                <p class="mt-3">Edit a component visually, like in Figma. Press <strong>Design</strong> on any card in your <a href="/library" class="font-medium underline">Library</a>. Nothing changes until you press <strong>Save</strong>, and saving makes a new version, so you can always go back.</p>
-                <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Layers (left)</p><p class="mt-1 text-sm">The structure of the design as a tree. Click to select, drag to reorder or move inside another layer.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Canvas (middle)</p><p class="mt-1 text-sm">Click anything to select it. Double-click text to type on it. Switch Desktop, Tablet or Mobile and zoom.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Inspector (right)</p><p class="mt-1 text-sm">Change text, links and images, size and weight, colors, spacing, corners, shadow and layout of the selected element.</p></div>
-                </div>
-                <ul class="mt-5 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Ask AI</strong> (top of the inspector): describe a change to just the selected element, for example "make this a dark card". Needs AI turned on in settings.</li>
-                    <li><strong>Up, Down, Duplicate, Delete</strong> work on the selected element. Shortcuts: <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+Z</kbd> undo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+Z</kbd> redo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+D</kbd> duplicate, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Delete</kbd>, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+S</kbd> save.</li>
-                    <li><strong>Edit / Preview:</strong> Edit mode is for changing things. Preview runs the component with its JavaScript so you can try menus and buttons.</li>
-                    <li>Your component's own CSS and scripts are kept exactly as they were; only the markup you edit changes.</li>
-                </ul>
-            </section>
+            
 
             {{!-- 7 --}}
             <section id="versions" class="scroll-mt-24">
@@ -734,7 +626,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-3 text-sm">Change it any time with <strong>Edit</strong>, then on the Details step pick a
+                <p class="mt-3 text-sm">Change it any time: open the component with <strong>Edit</strong>, click its title at the top, and pick a
                     different visibility.</p>
             </section>
 
