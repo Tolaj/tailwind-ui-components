@@ -22,7 +22,7 @@ When you build or change UI:
 3. Fetch full code with \`get_component\` (use format \`react\`, \`vue\` or \`svelte\` to match this project) only for the components you will use.
 4. If you must write something new, follow the tokens (colors, radius, spacing, type) from the guide.
 5. Save genuinely reusable new components back with \`save_component\` (clear title, one-sentence description, tags).
-6. When you finish a full page or screen, save it with \`save_design\` (title plus the complete HTML). It saves one component per screen; only pass split: true for a long marketing page when the user wants its sections saved separately. Group the screens of one site or app by passing the same \`project\` name each time (for example \`project: "Acme website"\`). Use \`get_project\` to see what a project already contains.
+6. Save each page as its OWN component. For several pages call \`save_pages\` with a project name and one HTML document per page; never merge pages into one file. For a single screen use \`save_design\` (title plus the complete HTML). It saves one component per screen; only pass split: true for a long marketing page when the user wants its sections saved separately. Group the screens of one site or app by passing the same \`project\` name each time (for example \`project: "Acme website"\`). Use \`get_project\` to see what a project already contains.
 `;
 
 export const skillMd = () => `---
@@ -39,7 +39,7 @@ Follow these steps whenever the task involves UI (pages, sections, components, f
 3. **Fetch only what you need.** Call \`get_component\` for the one or two best matches, with \`format\` set to this project's framework (\`html\`, \`react\`, \`vue\`, \`svelte\`).
 4. **Reuse, then adapt.** Copy the component and change text, images and links. Keep its classes and structure unless the request needs otherwise.
 5. **Fill gaps with the tokens.** For anything new, use the colors, radius, spacing and type from the guide so it matches.
-6. **Save good new work.** For a reusable piece, call \`save_component\` (clear title, one-sentence description, tags). For a finished page or screen, call \`save_design\` with the complete HTML. It saves one component per screen; pass split: true only for a long marketing page whose sections the user wants as separate components. Pass \`project\` (a name, created if new) so related screens live together; \`get_project\` shows what a project contains.
+6. **Save good new work.** For a reusable piece, call \`save_component\` (clear title, one-sentence description, tags). For several pages, call \`save_pages\` with a project name and one complete HTML document per page (never merge pages into one file). For a single screen call \`save_design\` with the complete HTML. It saves one component per screen; pass split: true only for a long marketing page whose sections the user wants as separate components. Pass \`project\` (a name, created if new) so related screens live together; \`get_project\` shows what a project contains.
 
 Never invent component ids. If the library has nothing relevant, say so and build from the tokens.
 `;
@@ -105,7 +105,7 @@ Attach this whole folder (or the files inside it) to Claude Design.
 1. **Reuse before inventing.** If a component in \`components/\` fits, use it and change only content (text, images, links).
 2. **Stay on the tokens.** Use only the colors, radius, spacing and type listed in \`design-guide.md\`. Do not introduce new ones without saying so.
 3. **Keep the structure.** Preserve a component's classes and markup unless the request requires changing them.
-4. **Say what is new.** List any component you had to create that is not in the library, so it can be saved back. If the library connector is available, save each finished screen yourself with \`save_design\`.
+4. **Say what is new.** List any component you had to create that is not in the library, so it can be saved back. If the library connector is available, save each finished page yourself as its own component: \`save_pages\` for several pages, \`save_design\` for one.
 5. If something needed is missing from the library, put it under **Open questions** and continue with a stated assumption.
 
 ## What I want

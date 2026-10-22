@@ -78,7 +78,7 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
         "1. **Search first.** Before writing UI, call `search_components` with what you need. Reuse a matching component instead of writing a new one.",
         "2. **Read before you fetch.** The index below and each component's spec say what it is for. Fetch full code (`get_component`) only for the one or two you will use.",
         "3. **Match the tokens.** When you must write something new, use the colors, radius, spacing and type from the tokens below so it looks like the rest.",
-        "4. **Save good work back.** Use `save_component` with a clear title, a one-sentence description and tags. For a finished screen use `save_design`, and pass `project` (e.g. \"Acme website\") to group related screens together.",
+        "4. **Save good work back.** Use `save_component` with a clear title, a one-sentence description and tags. For one finished screen use `save_design`. For several pages use `save_pages` (each page as its own HTML) with a `project` name; never merge pages into one HTML file.",
         "",
         tokensMarkdown,
         "",

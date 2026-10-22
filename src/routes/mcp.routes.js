@@ -65,7 +65,7 @@ const TOOLS = [
     },
     {
         name: "save_design",
-        description: "Save a finished design (a full page or screen as HTML, with its <style> and <script>) to the user's library. By default it is split into one component per section (header, hero, pricing, footer...) plus the whole page, so each piece is reusable. Call this whenever you finish designing a screen the user wants to keep.",
+        description: "Save ONE finished screen (one page, one route, one tab) as ONE component. If the design has several pages or screens, do NOT merge them into one HTML document: call save_pages once with every page, or call save_design once per page with the same project. Only set split to true for a long marketing page made of stacked sections when the user wants each section saved separately. Never split dashboards or app screens.",
         inputSchema: {
             type: "object",
             properties: {
@@ -77,6 +77,31 @@ const TOOLS = [
                 project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
             },
             required: ["title", "html"],
+        },
+    },
+    {
+        name: "save_pages",
+        description: "Save SEVERAL pages or screens in one call, each as its own separate page component inside one project. Use this whenever the design has more than one page (for example Overview, Customers and Transactions). Pass each page as its own complete HTML document. Never combine pages into one HTML file.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                project: { type: "string", description: "Project name or id, e.g. 'Acme dashboard' (created if it does not exist)" },
+                pages: {
+                    type: "array",
+                    description: "One entry per page, in order",
+                    items: {
+                        type: "object",
+                        properties: {
+                            title: { type: "string", description: "Page name, e.g. 'Customers'" },
+                            html: { type: "string", description: "Complete HTML of this one page" },
+                            description: { type: "string", description: "One sentence about the page" },
+                        },
+                        required: ["title", "html"],
+                    },
+                },
+                tags: { type: "array", items: { type: "string" } },
+            },
+            required: ["project", "pages"],
         },
     },
     {
@@ -170,6 +195,27 @@ async function callTool(userId, name, args = {}) {
                 return fail(e.message);
             }
         }
+        case "save_pages": {
+            const pagesIn = Array.isArray(args.pages) ? args.pages : [];
+            if (!args.project || !pagesIn.length) return fail("project and at least one page are required");
+            if (pagesIn.length > 30) return fail("Save at most 30 pages per call");
+            const proj = await resolveProject(userId, args.project, { create: true });
+            const saved = [];
+            const failed = [];
+            for (const pg of pagesIn) {
+                try {
+                    const r = await importDesign(userId, { title: pg.title, html: pg.html, description: pg.description, tags: args.tags, split: false, project: proj._id });
+                    saved.push(r.page);
+                } catch (e) {
+                    failed.push({ title: pg && pg.title, error: e.message });
+                }
+            }
+            return text({
+                project: { id: String(proj._id), name: proj.name },
+                saved, failed,
+                message: `Saved ${saved.length} page(s) as separate components in project "${proj.name}"${failed.length ? `; ${failed.length} failed` : ""}.`,
+            });
+        }
         case "list_projects":
             return text(await listProjects(userId));
         case "create_project": {
@@ -223,6 +269,7 @@ const TITLES = {
     get_component: "Get a component",
     save_component: "Save a component",
     save_design: "Save a finished design",
+    save_pages: "Save several pages",
     list_tags: "List tags",
     list_projects: "List projects",
     create_project: "Create a project",
@@ -281,7 +328,7 @@ async function handleRpc(msg, userId) {
                     protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
                     capabilities: { tools: { listChanged: false } },
                     serverInfo: { name: "tailwind-ui-library", title: "Windcraft component library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it once with save_design (one component per screen; do not split unless asked).",
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing, save each page as its own component: use save_pages with a project when there are several pages, or save_design for a single screen. Never merge multiple pages into one HTML document.",
                 });
             }
             case "ping":
