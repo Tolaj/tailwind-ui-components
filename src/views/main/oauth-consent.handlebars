@@ -1,0 +1,23 @@
+<div class="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg>
+    </div>
+    <h1 class="text-xl font-semibold tracking-tight text-gray-900">Connect <span class="underline decoration-gray-300">{{clientName}}</span> to your library?</h1>
+    <p class="mt-2 text-sm text-gray-600">Signed in as <strong class="text-gray-900">{{userEmail}}</strong>. After you approve, you'll be sent back to <code class="font-mono text-[13px]">{{redirectHost}}</code>.</p>
+
+    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+        <p class="font-medium text-gray-900">This app will be able to:</p>
+        <ul class="mt-1.5 list-disc space-y-1 pl-5 text-gray-700">
+            <li>Search and read the components in your library</li>
+            <li>Save new components to your library (as private)</li>
+        </ul>
+        <p class="mt-2 text-xs text-gray-500">It cannot delete components, change your account, or see your AI keys. You can disconnect it any time on the Connect page.</p>
+    </div>
+
+    <form method="POST" action="/oauth/authorize" class="mt-5 flex gap-3">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        {{#each fields}}<input type="hidden" name="{{this.name}}" value="{{this.value}}">{{/each}}
+        <button type="submit" name="decision" value="deny" class="h-10 flex-1 rounded-md border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50">Cancel</button>
+        <button type="submit" name="decision" value="allow" class="h-10 flex-1 rounded-md bg-black text-sm font-medium text-white hover:bg-neutral-800">Allow</button>
+    </form>
+</div>

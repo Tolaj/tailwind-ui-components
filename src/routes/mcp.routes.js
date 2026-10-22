@@ -8,6 +8,8 @@ import { searchLibrary } from "../services/library.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
 import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
+import { userIdForAccessToken } from "../services/oauth.service.js";
+import { publicBase } from "../utils/publicUrl.js";
 
 const router = Router();
 
@@ -128,12 +130,16 @@ async function callTool(userId, name, args = {}) {
     }
 }
 
+/** Accepts either a personal API token (twl_...) or an OAuth access token. Returns { _id } or null. */
 const authenticate = async (req) => {
     const header = req.get("authorization") || "";
     const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
     if (!token) return null;
     const hash = crypto.createHash("sha256").update(token).digest("hex");
-    return User.findOne({ apiTokenHash: hash }).select("_id").lean();
+    const viaApiToken = await User.findOne({ apiTokenHash: hash }).select("_id").lean();
+    if (viaApiToken) return viaApiToken;
+    const oauthUserId = await userIdForAccessToken(token);
+    return oauthUserId ? { _id: oauthUserId } : null;
 };
 
 router.get("/", (req, res) => res.status(405).set("Allow", "POST").json({ error: "Use POST (stateless MCP over HTTP)" }));
@@ -141,7 +147,7 @@ router.get("/", (req, res) => res.status(405).set("Allow", "POST").json({ error:
 router.post("/", async (req, res) => {
     const user = await authenticate(req);
     if (!user) {
-        return res.status(401).set("WWW-Authenticate", "Bearer").json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Missing or invalid API token" } });
+        return res.status(401).set("WWW-Authenticate", `Bearer resource_metadata="${publicBase(req)}/.well-known/oauth-protected-resource"`).json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Missing or invalid API token" } });
     }
 
     const { id, method, params } = req.body || {};

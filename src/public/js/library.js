@@ -231,6 +231,35 @@ grid.addEventListener("click", async (e) => {
 document.getElementById("guideBtn").addEventListener("click", openGuide);
 document.getElementById("newComponentBtn").addEventListener("click", openForNew);
 
+// ── Import HTML (for example designs exported from Claude Design) ────────────
+const importInput = document.getElementById("importInput");
+document.getElementById("importBtn").addEventListener("click", () => importInput.click());
+importInput.addEventListener("change", async () => {
+    const files = [...importInput.files];
+    importInput.value = "";
+    if (!files.length) return;
+    let ok = 0;
+    const failed = [];
+    for (const file of files) {
+        const code = await file.text();
+        const doc = new DOMParser().parseFromString(code, "text/html");
+        const base = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        const title = (doc.title || base || "Imported design").slice(0, 80);
+        const heading = doc.querySelector("h1, h2")?.textContent.trim();
+        const description = (doc.querySelector('meta[name="description"]')?.content || heading || `Imported from ${file.name}`).slice(0, 200);
+        const res = await fetch("/api/components", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, description, category: "apps-general", htmlCode: code, tags: "imported, claude-design", isPublished: "false" }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json.success) ok++;
+        else failed.push(file.name);
+    }
+    alert(`Imported ${ok} of ${files.length} file${files.length === 1 ? "" : "s"}.${failed.length ? `\nFailed: ${failed.join(", ")}` : ""}`);
+    if (ok) location.reload();
+});
+
 // ── MCP token ────────────────────────────────────────────────────────────────
 document.getElementById("genTokenBtn").addEventListener("click", async () => {
     if (!confirm("Generate a new token? Any previous token stops working.")) return;

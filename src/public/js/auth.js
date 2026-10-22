@@ -26,8 +26,11 @@ const handleSignIn = (event) => {
 
             showToast("Login successful! Redirecting...", "success");
 
+            const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+            const safeReturn = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+
             setTimeout(() => {
-                window.location.href = "/";
+                window.location.href = safeReturn;
             }, 1200);
         })
         .catch((err) => {

@@ -6,6 +6,8 @@ import aiRoutes from "./ai.routes.js";
 import mcpRoutes from "./mcp.routes.js";
 import libraryRoutes from "./library.routes.js";
 import infoRoutes from "./info.routes.js";
+import connectRoutes from "./connect.routes.js";
+import oauthRoutes from "./oauth.routes.js";
 
 import {
     redirectIfAuthenticated,
@@ -14,6 +16,7 @@ import {
 } from "../middlewares/auth.js";
 
 const constructorMethod = (app) => {
+    app.use("/", oauthRoutes);
     app.use("/users", usersRoutes);
     app.use("/auth", redirectIfAuthenticated, noCacheAuth, authRoutes)
     app.use("/api/components", componentRoutes);
@@ -21,6 +24,7 @@ const constructorMethod = (app) => {
     app.use("/mcp", mcpRoutes);
     app.get("/my-components", (req, res) => res.redirect("/library"));
     app.use("/library", ensureAuth, libraryRoutes);
+    app.use("/connect", ensureAuth, connectRoutes);
 
 
     app.use("/", infoRoutes);
