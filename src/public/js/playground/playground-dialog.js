@@ -1,3 +1,4 @@
+import { parseComponentSource } from "./component-source.js"
 import { createDescriptionFromElement } from "../element-description/index.js"
 
 let isDetailsOpen = false;
@@ -98,8 +99,8 @@ export const handleSave = async (e) => {
 
     const htmlCode = document.getElementById('htmlEditor').value;
 
-    const parser = new DOMParser();
-    const dom = parser.parseFromString(htmlCode, "text/html");
+    const { markup } = parseComponentSource(htmlCode);
+    const dom = new DOMParser().parseFromString(markup, "text/html");
 
     const elementsDescription = Array.from(dom.body.children).map(child =>
         createDescriptionFromElement(child)

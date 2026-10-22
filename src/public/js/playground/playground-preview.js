@@ -1,3 +1,5 @@
+import { setMobileMode } from "./playground-render.js";
+
 
 export function makePreviewZoomable(previewId, options = {}) {
     const preview = document.getElementById(previewId);
@@ -154,63 +156,9 @@ export const updateIcon = () => {
 };
 
 export function handleDisplaySize() {
-    const preview = document.getElementById('preview');
-    if (!preview) return;
-
+    if (!document.getElementById('preview')) return;
     isMobileView = !isMobileView;
-
-    if (isMobileView) {
-        // Snapshot the current HTML content from the editor
-        const htmlEditor = document.getElementById('htmlEditor');
-        const currentHTML = htmlEditor ? htmlEditor.value : preview.innerHTML;
-
-        // Clear preview and switch to fit width
-        preview.classList.remove('w-screen');
-        preview.classList.add('w-fit');
-
-        // Create the iframe
-        const iframe = document.createElement('iframe');
-        iframe.id = 'mobilePreviewFrame';
-        iframe.style.width = '390px';
-        iframe.style.height = '700px';
-        iframe.style.display = 'block';
-        iframe.style.margin = '0 auto';
-        iframe.style.border = 'none';
-        iframe.style.background = 'white';
-
-        // Clear preview and add iframe
-        preview.innerHTML = '';
-        preview.appendChild(iframe);
-
-        // Write the full HTML into the iframe
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write(`<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=390, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"><\/script>
-    <style>body { margin: 0; padding: 0; }<\/style>
-</head>
-<body>${currentHTML}</body>
-</html>`);
-        doc.close();
-
-    } else {
-        // Restore desktop view — re-render from the editor content
-        const iframe = document.getElementById('mobilePreviewFrame');
-        if (iframe) iframe.remove();
-
-        preview.classList.remove('w-fit');
-        preview.classList.add('w-screen');
-
-        // Re-render from editor value
-        const htmlEditor = document.getElementById('htmlEditor');
-        if (htmlEditor) {
-            preview.innerHTML = htmlEditor.value;
-        }
-    }
-
+    setMobileMode(isMobileView);
     updateIcon();
 }
 
