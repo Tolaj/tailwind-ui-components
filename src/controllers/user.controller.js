@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import * as userService from "../services/user.service.js";
 
 export const createUser = async (req, res) => {
@@ -17,7 +18,8 @@ export const createUser = async (req, res) => {
             return res.status(409).json({ message: "An account with this email already exists" });
         }
 
-        const user = await userService.createUser({ name, email, password });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await userService.createUser({ name, email, password: hashedPassword });
         const { password: _, ...userWithoutPassword } = user.toObject();
         res.status(201).json(userWithoutPassword);
     } catch (error) {
@@ -48,7 +50,8 @@ export const userSignIn = async (req, res) => {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        if (user.password !== password) {
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 

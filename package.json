@@ -15,6 +15,7 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.75.0",
+    "bcrypt": "^6.0.0",
     "connect-mongo": "^6.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

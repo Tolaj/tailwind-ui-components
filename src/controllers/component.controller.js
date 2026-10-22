@@ -184,12 +184,23 @@ export const toggleLike = async (req, res) => {
             });
         }
 
-        component.likes += 1;
+        const userId = req.session.user.id;
+        const index = component.likedBy.indexOf(userId);
+
+        if (index === -1) {
+            component.likedBy.push(userId);
+            component.likes += 1;
+        } else {
+            component.likedBy.splice(index, 1);
+            component.likes -= 1;
+        }
+
         await component.save();
 
         res.status(200).json({
             success: true,
-            likes: component.likes
+            likes: component.likes,
+            liked: index === -1
         });
     } catch (error) {
         res.status(500).json({
