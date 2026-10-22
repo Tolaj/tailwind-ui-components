@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { requestLogger } from "./middlewares/requestLogger.js";
 import { sessionConfig } from "./middlewares/sessionConfig.js";
 import { setSessionLocals } from "./middlewares/auth.js";
+import lastSeenMiddleware from "./middlewares/lastSeen.js";
 
 import { formatDate, substring } from './utils/handlebars-helpers.js';
 
@@ -22,6 +23,7 @@ app.use(sessionConfig);
 
 // handlebars setup
 app.use(setSessionLocals);
+app.use(lastSeenMiddleware);
 app.use(requestLogger);
 app.engine(
     "handlebars",

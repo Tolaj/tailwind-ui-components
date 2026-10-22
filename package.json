@@ -21,8 +21,10 @@
     "express": "^5.2.1",
     "express-handlebars": "^8.0.4",
     "express-session": "^1.18.2",
+    "googleapis": "^178.0.0",
     "mongodb": "^7.0.0",
-    "mongoose": "^7.5.0"
+    "mongoose": "^7.5.0",
+    "nodemailer": "^10.2.1"
   },
   "devDependencies": {
     "eslint": "^9.39.2",
