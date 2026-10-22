@@ -1,0 +1,43 @@
+<main class="min-w-0 flex-1 p-6">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-semibold tracking-[-0.035em] text-gray-900">Projects</h1>
+            <p class="mt-1 text-sm text-gray-500">Group the pages and sections of a website or app, like a Figma file. Claude can file designs straight into a project.</p>
+        </div>
+        <button type="button" id="newProjectBtn" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New project</button>
+    </div>
+
+    {{#if projects.length}}
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {{#each projects}}
+        <a href="/projects/{{this.id}}" class="group rounded-xl border border-gray-200 bg-white p-5 transition-colors hover:border-gray-400">
+            <div class="flex items-start justify-between gap-2">
+                <h2 class="truncate text-base font-semibold text-gray-900">{{this.name}}</h2>
+                <span class="shrink-0 text-xs text-gray-400">{{formatDate this.updatedAt}}</span>
+            </div>
+            <p class="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-gray-500">{{#if this.description}}{{this.description}}{{else}}No description{{/if}}</p>
+            <div class="mt-4 flex gap-4 text-sm text-gray-700">
+                <span><strong class="text-gray-900">{{this.pages}}</strong> page{{#unless (eq this.pages 1)}}s{{/unless}}</span>
+                <span><strong class="text-gray-900">{{this.sections}}</strong> section{{#unless (eq this.sections 1)}}s{{/unless}}</span>
+                {{#if this.components}}<span><strong class="text-gray-900">{{this.components}}</strong> other</span>{{/if}}
+            </div>
+        </a>
+        {{/each}}
+    </div>
+    {{else}}
+    <div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+        <h3 class="text-base font-semibold text-gray-900">No projects yet</h3>
+        <p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Create one, then ask Claude: <em>"Design a landing page and a pricing page for Acme and save them in a project called Acme website."</em></p>
+    </div>
+    {{/if}}
+</main>
+<script>
+    document.getElementById("newProjectBtn").addEventListener("click", async () => {
+        const name = prompt("Project name");
+        if (!name || !name.trim()) return;
+        const res = await fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+        const json = await res.json();
+        if (json.success) location.href = "/projects/" + json.data.id;
+        else alert(json.message || "Could not create the project");
+    });
+</script>

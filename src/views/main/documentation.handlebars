@@ -25,6 +25,7 @@
                         href="#library">Library</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#versions">Versions and history</a></li>
+                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900" href="#projects">Projects</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#export">Export</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
@@ -349,6 +350,18 @@
             </section>
 
             
+
+            {{!-- Projects --}}
+            <section id="projects" class="scroll-mt-24">
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Projects</h2>
+                <p class="mt-3">A <strong>project</strong> groups everything for one website or app, like a Figma file. It holds <strong>pages</strong> (full screens) and each page's <strong>sections</strong> (header, hero, pricing, footer). Open <a href="/projects" class="font-medium underline">Projects</a> in the sidebar.</p>
+                <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">The board</p><p class="mt-1 text-sm">Every page as a live frame, with its sections underneath. Click to select, double-click to open in the editor, zoom with + and - or Ctrl/Cmd + scroll.</p></div>
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Add to a project</p><p class="mt-1 text-sm"><strong>+ New page</strong> on the board, the Project box in the save dialog, or the Project dropdown on any Library card.</p></div>
+                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">From Claude</p><p class="mt-1 text-sm">Ask: "Design a landing page and a pricing page and save them in a project called Acme website." Claude creates the project and files both pages.</p></div>
+                </div>
+                <p class="mt-4 text-sm">Deleting a project never deletes its pages: they go back to your Library. Claude can also list projects and read a project's structure (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">list_projects</code>, <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">get_project</code>), so a later chat can continue where you left off.</p>
+            </section>
 
             {{!-- 7 --}}
             <section id="versions" class="scroll-mt-24">

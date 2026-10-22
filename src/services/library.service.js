@@ -5,8 +5,9 @@ const STOP = new Set(["a", "an", "the", "for", "with", "and", "or", "to", "of", 
 const words = (text) => String(text || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
 
 /** Keyword-ranked search over one user's library. */
-export async function searchLibrary(userId, { query = "", tag = "", limit = 10, referenceOnly = false } = {}) {
+export async function searchLibrary(userId, { query = "", tag = "", limit = 10, referenceOnly = false, project = null } = {}) {
     const filter = { createdBy: userId };
+    if (project) filter.project = project;
     if (referenceOnly) filter.useAsReference = { $ne: false };
     if (tag) filter.tags = String(tag).toLowerCase();
     const all = await Component.find(filter).select("title description category tags version htmlCode spec updatedAt").sort("-updatedAt").lean();

@@ -9,11 +9,13 @@ import infoRoutes from "./info.routes.js";
 import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
 import designRoutes from "./design.routes.js";
+import { projectPages, projectApi } from "./project.routes.js";
 
 import {
     redirectIfAuthenticated,
     noCacheAuth,
     ensureAuth,
+    ensureAuthAPI,
 } from "../middlewares/auth.js";
 
 const constructorMethod = (app) => {
@@ -27,6 +29,8 @@ const constructorMethod = (app) => {
     app.use("/library", ensureAuth, libraryRoutes);
     app.use("/connect", ensureAuth, connectRoutes);
     app.use("/design", ensureAuth, designRoutes);
+    app.use("/projects", ensureAuth, projectPages);
+    app.use("/api/projects", ensureAuthAPI, projectApi);
 
 
     app.use("/", infoRoutes);

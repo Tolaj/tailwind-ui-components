@@ -1,6 +1,7 @@
 import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../utils/exporters.js";
 import { buildSpec, specToMarkdown, enrichSpecWithAI } from "../services/spec.service.js";
+import { resolveProject } from "../services/project.service.js";
 
 export const normalizeTags = (tags) => {
     const list = Array.isArray(tags) ? tags : String(tags || "").split(",");
@@ -65,7 +66,8 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, elementsDescription, tags, isPublished } = req.body;
+        const { title, category, description, htmlCode, elementsDescription, tags, isPublished, project: projectRef } = req.body;
+        const project = await resolveProject(req.session.user.id, projectRef);
 
         if (!title || !category || !description || !htmlCode) {
             return res.status(400).json({
@@ -82,6 +84,8 @@ export const createComponent = async (req, res) => {
             elementsDescription: elementsDescription || [],
             tags: normalizeTags(tags),
             spec: buildSpec(htmlCode),
+            project: project ? project._id : null,
+            kind: project ? "page" : "component",
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
@@ -121,8 +125,17 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference } = req.body;
+        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef } = req.body;
         let codeChanged = false;
+
+        if (projectRef !== undefined) {
+            const target = await resolveProject(req.session.user.id, projectRef);
+            if (projectRef && !target) return res.status(404).json({ success: false, message: 'Project not found' });
+            component.project = target ? target._id : null;
+            component.kind = target ? (component.kind === 'component' ? 'page' : component.kind) : 'component';
+            if (!target) component.parent = null;
+            await Component.updateMany({ parent: component._id }, { project: component.project });
+        }
 
         if (htmlCode && htmlCode !== component.htmlCode) {
             component.versions.push({ version: component.version, htmlCode: component.htmlCode, note: note || "" });

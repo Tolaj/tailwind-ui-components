@@ -22,7 +22,7 @@ When you build or change UI:
 3. Fetch full code with \`get_component\` (use format \`react\`, \`vue\` or \`svelte\` to match this project) only for the components you will use.
 4. If you must write something new, follow the tokens (colors, radius, spacing, type) from the guide.
 5. Save genuinely reusable new components back with \`save_component\` (clear title, one-sentence description, tags).
-6. When you finish a full page or screen, save it with \`save_design\` (title plus the complete HTML). It is split into reusable sections automatically.
+6. When you finish a full page or screen, save it with \`save_design\` (title plus the complete HTML). It is split into reusable sections automatically. Group the screens of one site or app by passing the same \`project\` name each time (for example \`project: "Acme website"\`). Use \`get_project\` to see what a project already contains.
 `;
 
 export const skillMd = () => `---
@@ -39,7 +39,7 @@ Follow these steps whenever the task involves UI (pages, sections, components, f
 3. **Fetch only what you need.** Call \`get_component\` for the one or two best matches, with \`format\` set to this project's framework (\`html\`, \`react\`, \`vue\`, \`svelte\`).
 4. **Reuse, then adapt.** Copy the component and change text, images and links. Keep its classes and structure unless the request needs otherwise.
 5. **Fill gaps with the tokens.** For anything new, use the colors, radius, spacing and type from the guide so it matches.
-6. **Save good new work.** For a reusable piece, call \`save_component\` (clear title, one-sentence description, tags). For a finished page or screen, call \`save_design\` with the complete HTML: it is split into one component per section.
+6. **Save good new work.** For a reusable piece, call \`save_component\` (clear title, one-sentence description, tags). For a finished page or screen, call \`save_design\` with the complete HTML: it is split into one component per section. Pass \`project\` (a name, created if new) so related screens live together; \`get_project\` shows what a project contains.
 
 Never invent component ids. If the library has nothing relevant, say so and build from the tokens.
 `;

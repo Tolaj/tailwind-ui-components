@@ -2,6 +2,7 @@ import express from "express";
 import Component from "../models/component.model.js";
 import User from "../models/user.model.js";
 import { categories } from "./home.routes.js";
+import Project from "../models/project.model.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 
 const router = express.Router();
@@ -9,9 +10,10 @@ const router = express.Router();
 router.get("/", async (req, res) => {
     try {
         const userId = req.session.user.id;
+        const projectDocs = await Project.find({ owner: userId }).select("name").sort("name").lean();
         const [components, account] = await Promise.all([
             Component.find({ createdBy: userId })
-                .select("title description category tags version htmlCode isPublished forkedFrom useAsReference updatedAt createdAt")
+                .select("title description category tags version htmlCode isPublished forkedFrom useAsReference project kind updatedAt createdAt")
                 .sort("-updatedAt")
                 .lean(),
             User.findById(userId).select("apiTokenPrefix").lean(),
@@ -31,6 +33,8 @@ router.get("/", async (req, res) => {
             htmlCode: c.htmlCode,
             isPublished: c.isPublished,
             forked: Boolean(c.forkedFrom),
+            projectId: c.project ? String(c.project) : "",
+            kind: c.kind || "component",
             useAsReference: c.useAsReference !== false,
             updatedAt: c.updatedAt,
         }));
@@ -43,6 +47,7 @@ router.get("/", async (req, res) => {
             count: data.length,
             tags: Object.entries(tagCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
             tokenPrefix: account?.apiTokenPrefix || "",
+            projectsJson: JSON.stringify(projectDocs.map((p) => ({ id: String(p._id), name: p.name }))).replace(/</g, "\\u003c"),
             mcpUrl: `${req.protocol}://${req.get("host")}/mcp`,
             libraryJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/\u2028|\u2029/g, ""),
         });

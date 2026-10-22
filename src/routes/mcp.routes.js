@@ -9,6 +9,8 @@ import { normalizeTags } from "../controllers/component.controller.js";
 import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 import { importDesign } from "../services/import.service.js";
+import { resolveProject, listProjects, projectTree } from "../services/project.service.js";
+import Project from "../models/project.model.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
 import { publicBase } from "../utils/publicUrl.js";
 
@@ -28,6 +30,7 @@ const TOOLS = [
             properties: {
                 query: { type: "string", description: "Keywords, e.g. 'pricing table' or 'navbar'" },
                 tag: { type: "string", description: "Only components with this tag" },
+                project: { type: "string", description: "Only components in this project (name or id)" },
                 limit: { type: "number", description: "Max results (default 10)" },
             },
         },
@@ -55,6 +58,7 @@ const TOOLS = [
                 htmlCode: { type: "string" },
                 tags: { type: "array", items: { type: "string" } },
                 category: { type: "string", description: "Gallery category slug, default apps-general" },
+                project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
             },
             required: ["title", "description", "htmlCode"],
         },
@@ -70,9 +74,25 @@ const TOOLS = [
                 description: { type: "string", description: "One sentence about what it is" },
                 tags: { type: "array", items: { type: "string" } },
                 split: { type: "boolean", description: "Split into sections (default true)" },
+                project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
             },
             required: ["title", "html"],
         },
+    },
+    {
+        name: "list_projects",
+        description: "List the user's projects (groups of pages and sections, like a Figma file) with page and section counts.",
+        inputSchema: { type: "object", properties: {} },
+    },
+    {
+        name: "create_project",
+        description: "Create a project to group related pages and sections, e.g. 'Acme website'. save_design also creates a project automatically when you pass a new project name.",
+        inputSchema: { type: "object", properties: { name: { type: "string" }, description: { type: "string" } }, required: ["name"] },
+    },
+    {
+        name: "get_project",
+        description: "Get a project's structure: its pages, and each page's sections, with ids you can pass to get_component.",
+        inputSchema: { type: "object", properties: { project: { type: "string", description: "Project name or id" } }, required: ["project"] },
     },
     {
         name: "list_tags",
@@ -87,7 +107,13 @@ const fail = (message) => ({ isError: true, content: [{ type: "text", text: mess
 async function callTool(userId, name, args = {}) {
     switch (name) {
         case "search_components": {
-            const results = await searchLibrary(userId, { query: args.query, tag: args.tag, limit: Math.min(Number(args.limit) || 10, 25) });
+            let projectId = null;
+            if (args.project) {
+                const p = await resolveProject(userId, args.project);
+                if (!p) return fail(`No project named "${args.project}". Use list_projects to see them.`);
+                projectId = p._id;
+            }
+            const results = await searchLibrary(userId, { query: args.query, tag: args.tag, project: projectId, limit: Math.min(Number(args.limit) || 10, 25) });
             return text(results.map((c) => {
                 const spec = c.spec || extractSpec(c.htmlCode);
                 return {
@@ -115,7 +141,10 @@ async function callTool(userId, name, args = {}) {
         }
         case "save_component": {
             if (!args.title || !args.description || !args.htmlCode) return fail("title, description and htmlCode are required");
+            const proj = await resolveProject(userId, args.project, { create: true });
             const c = await Component.create({
+                project: proj ? proj._id : null,
+                kind: proj ? "page" : "component",
                 title: args.title,
                 description: args.description,
                 htmlCode: args.htmlCode,
@@ -131,14 +160,30 @@ async function callTool(userId, name, args = {}) {
         case "save_design": {
             if (!args.html || !args.title) return fail("title and html are required");
             try {
+                const proj = await resolveProject(userId, args.project, { create: true });
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
-                    tags: args.tags, split: args.split !== false,
+                    tags: args.tags, split: args.split !== false, project: proj ? proj._id : null,
                 });
-                return text({ ...result, message: `Saved "${result.page.title}" and ${result.sections.length} section component(s) to your library (private).` });
+                return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `Saved "${result.page.title}" and ${result.sections.length} section component(s) to your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
             } catch (e) {
                 return fail(e.message);
             }
+        }
+        case "list_projects":
+            return text(await listProjects(userId));
+        case "create_project": {
+            const name = String(args.name || "").trim();
+            if (!name) return fail("name is required");
+            const existing = await resolveProject(userId, name);
+            if (existing) return text({ id: String(existing._id), name: existing.name, message: "Project already exists" });
+            const p = await Project.create({ name: name.slice(0, 80), description: String(args.description || "").slice(0, 300), owner: userId });
+            return text({ id: String(p._id), name: p.name, message: "Project created" });
+        }
+        case "get_project": {
+            const p = await resolveProject(userId, args.project);
+            if (!p) return fail(`No project named "${args.project}". Use list_projects to see them.`);
+            return text({ id: String(p._id), name: p.name, description: p.description, pages: await projectTree(userId, p._id) });
         }
         case "get_design_guide": {
             const { markdown } = await buildDesignGuide(userId);
@@ -179,8 +224,11 @@ const TITLES = {
     save_component: "Save a component",
     save_design: "Save a finished design",
     list_tags: "List tags",
+    list_projects: "List projects",
+    create_project: "Create a project",
+    get_project: "Get a project",
 };
-const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags"]);
+const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags", "list_projects", "get_project"]);
 
 // Hints let clients (Claude shows these in its permission UI) treat read tools as safe.
 const ANNOTATED_TOOLS = TOOLS.map((t) => ({

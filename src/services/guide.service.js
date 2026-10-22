@@ -1,4 +1,5 @@
 import Component from "../models/component.model.js";
+import Project from "../models/project.model.js";
 import { extractSpec } from "./spec.service.js";
 
 const TOKEN_GROUPS = [
@@ -28,10 +29,12 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
     const filter = { createdBy: userId };
     if (referenceOnly) filter.useAsReference = { $ne: false };
     const components = await Component.find(filter)
-        .select("title description category tags version htmlCode spec useAsReference updatedAt")
+        .select("title description category tags version htmlCode spec useAsReference project kind updatedAt")
         .sort("-updatedAt")
         .lean();
 
+    const projects = await Project.find({ owner: userId }).select("name").lean();
+    const projectName = Object.fromEntries(projects.map((p) => [String(p._id), p.name]));
     const specs = components.map((c) => c.spec || extractSpec(c.htmlCode));
     const n = components.length;
 
@@ -62,7 +65,8 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
         const s = specs[i];
         const flags = [s.responsive && "responsive", s.darkMode && "dark", s.needs?.javascript && "js", c.useAsReference === false && "not an AI reference"].filter(Boolean).join(", ");
         const blurb = oneLine(s.summary || c.description);
-        return `- **${oneLine(c.title, 80)}** \`${c._id}\` (v${c.version || 1}, ${c.category})${c.tags?.length ? ` [${c.tags.join(", ")}]` : ""} - ${blurb}${flags ? ` _(${flags})_` : ""}`;
+        const inProject = c.project && projectName[String(c.project)] ? ` in project "${projectName[String(c.project)]}"` : "";
+        return `- **${oneLine(c.title, 80)}** \`${c._id}\` (v${c.version || 1}, ${c.category}${inProject})${c.tags?.length ? ` [${c.tags.join(", ")}]` : ""} - ${blurb}${flags ? ` _(${flags})_` : ""}`;
     });
     if (components.length > maxIndex) index.push(`- ...and ${components.length - maxIndex} more. Use search_components to find them.`);
 
@@ -74,10 +78,11 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
         "1. **Search first.** Before writing UI, call `search_components` with what you need. Reuse a matching component instead of writing a new one.",
         "2. **Read before you fetch.** The index below and each component's spec say what it is for. Fetch full code (`get_component`) only for the one or two you will use.",
         "3. **Match the tokens.** When you must write something new, use the colors, radius, spacing and type from the tokens below so it looks like the rest.",
-        "4. **Save good work back.** Use `save_component` with a clear title, a one-sentence description and tags.",
+        "4. **Save good work back.** Use `save_component` with a clear title, a one-sentence description and tags. For a finished screen use `save_design`, and pass `project` (e.g. \"Acme website\") to group related screens together.",
         "",
         tokensMarkdown,
         "",
+        ...(projects.length ? ["## Projects", ...projects.map((p) => `- **${p.name}**: ${components.filter((c) => String(c.project) === String(p._id) && c.kind === "page").length} page(s). Use get_project for its structure.`), ""] : []),
         "## Component index",
         ...index,
         "",

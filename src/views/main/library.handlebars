@@ -40,6 +40,7 @@
     <div class="mb-4 flex flex-wrap items-center gap-3">
         <input id="libSearch" type="search" placeholder="Search {{count}} components"
             class="h-9 w-72 rounded-md border border-gray-300 bg-white px-3 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900" />
+        <select id="projectFilter" class="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-800"><option value="">All projects</option></select>
         <button type="button" id="guideBtn" class="h-9 rounded-md border border-gray-300 bg-white px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50" title="A markdown summary of your design system, generated from your components">Design guide</button>
         <div id="tagBar" class="flex flex-wrap items-center gap-1.5">
             <button type="button" data-tag="" class="tag-chip rounded-full border border-gray-900 bg-black px-3 py-1 text-xs font-medium text-white">All</button>
@@ -106,6 +107,7 @@
 
 {{> component-playground/index}}
 
+<script id="projectsData" type="application/json">{{{projectsJson}}}</script>
 <script id="libraryData" type="application/json">{{{libraryJson}}}</script>
 <script>window.__LIB = { mcpUrl: "{{mcpUrl}}" };</script>
 

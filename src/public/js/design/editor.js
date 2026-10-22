@@ -95,6 +95,11 @@ function updateChrome() {
     $("versionBadge").textContent = isNew ? "new" : `v${data.version}`;
     $("titleText").textContent = data.title || "Untitled component";
     document.title = `${data.title || "New component"} | Windcraft design`;
+    const pl = $("projLink");
+    pl.classList.toggle("hidden", !data.project);
+    pl.classList.toggle("inline-flex", Boolean(data.project));
+    $("projSep").classList.toggle("hidden", !data.project);
+    if (data.project) { pl.textContent = data.project.name; pl.href = `/projects/${data.project.id}`; }
     const empty = model.markup.trim() === "";
     $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
     $("startCard").classList.toggle("flex", empty && mode === "edit");
@@ -564,7 +569,25 @@ $("startGo").addEventListener("click", async () => {
 const dlg = $("detailsDlg");
 $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label="${esc(g.group)}">${g.items.map((i) => `<option value="${i.slug}">${esc(i.name)}</option>`).join("")}</optgroup>`).join("");
 
+function fillProjects() {
+    const cur = data.project ? data.project.id : "";
+    $("dProject").innerHTML = `<option value="">No project</option>` + (data.projects || []).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("") + `<option value="__new__">New project...</option>`;
+    $("dProject").value = cur;
+}
+$("dProject").addEventListener("change", async (e) => {
+    if (e.target.value !== "__new__") return;
+    const name = prompt("Project name");
+    if (!name || !name.trim()) { fillProjects(); return; }
+    const res = await fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    const json = await res.json();
+    if (!json.success) { alert(json.message || "Could not create the project"); return fillProjects(); }
+    (data.projects ||= []).push({ id: json.data.id, name: json.data.name });
+    fillProjects();
+    $("dProject").value = json.data.id;
+});
+
 function openDetails() {
+    fillProjects();
     $("dTitle").value = data.title || "";
     $("dCategory").value = data.category || "";
     $("dDesc").value = data.description || "";
@@ -580,7 +603,7 @@ $("detailsCancel").addEventListener("click", () => dlg.close());
 
 $("detailsForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const fields = { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value };
+    const fields = { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value, project: $("dProject").value };
     if (!fields.title || !fields.category || !fields.description) return;
     const err = $("detailsError");
     $("detailsSave").disabled = true;
@@ -598,6 +621,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
         }
         const json = await res.json();
         if (!json.success) throw new Error(json.message);
+        data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
         Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
         if (isNew) {
             data.id = json.data._id;

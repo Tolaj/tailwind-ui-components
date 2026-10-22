@@ -42,6 +42,26 @@ const componentSchema = new mongoose.Schema(
             ref: "User",
             default: []
         },
+        project: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Project",
+            default: null,
+            index: true
+        },
+        kind: {
+            type: String,
+            enum: ["component", "page", "section"],
+            default: "component"
+        },
+        parent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Component",
+            default: null
+        },
+        order: {
+            type: Number,
+            default: 0
+        },
         spec: {
             type: mongoose.Schema.Types.Mixed,
             default: null

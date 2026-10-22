@@ -25,6 +25,11 @@
         .field:focus { outline: none; border-color: #0d99ff; }
         textarea.field { height: auto; padding: 6px 8px; font-family: ui-monospace, monospace; }
 
+        /* project board frames */
+        .frame { position: relative; overflow: hidden; background: #fff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.15); cursor: pointer; }
+        .frame:hover { outline: 1px solid #0d99ff; }
+        .frame.sel { outline: 2px solid #0d99ff; }
+
         /* inspector */
         #inspector { font-size: 11px; }
         .itabs { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; background: #fff; z-index: 5; }

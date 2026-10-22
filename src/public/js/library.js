@@ -1,6 +1,9 @@
 import { parseComponentSource, buildPreviewDocument } from "./playground/component-source.js";
 
 const items = JSON.parse(document.getElementById("libraryData").textContent);
+const projects = JSON.parse(document.getElementById("projectsData").textContent);
+const projectName = (id) => (projects.find((p) => p.id === id) || {}).name || "";
+let activeProject = "";
 const grid = document.getElementById("libGrid");
 const empty = document.getElementById("libEmpty");
 let activeTag = "";
@@ -35,6 +38,7 @@ function mountPreview(box) {
 
 function matches(item) {
     if (activeTag && !item.tags.includes(activeTag)) return false;
+    if (activeProject && item.projectId !== activeProject) return false;
     if (!query) return true;
     const hay = `${item.title} ${item.description} ${item.categoryName} ${item.tags.join(" ")}`.toLowerCase();
     return query.split(/\s+/).every((w) => hay.includes(w));
@@ -56,10 +60,15 @@ function render() {
                 <p class="mt-1 line-clamp-2 text-[13px] text-gray-500">${esc(i.description)}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-1.5">
                     <span class="rounded-full border px-2 py-0.5 text-[11px] font-medium ${i.isPublished ? "border-green-200 bg-green-50 text-green-700" : "border-gray-200 bg-gray-50 text-gray-600"}">${i.isPublished ? "Public" : "Private"}</span>
+                    ${i.projectId ? `<a href="/projects/${i.projectId}" class="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700 hover:bg-purple-100">${esc(projectName(i.projectId))}</a>` : ""}
                     ${i.forked ? `<span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">From gallery</span>` : ""}
                     ${i.tags.map((t) => `<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">${esc(t)}</span>`).join("")}
                 </div>
-                <label class="mt-3 flex cursor-pointer items-center gap-2 text-[12px] text-gray-600" title="When on, AI generation can use this component as a style reference">
+                <label class="mt-3 flex items-center gap-2 text-[12px] text-gray-600">Project
+                    <select data-project="${i.id}" class="h-7 min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-1.5 text-[12px]">
+                        <option value="">None</option>${projects.map((p) => `<option value="${p.id}" ${p.id === i.projectId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
+                    </select></label>
+                <label class="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-gray-600" title="When on, AI generation can use this component as a style reference">
                     <input type="checkbox" data-ref="${i.id}" ${i.useAsReference ? "checked" : ""} class="h-3.5 w-3.5 rounded border-gray-300 accent-black">
                     Use as AI reference
                 </label>
@@ -75,6 +84,10 @@ function render() {
     empty.classList.toggle("hidden", list.length > 0);
     grid.querySelectorAll("[data-preview]").forEach((el) => previewObserver.observe(el));
 }
+
+const pf = document.getElementById("projectFilter");
+projects.forEach((p) => pf.insertAdjacentHTML("beforeend", `<option value="${p.id}">${esc(p.name)}</option>`));
+pf.addEventListener("change", () => { activeProject = pf.value; render(); });
 
 // ── Filters ──────────────────────────────────────────────────────────────────
 document.getElementById("libSearch").addEventListener("input", (e) => {
@@ -195,6 +208,16 @@ document.getElementById("libModalClose").addEventListener("click", () => modal.c
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.close(); });
 
 grid.addEventListener("change", async (e) => {
+    const sel = e.target.closest("[data-project]");
+    if (sel) {
+        const item = items.find((i) => i.id === sel.dataset.project);
+        const res = await fetch(`/api/components/${item.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project: sel.value }) });
+        const json = await res.json();
+        if (!json.success) { alert(json.message || "Could not move it"); sel.value = item.projectId; return; }
+        item.projectId = sel.value;
+        render();
+        return;
+    }
     const box = e.target.closest("[data-ref]");
     if (!box) return;
     const item = items.find((i) => i.id === box.dataset.ref);
