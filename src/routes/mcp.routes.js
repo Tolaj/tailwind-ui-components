@@ -73,7 +73,7 @@ const TOOLS = [
                 html: { type: "string", description: "Complete HTML of the design" },
                 description: { type: "string", description: "One sentence about what it is" },
                 tags: { type: "array", items: { type: "string" } },
-                split: { type: "boolean", description: "Split into sections (default true)" },
+                split: { type: "boolean", description: "Also save each stacked section as its own component. Default false." },
                 project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
             },
             required: ["title", "html"],
@@ -163,9 +163,9 @@ async function callTool(userId, name, args = {}) {
                 const proj = await resolveProject(userId, args.project, { create: true });
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
-                    tags: args.tags, split: args.split !== false, project: proj ? proj._id : null,
+                    tags: args.tags, split: args.split === true, project: proj ? proj._id : null,
                 });
-                return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `Saved "${result.page.title}" and ${result.sections.length} section component(s) to your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
+                return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `Saved "${result.page.title}"${result.sections.length ? ` and ${result.sections.length} section component(s)` : ""} to your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
             } catch (e) {
                 return fail(e.message);
             }
@@ -281,7 +281,7 @@ async function handleRpc(msg, userId) {
                     protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
                     capabilities: { tools: { listChanged: false } },
                     serverInfo: { name: "tailwind-ui-library", title: "Windcraft component library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it with save_design so it is split into reusable sections.",
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing a full page or screen, save it once with save_design (one component per screen; do not split unless asked).",
                 });
             }
             case "ping":
