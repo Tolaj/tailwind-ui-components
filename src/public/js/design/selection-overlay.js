@@ -66,7 +66,8 @@ function outline(it, z, ox, oy) {
     const f = Math.min(1, W / ((h[0] + h[1]) || Infinity), W / ((h[3] + h[2]) || Infinity), H / ((v[0] + v[3]) || Infinity), H / ((v[1] + v[2]) || Infinity));
     h = h.map((r) => r * f); v = v.map((r) => r * f);
     const d = `M${round(x + h[0])} ${round(y)}H${round(x + W - h[1])}A${round(h[1])} ${round(v[1])} 0 0 1 ${round(x + W)} ${round(y + v[1])}V${round(y + H - v[2])}A${round(h[2])} ${round(v[2])} 0 0 1 ${round(x + W - h[2])} ${round(y + H)}H${round(x + h[3])}A${round(h[3])} ${round(v[3])} 0 0 1 ${round(x)} ${round(y + H - v[3])}V${round(y + v[0])}A${round(h[0])} ${round(v[0])} 0 0 1 ${round(x + h[0])} ${round(y)}Z`;
-    return `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#0d99ff" stroke-width="1.5"/>`;
+    const halo = `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3.5"/>`;
+    return halo + `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#111" stroke-width="1.5"/>`;
 }
 
 /**

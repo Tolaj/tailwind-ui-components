@@ -4,16 +4,16 @@
 export function agentMain() {
     const root = document.documentElement;
     const post = (m) => parent.postMessage({ ...m, load: window.__wcLoad }, "*");
-    const BLUE = "#0d99ff";
+    const BLUE = "#111";
     const RED = "#f24822";
 
     // ── Overlay (selection boxes, handles, guides). Lives outside <body>, never saved. ──────────
     const mk = (css) => { const d = document.createElement("div"); d.style.cssText = css; return d; };
     const overlay = mk("position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;");
-    const hoverBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.06);pointer-events:none;display:none;box-sizing:border-box;`);
+    const hoverBox = mk(`position:absolute;border:1px solid ${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.7);background:rgba(0,0,0,.04);pointer-events:none;display:none;box-sizing:border-box;`);
     const guideLayer = mk("position:absolute;left:0;top:0;");
-    const draftBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.08);display:none;box-sizing:border-box;`);
-    const marqueeBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.1);display:none;box-sizing:border-box;`);
+    const draftBox = mk(`position:absolute;border:1px solid ${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.7);background:rgba(0,0,0,.05);display:none;box-sizing:border-box;`);
+    const marqueeBox = mk(`position:absolute;border:1px solid ${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.7);background:rgba(0,0,0,.06);display:none;box-sizing:border-box;`);
     const insertLine = mk(`position:absolute;background:${BLUE};display:none;pointer-events:none;`);
     overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, insertLine);
     root.appendChild(overlay);

@@ -517,7 +517,7 @@ $("layers").addEventListener("dragstart", (e) => {
     // a small label follows the pointer (not a smeared copy of the row), and the row itself dims so it is clear what is moving
     const chip = document.createElement("div");
     chip.textContent = row.textContent.replace(/\s+/g, " ").trim();
-    chip.style.cssText = "position:fixed;top:-100px;left:-100px;padding:3px 10px;border-radius:6px;background:rgba(13,153,255,.5);color:#fff;font:12px system-ui,sans-serif;white-space:nowrap";
+    chip.style.cssText = "position:fixed;top:-100px;left:-100px;padding:3px 10px;border-radius:6px;background:rgba(17,17,17,.7);color:#fff;font:12px system-ui,sans-serif;white-space:nowrap";
     document.body.appendChild(chip);
     e.dataTransfer.setDragImage(chip, -14, -10); // offset to the lower right, so the pointer and the drop line stay visible
     setTimeout(() => { chip.remove(); row.classList.add("is-dragging"); }, 0);
@@ -875,7 +875,7 @@ function renderTools() {
 function paintTools() {
     $("toolbar").querySelectorAll("[data-tool]").forEach((b) => {
         const on = b.dataset.tool === tool;
-        b.classList.toggle("bg-[#0d99ff]", on);
+        b.classList.toggle("bg-[#111]", on);
         b.classList.toggle("text-white", on);
         b.classList.toggle("text-neutral-600", !on);
     });
@@ -1675,7 +1675,7 @@ function renderFrameSel() {
     const z = view.z;
     const box = `left:${Math.round((view.x + p.x * z) * 100) / 100}px;top:${Math.round((view.y + p.y * z) * 100) / 100}px;width:${Math.round(widthOf(d) * z * 100) / 100}px;height:${Math.round(heightOfDoc(d) * z * 100) / 100}px;`;
     const fx = view.x + p.x * z, fy = view.y + p.y * z;
-    const outline = `<svg class="sout"><rect x="${fx - 0.75}" y="${fy - 0.75}" width="${widthOf(d) * z + 1.5}" height="${heightOfDoc(d) * z + 1.5}" fill="none" stroke="#0d99ff" stroke-width="1.5"/></svg>`;
+    const outline = `<svg class="sout"><rect x="${fx - 0.75}" y="${fy - 0.75}" width="${widthOf(d) * z + 1.5}" height="${heightOfDoc(d) * z + 1.5}" fill="none" stroke="#111" stroke-width="1.5"/></svg>`;
     el.innerHTML = outline + `<div class="fbox" style="${box}">` + FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("") + "</div>";
 }
 
