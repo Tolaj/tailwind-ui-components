@@ -17,6 +17,8 @@ const safeJson = (obj) => JSON.stringify(obj).replace(/</g, "\\u003c").replace(/
 
 const projectList = async (userId) => (await Project.find({ owner: userId }).select("name").sort("name").lean()).map((p) => ({ id: String(p._id), name: p.name }));
 
+const boardOf = (c) => (c.board && Number.isFinite(c.board.x) && Number.isFinite(c.board.y) ? { x: c.board.x, y: c.board.y } : null);
+
 const renderEditor = (res, data, title) =>
     res.render("main/design", {
         layout: "canvas",
@@ -39,14 +41,23 @@ router.get("/:id", async (req, res) => {
     try {
         if (!mongoose.isValidObjectId(req.params.id)) return notFound(req, res);
         const c = await Component.findOne({ _id: req.params.id, createdBy: req.session.user.id })
-            .select("title htmlCode version category description tags isPublished project")
+            .select("title htmlCode version category description tags isPublished project kind parent board")
             .lean();
         if (!c) return notFound(req, res);
         const projects = await projectList(req.session.user.id);
+        // Everything in the same project shares one infinite plane with this design.
+        const plane = c.project ? (await Component.find({ createdBy: req.session.user.id, project: c.project })
+            .select("title htmlCode version category description tags isPublished kind parent board")
+            .sort("order createdAt").limit(60).lean()).map((p) => ({
+            id: String(p._id), title: p.title, version: p.version || 1, kind: p.kind, parent: p.parent ? String(p.parent) : null,
+            board: boardOf(p), category: p.category, description: p.description, tags: p.tags || [], isPublished: p.isPublished,
+            htmlCode: String(p._id) === String(c._id) ? "" : p.htmlCode,
+        })) : [];
         renderEditor(res, {
             project: c.project ? projects.find((p) => p.id === String(c.project)) || null : null, projects,
             id: String(c._id), title: c.title, version: c.version || 1, htmlCode: c.htmlCode,
             category: c.category, description: c.description, tags: c.tags || [], isPublished: c.isPublished,
+            kind: c.kind, parent: c.parent ? String(c.parent) : null, board: boardOf(c), plane,
         }, c.title);
     } catch (error) {
         notFound(req, res);

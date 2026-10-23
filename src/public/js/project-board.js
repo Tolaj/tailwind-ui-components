@@ -1,4 +1,5 @@
 import { parseComponentSource, buildPreviewDocument } from "./playground/component-source.js";
+import { computeLayout as layoutItems, PAGE_H, SEC_H } from "./shared/board-layout.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -8,7 +9,7 @@ const project = data.project;
 let items = data.items;
 
 // ── Model ────────────────────────────────────────────────────────────────────
-const FRAME_W = 1280, PAGE_H = 900, SEC_H = 480, GAP_X = 320, SEC_GAP = 200, SNAP = 8;
+const FRAME_W = 1280, SNAP = 8;
 const MIN_Z = 0.03, MAX_Z = 2;
 
 const heights = {};
@@ -22,19 +23,8 @@ const pages = () => items.filter((i) => i.kind !== "section" || !items.some((p) 
 const sectionsOf = (id) => items.filter((i) => i.kind === "section" && i.parent === id);
 const heightOf = (it) => heights[it.id] || (it.kind === "section" ? SEC_H : PAGE_H);
 
-/** Saved positions win. Everything else is laid out automatically: pages in a row, each page's sections stacked beneath it. */
 function computeLayout() {
-    let col = 0;
-    pages().forEach((p) => {
-        const auto = { x: col * (FRAME_W + GAP_X), y: 0 };
-        col++;
-        pos[p.id] = p.board || auto;
-        let y = pos[p.id].y + heightOf(p) + 260;
-        sectionsOf(p.id).forEach((s) => {
-            pos[s.id] = s.board || { x: pos[p.id].x, y };
-            y += heightOf(s) + SEC_GAP;
-        });
-    });
+    Object.assign(pos, layoutItems(items, { frameW: FRAME_W, heightOf }));
 }
 
 // ── View (pan and zoom) ──────────────────────────────────────────────────────

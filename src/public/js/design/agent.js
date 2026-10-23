@@ -3,7 +3,7 @@
 // so all communication with the editor is postMessage.
 export function agentMain() {
     const root = document.documentElement;
-    const post = (m) => parent.postMessage(m, "*");
+    const post = (m) => parent.postMessage({ ...m, load: window.__wcLoad }, "*");
     const BLUE = "#0d99ff";
     const RED = "#f24822";
 
@@ -590,9 +590,16 @@ export function agentMain() {
             return;
         }
         if (e.key === "Escape") { e.preventDefault(); if (tool !== "move") setTool("move"); else setSelection([]); return; }
+        if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); post({ type: "key", key: e.key, meta: false, shift: true }); return; }
         const forward = (meta && ["z", "y", "s"].includes(k)) || (!meta && !e.altKey && ["v", "f", "r", "o", "t", "i", "b", "h"].includes(k));
         if (forward) { e.preventDefault(); post({ type: "key", key: k, meta, shift: e.shiftKey }); }
     }, true);
+
+    // the editor owns the plane: scrolling pans it and Ctrl/Cmd + scroll (or a pinch) zooms it
+    window.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        post({ type: "wheel", x: e.clientX, y: e.clientY, dx: e.deltaX, dy: e.deltaY, zoom: e.ctrlKey || e.metaKey });
+    }, { passive: false });
 
     document.addEventListener("keyup", (e) => { if (e.code === "Space" && !editing) post({ type: "space", down: false }); }, true);
 

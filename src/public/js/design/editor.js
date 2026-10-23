@@ -1,4 +1,5 @@
 import { parseComponentSource, buildPreviewDocument } from "../playground/component-source.js";
+import { computeLayout } from "../shared/board-layout.js";
 import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
@@ -41,7 +42,6 @@ const isTailwindScript = (s) => s.src && /tailwindcss/i.test(s.src);
 // ── State ────────────────────────────────────────────────────────────────────
 let mode = "edit";
 let device = 1280;
-let zoom = "fit";
 let frameHeight = 600;
 let selected = null;
 let tree = null;
@@ -61,25 +61,29 @@ const scriptTag = (s) =>
     `<script${s.src ? ` src="${esc(s.src)}"` : ""}${s.type ? ` type="${esc(s.type)}"` : ""}${s.defer ? " defer" : ""}>${s.src ? "" : s.text.replace(/<\/script/gi, "<\\/script")}<\/script>`;
 const styleTag = (s) => `<style${s.type ? ` type="${esc(s.type)}"` : ""}>${s.text.replace(/<\/style/gi, "<\\/style")}</style>`;
 
+let loadSeq = 0;
+
 function editDocument() {
     const head = ['<meta charset="utf-8">', '<meta name="viewport" content="width=device-width, initial-scale=1">'];
     if (!parsed.hasTailwindScript) head.push('<script src="https://cdn.tailwindcss.com"><\/script>');
     else head.push(...parsed.scripts.filter(isTailwindScript).map(scriptTag));
     head.push(...parsed.links, ...parsed.styles.map(styleTag), "<style>html,body{margin:0}</style>");
     const attrs = Object.entries(parsed.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
-    return `<!DOCTYPE html><html><head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>(${agentMain.toString()})()<\/script></body></html>`;
+    return `<!DOCTYPE html><html><head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
 }
 
 /** Rebuilds the component source: original head assets and scripts around the edited markup. */
-function assemble() {
-    const css = [...parsed.links, ...parsed.styles.map(styleTag)].join("\n");
-    const js = parsed.scripts.map(scriptTag).join("\n");
-    const bodyAttrs = Object.entries(parsed.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
-    if (bodyAttrs) return `<!DOCTYPE html>\n<html>\n<head>\n${css}\n</head>\n<body${bodyAttrs}>\n${model.markup}\n${js}\n</body>\n</html>\n`;
-    return [css, model.markup, js].filter(Boolean).join("\n") + "\n";
+function assembleDoc(p, markup) {
+    const css = [...p.links, ...p.styles.map(styleTag)].join("\n");
+    const js = p.scripts.map(scriptTag).join("\n");
+    const bodyAttrs = Object.entries(p.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
+    if (bodyAttrs) return `<!DOCTYPE html>\n<html>\n<head>\n${css}\n</head>\n<body${bodyAttrs}>\n${markup}\n${js}\n</body>\n</html>\n`;
+    return [css, markup, js].filter(Boolean).join("\n") + "\n";
 }
+const assemble = () => assembleDoc(parsed, model.markup);
 
 function loadFrame() {
+    loadSeq++;
     selected = null;
     renderInspector();
     frame.srcdoc = mode === "edit" ? editDocument() : buildPreviewDocument(parseComponentSource(assemble()), { width: device });
@@ -94,14 +98,13 @@ function refreshDocFlag() {
     ui.docTailwind = Boolean(parsed.hasTailwindScript || hit);
 }
 
-const isDirty = () => (isNew ? model.markup.trim() !== "" : model.markup !== savedMarkup);
-
 function updateChrome() {
     refreshDocFlag();
     $("undoBtn").disabled = hIndex <= 0;
     $("redoBtn").disabled = hIndex >= history.length - 1;
-    $("saveBtn").disabled = !isDirty();
-    $("saveState").textContent = isNew ? (isDirty() ? "Not saved yet" : "") : isDirty() ? "Unsaved changes" : "Saved";
+    const dirty = anyDirty();
+    $("saveBtn").disabled = !dirty;
+    $("saveState").textContent = dirty ? (isNew && docs.size === 1 ? "Not saved yet" : "Unsaved changes") : isNew ? "" : "Saved";
     $("versionBadge").textContent = isNew ? "new" : `v${data.version}`;
     $("titleText").textContent = data.title || "Untitled component";
     document.title = `${data.title || "New component"} | Windcraft design`;
@@ -114,6 +117,8 @@ function updateChrome() {
     $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
     $("startCard").classList.toggle("flex", empty && mode === "edit");
     if (!codeFocused()) syncCode();
+    renderDesigns();
+    refreshLabels();
 }
 
 function commit(html, key) {
@@ -140,47 +145,121 @@ function step(delta) {
     updateChrome();
 }
 
-function layout() {
-    const canvas = $("canvas");
-    const scale = zoom === "fit" ? Math.min(1, (canvas.clientWidth - 48) / device) : Number(zoom);
-    const h = Math.max(frameHeight, Math.round((canvas.clientHeight - 80) / scale));
-    frame.style.width = `${device}px`;
-    frame.style.height = `${h}px`;
-    frame.style.transform = scale === 1 ? "none" : `scale(${scale})`;
-    const wrap = $("frameWrap");
-    $("frameLabel").style.width = `${device * scale}px`;
-    $("frameLabel").textContent = `${{ 1280: "Desktop", 768: "Tablet", 390: "Mobile" }[device] || "Custom"}  ·  ${device}  ·  ${Math.round(scale * 100)}%`;
-    wrap.style.width = `${device * scale}px`;
-    wrap.style.height = `${h * scale}px`;
-    currentScale = scale;
-    send({ cmd: "view", zoom: scale });
-    const sel = $("zoomSel");
-    if (zoom !== "fit" && ![...sel.options].some((o) => o.value === String(zoom) && o.value !== "custom")) {
-        let custom = [...sel.options].find((o) => o.value === "custom");
-        if (!custom) { custom = new Option("", "custom"); sel.add(custom); }
-        custom.textContent = `${Math.round(scale * 100)}%`;
-        sel.value = "custom";
-    }
+// ── The plane: every design in the project on one infinite surface ───────────
+const MIN_Z = 0.05, MAX_Z = 4;
+const view = { x: 0, y: 0, z: 1 };
+let viewTouched = false;
+let sentZoom = 0;
+const canvas = $("canvas");
+
+const MIN_H = 720;
+const heightOfDoc = (d) => (d.key === curKey ? Math.max(MIN_H, frameHeight) : Math.max(MIN_H, d.height || 0));
+const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];
+
+function positions() {
+    return computeLayout([...docs.values()].map((d) => ({ id: d.key, kind: d.kind, parent: d.parent, board: d.board })), { frameW: device, heightOf: (it) => heightOfDoc(docs.get(it.id)) });
 }
-let currentScale = 1;
+
+function applyView() {
+    $("plane").style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
+    $("plane").style.setProperty("--iz", String(1 / view.z));
+    canvas.style.backgroundSize = `${24 * view.z}px ${24 * view.z}px`;
+    canvas.style.backgroundPosition = `${view.x}px ${view.y}px`;
+    if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); }
+    syncZoomSel();
+}
+
+function syncZoomSel() {
+    const sel = $("zoomSel");
+    const hit = [...sel.options].find((o) => Number(o.value) && Math.abs(Number(o.value) - view.z) < 0.005);
+    if (hit) { sel.value = hit.value; return; }
+    let custom = [...sel.options].find((o) => o.value === "custom");
+    if (!custom) { custom = new Option("", "custom"); sel.add(custom); }
+    custom.textContent = `${Math.round(view.z * 100)}%`;
+    sel.value = "custom";
+}
+
+function zoomAt(factor, cx, cy) {
+    const z = Math.min(MAX_Z, Math.max(MIN_Z, view.z * factor));
+    const k = z / view.z;
+    view.x = cx - (cx - view.x) * k;
+    view.y = cy - (cy - view.y) * k;
+    view.z = z;
+    applyView();
+}
+
+function fitTo(keys, maxZ = 1) {
+    const pos = positions();
+    const list = keys.filter((k) => pos[k]);
+    if (!list.length) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    list.forEach((k) => {
+        const p = pos[k];
+        x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y - 30);
+        x1 = Math.max(x1, p.x + device); y1 = Math.max(y1, p.y + heightOfDoc(docs.get(k)));
+    });
+    const [W, H] = canvasSize();
+    const z = Math.min(maxZ, Math.max(MIN_Z, Math.min((W - 120) / (x1 - x0), (H - 120) / (y1 - y0))));
+    view.z = z;
+    view.x = (W - (x1 - x0) * z) / 2 - x0 * z;
+    view.y = (H - (y1 - y0) * z) / 2 - y0 * z;
+    applyView();
+}
+
+/** Sizes and places every frame. The live frame and the previews all follow the same positions. */
+function layout() {
+    const pos = positions();
+    docs.forEach((d, key) => {
+        const en = wraps.get(key);
+        const p = pos[key];
+        if (!en || !p) return;
+        const h = heightOfDoc(d);
+        Object.assign(en.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${device}px`, height: `${h}px` });
+        // the live iframe never changes parent (that would reload it); it just sits over the active frame
+        if (key === curKey) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${device}px`, height: `${h}px` });
+    });
+    applyView();
+}
+
+function handleWheel({ dx, dy, zoomKey, cx, cy }) {
+    viewTouched = true;
+    if (zoomKey) zoomAt(Math.exp(-dy * 0.01), cx, cy);
+    else { view.x -= dx; view.y -= dy; applyView(); }
+}
 
 // ── Messages from the frame ──────────────────────────────────────────────────
 const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-live]") && $("inspector").contains(document.activeElement));
 
 window.addEventListener("message", (e) => {
-    if (e.source !== frame.contentWindow) return;
     const m = e.data || {};
+    if (m.type === "preview-height" && e.source !== frame.contentWindow) {
+        for (const [key, en] of wraps) {
+            if (en.ghost && en.ghost.contentWindow === e.source) { docs.get(key).height = Math.max(120, Math.min(6000, m.height)); scheduleLayout(); return; }
+        }
+        return;
+    }
+    if (e.source !== frame.contentWindow) return;
+    // a document that was replaced (switching designs reloads the frame) can still have messages in flight
+    if (m.load !== undefined && m.load !== loadSeq) return;
+    if (m.type === "wheel") {
+        const pos = positions()[curKey] || { x: 0, y: 0 };
+        return handleWheel({ dx: m.dx, dy: m.dy, zoomKey: m.zoom, cx: view.x + (pos.x + m.x) * view.z, cy: view.y + (pos.y + m.y) * view.z });
+    }
     if (m.type === "ready") {
         if (!history.length) { history = [m.html]; hIndex = 0; model.markup = m.html; if (!isNew) savedMarkup = m.html; }
         tree = m.tree;
         renderLayers();
         updateChrome();
         layout();
+        if (!viewTouched) fitTo([curKey]);
+        sentZoom = 0;
+        applyView();
         send({ cmd: "tool", tool });
         send({ cmd: "cssProps", props: CSS_PROP_LIST });
     } else if (m.type === "height" || m.type === "preview-height") {
         frameHeight = m.height;
         layout();
+        if (!viewTouched) fitTo([curKey]);
     } else if (m.type === "changed") {
         tree = m.tree;
         if (m.silent) model.markup = m.html;
@@ -446,38 +525,71 @@ $("modeSeg").addEventListener("click", (e) => {
     updateShield();
     loadFrame();
 });
-$("zoomSel").addEventListener("change", (e) => { if (e.target.value === "custom") return; zoom = e.target.value; layout(); });
+$("zoomSel").addEventListener("change", (e) => {
+    const v = e.target.value;
+    if (v === "custom") return;
+    viewTouched = true;
+    if (v === "fit") return fitTo([...docs.keys()]);
+    if (v === "frame") return fitTo([curKey]);
+    const [W, H] = canvasSize();
+    zoomAt(Number(v) / view.z, W / 2, H / 2);
+});
 $("undoBtn").addEventListener("click", () => step(-1));
 $("redoBtn").addEventListener("click", () => step(1));
 window.addEventListener("resize", layout);
 
-async function save() {
-    if (!isDirty()) return;
-    if (isNew) return openDetails();
-    $("saveBtn").disabled = true;
-    $("saveState").textContent = "Saving...";
-    try {
-        const doc = new DOMParser().parseFromString(model.markup, "text/html");
-        const res = await fetch(`/api/components/${data.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
+const DEFAULT_CATEGORY = "apps-general";
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+/** Writes one design: creates it the first time, a new version after that. */
+async function persist(d) {
+    const m = d.meta;
+    const doc = new DOMParser().parseFromString(d.markup, "text/html");
+    const body = { htmlCode: assembleDoc(d.parsed, d.markup), elementsDescription: [...doc.body.children].map((c) => createDescriptionFromElement(c)) };
+    if (d.isNew) {
+        const res = await fetch("/api/components", {
+            method: "POST", headers: JSON_HEADERS,
             body: JSON.stringify({
-                htmlCode: assemble(),
-                elementsDescription: [...doc.body.children].map((c) => createDescriptionFromElement(c)),
-                note: "Edited in design canvas",
+                ...body, title: m.title || "Untitled design", category: m.category || DEFAULT_CATEGORY, description: m.description || "A design on the canvas.",
+                tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
             }),
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.message);
-        data.version = json.data.version;
-        savedMarkup = model.markup;
-        updateChrome();
-        $("saveState").textContent = `Saved as v${data.version}`;
+        m.id = json.data._id;
+        m.version = json.data.version || 1;
+        d.isNew = false;
+        const old = d.key;
+        remapKey(old, m.id);
+        if (d.board && m.project) saveBoard([{ id: m.id, ...d.board }]);
+        if (m.id === curKey) window.history.replaceState({}, "", `/design/${m.id}`);
+    } else {
+        const res = await fetch(`/api/components/${m.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ ...body, note: "Edited in design canvas" }) });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message);
+        m.version = json.data.version;
+    }
+    d.savedMarkup = d.markup;
+}
+
+async function save() {
+    if (!anyDirty()) return;
+    const dirty = [...docs.values()].filter(docDirty);
+    const needsDetails = dirty.find((d) => d.isNew && !d.meta.category);
+    $("saveBtn").disabled = true;
+    $("saveState").textContent = "Saving...";
+    try {
+        for (const d of dirty) if (d !== needsDetails) await persist(d);
     } catch (err) {
+        loadActiveFromStash();
         updateChrome();
         $("saveState").textContent = "Save failed";
-        alert(err.message || "Could not save");
+        return alert(err.message || "Could not save");
     }
+    loadActiveFromStash();
+    if (needsDetails) { if (needsDetails.key !== curKey) activate(needsDetails.key); updateChrome(); return openDetails(); }
+    updateChrome();
+    $("saveState").textContent = dirty.length > 1 ? `Saved ${dirty.length} designs` : `Saved as v${data.version}`;
 }
 $("saveBtn").addEventListener("click", save);
 
@@ -488,6 +600,8 @@ function handleKey({ key, meta, shift }) {
     if (meta && key === "z") return step(shift ? 1 : -1);
     if (meta && key === "y") return step(1);
     if (meta && key === "s") return save();
+    if (key === "!") { viewTouched = true; return fitTo([...docs.keys()]); }
+    if (key === "@") { viewTouched = true; return fitTo([curKey]); }
     if (!meta && TOOL_KEYS[key]) return setTool(TOOL_KEYS[key]);
     if (!selected) return;
     if (meta && key === "d") return send({ cmd: "duplicateSel" });
@@ -500,6 +614,7 @@ document.addEventListener("keydown", (e) => {
     const meta = e.metaKey || e.ctrlKey;
     const key = e.key.toLowerCase();
     if (e.code === "Space") { e.preventDefault(); setSpace(true); return; }
+    if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); handleKey({ key: e.key, meta: false, shift: true }); return; }
     if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (!meta && !e.altKey && TOOL_KEYS[key])) {
         e.preventDefault();
         handleKey({ key, meta, shift: e.shiftKey });
@@ -542,27 +657,18 @@ function updateShield() { $("toolbar").classList.toggle("hidden", mode !== "edit
 
 // the shield catches drags over the canvas so panning uses real pointer coordinates
 let pan = null;
-$("panShield").addEventListener("pointerdown", (e) => { pan = { x: e.clientX, y: e.clientY, l: $("canvas").scrollLeft, t: $("canvas").scrollTop }; $("panShield").setPointerCapture(e.pointerId); $("panShield").style.cursor = "grabbing"; });
-$("panShield").addEventListener("pointermove", (e) => { if (!pan) return; $("canvas").scrollLeft = pan.l - (e.clientX - pan.x); $("canvas").scrollTop = pan.t - (e.clientY - pan.y); });
+$("panShield").addEventListener("pointerdown", (e) => { viewTouched = true; pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; $("panShield").setPointerCapture(e.pointerId); $("panShield").style.cursor = "grabbing"; });
+$("panShield").addEventListener("pointermove", (e) => { if (!pan) return; view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; applyView(); });
 $("panShield").addEventListener("pointerup", () => { pan = null; $("panShield").style.cursor = "grab"; });
 
-// Ctrl/Cmd + scroll zooms around the pointer; plain scroll scrolls the canvas
-$("canvas").addEventListener("wheel", (e) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
+// scroll pans, Ctrl/Cmd + scroll (or a pinch) zooms around the pointer
+canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
-    const canvas = $("canvas");
     const r = canvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-    const s0 = currentScale;
-    const s1 = Math.min(4, Math.max(0.1, s0 * Math.exp(-e.deltaY * 0.01)));
-    const cx = (canvas.scrollLeft + mx) / s0, cy = (canvas.scrollTop + my) / s0;
-    zoom = String(s1);
-    layout();
-    canvas.scrollLeft = cx * s1 - mx;
-    canvas.scrollTop = cy * s1 - my;
+    handleWheel({ dx: e.deltaX, dy: e.deltaY, zoomKey: e.ctrlKey || e.metaKey, cx: e.clientX - r.left, cy: e.clientY - r.top });
 }, { passive: false });
 
-window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", (e) => { if (anyDirty()) { e.preventDefault(); e.returnValue = ""; } });
 
 
 // ── Code panel (two-way with the canvas) ─────────────────────────────────────
@@ -726,6 +832,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
         }
         const json = await res.json();
         if (!json.success) throw new Error(json.message);
+        const movedProject = (data.project ? data.project.id : "") !== fields.project;
         data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
         Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
         if (isNew) {
@@ -734,9 +841,14 @@ $("detailsForm").addEventListener("submit", async (e) => {
             isNew = false;
             savedMarkup = model.markup;
             window.history.replaceState({}, "", `/design/${data.id}`);
+            const d = docs.get(curKey);
+            if (d.board && data.project) saveBoard([{ id: data.id, ...d.board }]);
+            remapKey(curKey, data.id);
         }
         dlg.close();
         updateChrome();
+        // the plane belongs to a project, so a design that moved to another one reloads onto that project's plane
+        if (movedProject && !anyDirty()) window.location.href = `/design/${data.id}`;
     } catch (error) {
         err.textContent = error.message || "Could not save";
         err.classList.remove("hidden");
@@ -745,8 +857,302 @@ $("detailsForm").addEventListener("submit", async (e) => {
     }
 });
 
+// ── Many designs on one plane ────────────────────────────────────────────────
+// One design is live (the iframe you edit). The others are previews in the same project; click one to switch to it.
+// Each design keeps its own history, so switching never loses edits. Save writes every changed design.
+const META_KEYS = ["id", "title", "version", "category", "description", "tags", "isPublished", "project"];
+const takeMeta = () => Object.fromEntries(META_KEYS.map((k) => [k, data[k]]));
+const applyMeta = (m) => META_KEYS.forEach((k) => { data[k] = m[k]; });
+
+const docs = new Map();
+const wraps = new Map();
+let curKey = data.id || "draft-0";
+let draftCount = 0;
+let planeProject = data.project || null;
+
+docs.set(curKey, { key: curKey, meta: takeMeta(), kind: data.kind || (data.project ? "page" : "component"), parent: data.parent || null, board: data.board || null, parsed, markup: model.markup, history, hIndex, isNew, savedMarkup, height: 0, loaded: true });
+(data.plane || []).forEach((it) => {
+    if (it.id === curKey) return;
+    docs.set(it.id, {
+        key: it.id, kind: it.kind, parent: it.parent, board: it.board, source: it.htmlCode, loaded: false, isNew: false, height: 0,
+        meta: { id: it.id, title: it.title, version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
+    });
+});
+
+function stashActive() {
+    const d = docs.get(curKey);
+    Object.assign(d, { meta: takeMeta(), parsed, markup: model.markup, history, hIndex, isNew, savedMarkup, height: frameHeight, loaded: true });
+}
+function loadActiveFromStash() {
+    const d = docs.get(curKey);
+    applyMeta(d.meta);
+    isNew = d.isNew;
+    savedMarkup = d.savedMarkup;
+}
+function ensureLoaded(d) {
+    if (d.loaded) return;
+    d.parsed = parseComponentSource(d.source);
+    d.markup = d.parsed.markup;
+    d.history = [];
+    d.hIndex = -1;
+    d.savedMarkup = d.markup;
+    d.loaded = true;
+}
+
+const docDirty = (d) => d.loaded && (d.isNew ? d.markup.trim() !== "" : d.markup !== d.savedMarkup);
+function anyDirty() {
+    stashActive();
+    return [...docs.values()].some(docDirty);
+}
+
+function remapKey(oldKey, newKey) {
+    if (oldKey === newKey) return;
+    const d = docs.get(oldKey);
+    if (!d) return;
+    d.key = newKey;
+    docs.delete(oldKey);
+    docs.set(newKey, d);
+    const en = wraps.get(oldKey);
+    if (en) { wraps.delete(oldKey); wraps.set(newKey, en); en.wrap.dataset.key = newKey; }
+    if (curKey === oldKey) curKey = newKey;
+}
+
+// frames
+const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) mountGhost(e.target.dataset.key);
+}), { root: canvas, rootMargin: "600px" });
+
+function makeWrap(key) {
+    const wrap = document.createElement("div");
+    wrap.className = "fwrap";
+    wrap.dataset.key = key;
+    wrap.innerHTML = '<div class="flabel drag" data-label></div><div class="frame"></div>';
+    $("frames").appendChild(wrap);
+    const en = { wrap, box: wrap.querySelector(".frame"), label: wrap.querySelector(".flabel"), ghost: null, shield: null };
+    wraps.set(key, en);
+    io.observe(wrap);
+    return en;
+}
+
+function mountGhost(key, force) {
+    const en = wraps.get(key);
+    const d = docs.get(key);
+    if (!en || !d || key === curKey || (en.ghost && !force)) return;
+    const p = d.loaded ? { ...d.parsed, markup: d.markup } : parseComponentSource(d.source);
+    if (!en.ghost) {
+        en.ghost = document.createElement("iframe");
+        en.ghost.setAttribute("sandbox", "allow-scripts");
+        en.ghost.setAttribute("tabindex", "-1");
+        en.ghost.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;border:0;pointer-events:none;background:#fff;";
+        en.box.prepend(en.ghost);
+    }
+    en.ghost.title = d.meta.title || "Design";
+    en.ghost.srcdoc = buildPreviewDocument(p, { width: device });
+}
+
+function setRole(key) {
+    const en = wraps.get(key);
+    if (!en) return;
+    const active = key === curKey;
+    en.wrap.classList.toggle("active", active);
+    en.wrap.classList.toggle("ghost", !active);
+    if (active) {
+        if (en.ghost) { en.ghost.remove(); en.ghost = null; }
+        if (en.shield) { en.shield.remove(); en.shield = null; }
+    } else if (!en.shield) {
+        en.shield = document.createElement("div");
+        en.shield.className = "gshield";
+        en.shield.dataset.shield = "";
+        en.shield.style.cursor = "pointer";
+        en.box.appendChild(en.shield);
+    }
+}
+
+function refreshLabels() {
+    docs.forEach((d, key) => {
+        const en = wraps.get(key);
+        if (!en) return;
+        const active = key === curKey;
+        const title = active ? data.title : d.meta.title;
+        const ver = active ? data.version : d.meta.version;
+        const state = (active ? isNew : d.isNew) ? "new" : d.kind === "section" ? "section" : `v${ver}`;
+        en.label.innerHTML = `${esc(title || "Untitled design")}<span>${state}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}`;
+    });
+}
+
+let layoutQueued = false;
+function scheduleLayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => { layoutQueued = false; layout(); });
+}
+
+function buildWraps() {
+    docs.forEach((_, key) => makeWrap(key));
+    docs.forEach((_, key) => setRole(key));
+    refreshLabels();
+}
+
+// the designs list
+function renderDesigns() {
+    const list = [...docs.values()];
+    const pages = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
+    const row = (d, depth) => {
+        const active = d.key === curKey;
+        const title = (active ? data.title : d.meta.title) || "Untitled design";
+        return `<div class="layer-row cursor-pointer gap-1 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-design="${d.key}">
+            <span class="shrink-0 font-mono text-[10px] ${active ? "" : "text-neutral-500"}">${d.kind === "section" ? "sec" : "page"}</span>
+            <span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot"></i>' : ""}</div>`;
+    };
+    $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
+}
+$("designs").addEventListener("click", (e) => {
+    const r = e.target.closest("[data-design]");
+    if (!r) return;
+    viewTouched = true;
+    activate(r.dataset.design);
+    fitTo([r.dataset.design], Math.max(view.z, 0.5));
+});
+
+/** Makes another design the live one. The current one stays on the plane as a preview with its edits. */
+function activate(key) {
+    if (key === curKey || !docs.has(key)) return;
+    stashActive();
+    const prev = docs.get(curKey);
+    const next = docs.get(key);
+    ensureLoaded(next);
+    applyMeta(next.meta);
+    parsed = next.parsed;
+    model.markup = next.markup;
+    history = next.history;
+    hIndex = next.hIndex;
+    isNew = next.isNew;
+    savedMarkup = next.savedMarkup;
+    frameHeight = Math.max(MIN_H, next.height || 0);
+    lastKey = "";
+    selected = null;
+    tree = null;
+    collapsed.clear();
+    const oldKey = curKey;
+    curKey = key;
+    setRole(key);
+    setRole(oldKey);
+    mountGhost(oldKey, true);
+    window.history.replaceState({}, "", next.isNew ? "/design/new" : `/design/${next.meta.id}`);
+    loadFrame();
+    renderLayers();
+    updateChrome();
+    layout();
+}
+
+// moving frames: drag a label, or drag a preview. A plain click on a preview opens it.
+const SNAP = 8;
+const pendingSave = new Map();
+let saveTimer = null;
+async function saveBoard(positions) {
+    if (!planeProject) return;
+    try {
+        await fetch(`/api/projects/${planeProject.id}/layout`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ positions }) });
+    } catch { /* the position stays on screen; the next drag saves it again */ }
+}
+function queueBoardSave(key) {
+    const d = docs.get(key);
+    if (!d || d.isNew) return;
+    pendingSave.set(key, d.board);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flushBoard, 500);
+}
+function flushBoard() {
+    if (!pendingSave.size) return;
+    const positions = [...pendingSave].map(([id, p]) => ({ id, x: p ? p.x : null, y: p ? p.y : null }));
+    pendingSave.clear();
+    saveBoard(positions);
+}
+window.addEventListener("beforeunload", () => {
+    if (pendingSave.size && planeProject && navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/projects/${planeProject.id}/layout`, new Blob([JSON.stringify({ positions: [...pendingSave].map(([id, p]) => ({ id, x: p ? p.x : null, y: p ? p.y : null })) })], { type: "application/json" }));
+    }
+});
+
+let gesture = null;
+canvas.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target === $("panShield")) return;
+    const label = e.target.closest("[data-label]");
+    const shield = e.target.closest("[data-shield]");
+    const wrap = (label || shield) && e.target.closest(".fwrap");
+    if (wrap) {
+        const key = wrap.dataset.key;
+        const pos = positions()[key];
+        gesture = { type: "frame", key, wrap, sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y, moved: false, label: Boolean(label) };
+    } else if (e.target === canvas || e.target === $("plane") || e.target === $("frames")) {
+        gesture = { type: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+    } else return;
+    canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+    if (!gesture) return;
+    const dx = e.clientX - gesture.sx, dy = e.clientY - gesture.sy;
+    if (!gesture.moved && Math.hypot(dx, dy) < 4) return;
+    gesture.moved = true;
+    viewTouched = true;
+    if (gesture.type === "pan") { view.x = gesture.vx + dx; view.y = gesture.vy + dy; return applyView(); }
+    gesture.wrap.classList.add("dragging");
+    const p = { x: Math.round((gesture.ox + dx / view.z) / SNAP) * SNAP, y: Math.round((gesture.oy + dy / view.z) / SNAP) * SNAP };
+    docs.get(gesture.key).board = p;
+    gesture.wrap.style.left = `${p.x}px`;
+    gesture.wrap.style.top = `${p.y}px`;
+});
+canvas.addEventListener("pointerup", () => {
+    const g = gesture;
+    gesture = null;
+    if (!g || g.type !== "frame") return;
+    g.wrap.classList.remove("dragging");
+    if (g.moved) { queueBoardSave(g.key); layout(); }
+    else activate(g.key);
+});
+
+// a new design on the same plane
+async function ensureProject() {
+    if (planeProject) return planeProject;
+    const name = prompt("Designs that share a canvas live in a project. Name this project:", data.title || "My project");
+    if (!name || !name.trim()) return null;
+    const res = await fetch("/api/projects", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ name }) });
+    const json = await res.json();
+    if (!json.success) { alert(json.message || "Could not create the project"); return null; }
+    const project = { id: json.data.id, name: json.data.name };
+    if (!isNew) {
+        const put = await fetch(`/api/components/${data.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ project: project.id }) });
+        if (!(await put.json()).success) { alert("Could not add this design to the project"); return null; }
+    }
+    planeProject = project;
+    (data.projects ||= []).push(project);
+    data.project = project;
+    const d = docs.get(curKey);
+    d.kind = "page";
+    return project;
+}
+
+$("newDesignBtn").addEventListener("click", async () => {
+    const project = await ensureProject();
+    if (!project) return;
+    const key = `draft-${++draftCount}`;
+    docs.set(key, {
+        key, kind: "page", parent: null, board: null, source: "", loaded: true, isNew: true, height: 0,
+        parsed: parseComponentSource(""), markup: "", history: [], hIndex: -1, savedMarkup: "",
+        meta: { id: null, title: "Untitled design", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A design on the canvas.", tags: [], isPublished: false, project },
+    });
+    makeWrap(key);
+    viewTouched = true;
+    activate(key);
+    layout();
+    fitTo([key], 0.8);
+    setTool("move");
+});
+
 // ── Go ───────────────────────────────────────────────────────────────────────
 mountDatalists();
+buildWraps();
 updateChrome();
 renderInspector();
+layout();
 loadFrame();
