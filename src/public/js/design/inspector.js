@@ -270,7 +270,26 @@ function aiTab() {
     return `<div class="sec"><div class="secb nopad"><p class="sub first">Ask AI about this element</p><textarea id="aiInput" class="fi area" rows="4" placeholder="e.g. make this a dark card with a larger title"></textarea><button type="button" data-do="ai" class="primary">Apply to this element</button><p id="aiNote" class="hidden"></p><p class="muted">Changes only the selected element. Undo with Ctrl/Cmd+Z.</p></div></div>`;
 }
 
-export function renderInspectorHtml(s) {
+/** What the panel shows when a page is selected but no element in it: the page's own name, size, position and details. */
+function pageHtml(pg) {
+    const cell = (k, label, v, ph = "") => `<label class="cell"><span class="clbl">${label}</span><input class="fi" data-pg="${k}" value="${esc(v ?? "")}" placeholder="${ph}" autocomplete="off"></label>`;
+    const dev = (w, l) => `<button type="button" data-pgw="${w}" class="flex-1 rounded border py-1 text-[10px] ${pg.w === w ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 hover:bg-neutral-50"}">${l}</button>`;
+    const btn = (act, l) => `<button type="button" data-pgact="${act}" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
+    return `<div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
+            <label class="row"><span class="lbl">Name</span><input class="fi" data-pg="name" value="${esc(pg.name)}" autocomplete="off"></label>
+            <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${esc(pg.version)}`}${pg.project ? ` · ${esc(pg.project)}` : ""}</span></div></div></div>
+        <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
+            <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
+            ${two(cell("w", "W", pg.w), cell("h", "H", pg.auto ? "" : pg.h, "auto"))}
+            <p class="text-[10px] text-neutral-500">Leave the height empty and it follows the content.</p></div></div>
+        <div class="sec"><div class="secb nopad"><p class="sub first">Position on the canvas</p>
+            ${two(cell("x", "X", pg.x), cell("y", "Y", pg.y))}</div></div>
+        <div class="sec"><div class="secb nopad"><div class="flex gap-1">${btn("fit", "Zoom to fit")}${btn("details", "Details…")}</div>
+            <p class="text-[10px] text-neutral-500">Click an element in the page to edit it.</p></div></div>`;
+}
+
+export function renderInspectorHtml(s, page) {
+    if (!s && page) return `<div class="itabs"><span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>${ui.closeInTabs ? '<button type="button" data-closepanel title="Close" style="padding:0;margin-left:auto" class="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : ""}</div>${pageHtml(page)}`;
     const tabs = `<div class="itabs">${[["design", "Design"], ["classes", "Classes and CSS"], ["ai", "AI"]].map(([k, l]) => `<button type="button" data-tab="${k}" class="${ui.tab === k ? "on" : ""}">${l}</button>`).join("")}${ui.closeInTabs ? `<button type="button" data-closepanel title="Close" style="padding:0" class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ""}</div>`;
     if (!s) return tabs + `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>`;
     return tabs + (ui.tab === "design" ? designTab(s) : ui.tab === "classes" ? classesTab(s) : aiTab());

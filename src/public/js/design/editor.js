@@ -241,6 +241,7 @@ function fitTo(keys, maxZ = 1) {
 
 /** Sizes and places every frame. The live frame and the previews all follow the same positions. */
 function layout() {
+    if (!selected && !pageEditing()) setTimeout(renderInspector, 0); // the page panel (shown while no element is selected) follows its size and position
     const pos = positions();
     docs.forEach((d, key) => {
         const en = wraps.get(key);
@@ -552,9 +553,22 @@ $("layers").addEventListener("dragend", () => { clearDrop(); dragPath = null; do
 // ── Inspector (see inspector.js for the controls) ───────────────────────────
 const insp = $("inspector");
 
+/** The selected page's own properties, for the panel. */
+function pageInfo() {
+    const d = docs.get(curKey), p = positions()[curKey] || { x: 0, y: 0 };
+    return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
+}
+function setPageBox(patch) {
+    const d = docs.get(curKey), p = positions()[curKey];
+    d.board = { x: p.x, y: p.y, ...(d.board || {}), ...patch };
+    rememberCustom(d);
+    queueBoardSave(curKey);
+    layout();
+}
+const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg]") && $("inspector").contains(document.activeElement));
 function renderInspector() {
     const top = insp.scrollTop;
-    insp.innerHTML = renderInspectorHtml(selected);
+    insp.innerHTML = renderInspectorHtml(selected, selected ? null : pageInfo());
     insp.scrollTop = top;
 }
 
@@ -583,6 +597,10 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 insp.addEventListener("click", (e) => {
     const t = e.target;
     if (t.closest("[data-closepanel]")) return setPanel(false);
+    const pw = t.closest("[data-pgw]");
+    if (pw) return setDevice(Number(pw.dataset.pgw));
+    const pa = t.closest("[data-pgact]");
+    if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : $("detailsBtn").click();
     const sm = t.closest("[data-stylemode]");
     if (sm) { ui.styleMode = sm.dataset.stylemode; return renderInspector(); }
     const rst = t.closest("[data-cssreset]");
@@ -621,6 +639,15 @@ insp.addEventListener("click", (e) => {
 
 insp.addEventListener("change", (e) => {
     const t = e.target;
+    if (t.dataset.pg) {
+        const k = t.dataset.pg, v = t.value.trim();
+        if (k === "name") { const prev = data.title; return v && v !== prev ? renameFrame(curKey, v, prev) : renderInspector(); }
+        if (k === "h" && v === "") { const d = docs.get(curKey); const b = { ...(d.board || {}) }; delete b.h; d.board = { x: positions()[curKey].x, y: positions()[curKey].y, ...b }; queueBoardSave(curKey); layout(); return renderInspector(); }
+        const n = Number(v);
+        if (v === "" || !Number.isFinite(n)) return renderInspector();
+        setPageBox({ [k]: k === "w" ? clampSize(n, 8000) : k === "h" ? clampSize(n, 20000) : Math.round(n) });
+        return renderInspector();
+    }
     if (!selected) return;
     if (t.dataset.csscolor) return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.csscolor, value: t.value });
     if (t.dataset.css !== undefined) { const v = t.value.trim(); return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.css, value: v === "" ? null : normalizeValue(t.dataset.css, v) }); }
@@ -1433,8 +1460,9 @@ canvas.addEventListener("pointerup", (e) => {
     if (g.type === "fresize") { if (g.moved) queueBoardSave(g.key); return; }
     g.wrap.classList.remove("dragging");
     if (g.moved) { queueBoardSave(g.key); layout(); return; }
-    if (g.key !== curKey) activate(g.key);
-    if (g.label) selectFrame();
+    const switched = g.key !== curKey;
+    if (switched) activate(g.key);
+    if (g.label || switched) selectFrame();
 });
 
 /** Empty canvas with the arrow: drag a box. Frames it touches get selected. */
