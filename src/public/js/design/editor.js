@@ -429,15 +429,37 @@ function renderLayers() {
 const parsePath = (s) => (s === "" ? [] : s.split(".").map(Number));
 
 // ── Pages section (left panel) ───────────────────────────────────────────────
+/** The project and the current page, always visible above the Pages list. */
+function renderDetailsBlock() {
+    const pr = $("leftProject");
+    const ARROW = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5h5v5M9.5 2.5l-6 6"/></svg>';
+    if (data.project) {
+        pr.href = `/projects/${data.project.id}`;
+        pr.innerHTML = `<span class="truncate">${esc(data.project.name)}</span><span class="sub2">${ARROW}</span>`;
+    } else {
+        pr.href = "#";
+        pr.innerHTML = '<span class="mut">No project</span><span class="sub2">Choose</span>';
+    }
+}
+$("pagesList").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-pedit]")) return;
+    e.stopImmediatePropagation();
+    $("detailsBtn").click();
+}, true);
+$("leftProject").addEventListener("click", (e) => { if (!data.project) { e.preventDefault(); $("detailsBtn").click(); } });
+
+const PAGE_EDIT = '<button type="button" data-pedit class="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-white/70" title="Page details: name, category, tags, visibility"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>';
 function renderPagesList() {
     const el = $("pagesList");
-    if (!leftOpen || el.querySelector(".frename")) return; // not while a name is being typed
+    if (!leftOpen) return;
+    renderDetailsBlock();
+    if (el.querySelector(".frename")) return; // not while a name is being typed
     const list = [...docs.values()];
     const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
     const row = (d, depth) => {
         const active = d.key === curKey;
         const title = (active ? data.title : d.meta.title) || "Untitled page";
-        return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}</div>`;
+        return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}${active ? PAGE_EDIT : ""}</div>`;
     };
     el.innerHTML = tops.map((d) => row(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => row(c, 1)).join("")).join("");
 }
@@ -450,7 +472,7 @@ $("pagesList").addEventListener("click", (e) => {
 });
 $("pagesList").addEventListener("dblclick", (e) => {
     const row = e.target.closest("[data-page]");
-    if (!row || e.target.closest(".frename")) return;
+    if (!row || e.target.closest(".frename, [data-pedit]")) return;
     const key = row.dataset.page;
     const d = docs.get(key);
     const current = (key === curKey ? data.title : d.meta.title) || "";
