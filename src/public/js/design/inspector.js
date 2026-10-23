@@ -201,6 +201,7 @@ const isUtility = (tok) => { const base = parseToken(tok).base; return Object.ke
 /** Auto picks Tailwind for Tailwind-styled elements and CSS for elements styled by the design's own CSS. */
 export function modeFor(s) {
     if (ui.styleMode !== "auto") return ui.styleMode;
+    if (s.added) return "tailwind"; // made in the editor: always Tailwind. CSS is for elements the editor starts editing in an existing design
     const toks = tokensOf(s);
     if (toks.length) return toks.some(isUtility) ? "tailwind" : "css";
     return ui.docTailwind ? "tailwind" : "css";
@@ -244,7 +245,7 @@ function cssSections(s) {
 }
 
 const modeBar = (s, mode) => `<div class="px-2 pt-2"><div class="seg2">${[["auto", "Auto"], ["tailwind", "Tailwind"], ["css", "CSS"]].map(([v, l]) => `<button type="button" data-stylemode="${v}" class="${ui.styleMode === v ? "on" : ""}">${l}</button>`).join("")}</div>
-    <p class="muted" style="padding:4px 2px 0">${mode === "css" ? "Styling with <strong>CSS</strong>. Changes are saved as inline styles, which override the design's own stylesheet." : "Styling with <strong>Tailwind</strong> classes."}${ui.styleMode === "auto" ? " (picked automatically for this element)" : ""}</p></div>`;
+    <p class="muted" style="padding:4px 2px 0">${mode === "css" ? "Styling with <strong>CSS</strong>. Changes are saved as inline styles, which override the design's own stylesheet." : "Styling with <strong>Tailwind</strong> classes."}${ui.styleMode === "auto" ? (s.added ? " (this element was added in the editor)" : " (picked automatically for this element)") : ""}</p></div>`;
 
 function designTab(s) {
     const mode = modeFor(s);

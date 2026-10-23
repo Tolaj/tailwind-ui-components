@@ -197,8 +197,12 @@
                     <button id="codeClose" type="button"
                         class="rounded px-2 py-0.5 text-neutral-500 hover:bg-neutral-200">Hide</button>
                 </div>
-                <textarea id="codeText" spellcheck="false"
-                    class="min-h-0 w-full flex-1 resize-none border-0 bg-neutral-50 p-3 font-mono text-[12px] leading-5 text-neutral-900 focus:bg-white focus:outline-none"></textarea>
+                {{!-- The pre sits behind the see-through textarea and paints the selected element's source (see updateCodeHighlight) --}}
+                <div class="relative min-h-0 flex-1 bg-neutral-50 focus-within:bg-white">
+                    <pre id="codeHl" aria-hidden="true" class="code-layer pointer-events-none absolute inset-0 m-0 text-transparent"></pre>
+                    <textarea id="codeText" spellcheck="false"
+                        class="code-layer absolute inset-0 h-full w-full resize-none border-0 bg-transparent text-neutral-900 focus:outline-none"></textarea>
+                </div>
             </div>
         </section>
 

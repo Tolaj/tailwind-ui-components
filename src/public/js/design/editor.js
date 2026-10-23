@@ -352,9 +352,11 @@ window.addEventListener("message", (e) => {
         setSpace(m.down);
     } else if (m.type === "selected") {
         // the same element reporting again (after an edit) keeps its open menu; a different one starts fresh
-        if (!(selected && m.info && pathKey(selected.path) === pathKey(m.info.path))) { ftMenu = false; ftPop = null; ftSides = {}; }
+        const newSelection = !(selected && m.info && pathKey(selected.path) === pathKey(m.info.path));
+        if (newSelection) { ftMenu = false; ftPop = null; ftSides = {}; }
         selected = m.info;
         frameSel = null;
+        updateCodeHighlight(newSelection); // find it in the code, and scroll there when it is a different element
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
@@ -959,11 +961,56 @@ function revealInCode(text, index) {
     if (y - lineH < codeText.scrollTop || y > codeText.scrollTop + codeText.clientHeight - lineH) codeText.scrollTop = Math.max(0, y - codeText.clientHeight / 2);
 }
 
+// ── The selected element, highlighted in the code ───────────────────────────
+const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
+/** Where the element at `path` (element indices from the body down) sits in the markup text: its whole source, and just its opening tag. */
+function elementRange(markup, path) {
+    const re = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+    const key = path.join(".");
+    const root = { kids: 0, path: [] }, stack = [];
+    let m;
+    while ((m = re.exec(markup))) {
+        if (m[0].startsWith("<!--")) continue;
+        const tag = m[2].toLowerCase();
+        const end = m.index + m[0].length;
+        if (m[1]) {
+            const i = stack.map((n) => n.tag).lastIndexOf(tag);
+            if (i < 0) continue;
+            const node = stack[i];
+            stack.length = i;
+            if (node.path.join(".") === key) return { start: node.start, openEnd: node.openEnd, end };
+            continue;
+        }
+        const parent = stack[stack.length - 1] || root;
+        const node = { tag, start: m.index, openEnd: end, kids: 0, path: [...parent.path, parent.kids++] };
+        const lone = VOID_TAGS.has(tag) || m[3].trim().endsWith("/");
+        if (lone) { if (node.path.join(".") === key) return { start: node.start, openEnd: end, end }; continue; }
+        if (["script", "style", "textarea", "title"].includes(tag)) { const close = markup.toLowerCase().indexOf(`</${tag}`, end); if (close >= 0) re.lastIndex = close; }
+        stack.push(node);
+    }
+    return null;
+}
+const codeHl = $("codeHl");
+const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/** Paints the selected element's source behind the code and, when the selection just changed, scrolls to it. */
+function updateCodeHighlight(reveal) {
+    if (!codeOpen()) return;
+    const text = codeText.value;
+    const base = model.markup ? text.indexOf(model.markup) : -1;
+    const r = selected && selected.path && selected.path.length && base >= 0 ? elementRange(model.markup, selected.path) : null;
+    if (!r) { codeHl.innerHTML = escHtml(text) + "\n"; return; }
+    const s = base + r.start, o = base + r.openEnd, e = base + r.end;
+    codeHl.innerHTML = `${escHtml(text.slice(0, s))}<mark>${`<mark class="tag">${escHtml(text.slice(s, o))}</mark>`}${escHtml(text.slice(o, e))}</mark>${escHtml(text.slice(e))}\n`;
+    codeHl.scrollTop = codeText.scrollTop;
+    if (reveal) revealInCode(text, s);
+}
+codeText.addEventListener("scroll", () => { codeHl.scrollTop = codeText.scrollTop; });
+
 function syncCode() {
     if (!codeOpen()) return;
     const next = model.markup.trim() ? assemble() : "";
     const prev = codeText.value;
-    if (prev === next) return;
+    if (prev === next) return updateCodeHighlight(false);
     const left = codeText.scrollLeft, top = codeText.scrollTop;
     codeText.value = next;
     codeText.scrollLeft = left;
@@ -972,18 +1019,20 @@ function syncCode() {
     let i = 0;
     while (i < prev.length && i < next.length && prev[i] === next[i]) i++;
     if (prev) revealInCode(next, i);
+    updateCodeHighlight(false);
 }
 function setCodePanel(open) {
     $("codePanel").classList.toggle("hidden", !open);
     $("codePanel").classList.toggle("flex", open);
     $("codeBtn").classList.toggle("on", open);
-    if (open) { syncCode(); codeText.focus(); }
+    if (open) { syncCode(); updateCodeHighlight(true); codeText.focus(); }
     layout();
 }
 $("codeBtn").addEventListener("click", () => setCodePanel(!codeOpen()));
 $("codeClose").addEventListener("click", () => setCodePanel(false));
 let codeTimer = null;
 codeText.addEventListener("input", () => {
+    updateCodeHighlight(false);
     clearTimeout(codeTimer);
     codeTimer = setTimeout(() => {
         parsed = parseComponentSource(codeText.value);
@@ -1542,6 +1591,7 @@ canvas.addEventListener("dblclick", (e) => {
 function clearSelection() {
     frameSel = null;
     selected = null;
+    updateCodeHighlight(false);
     send({ cmd: "deselect" });
     renderInspector();
     renderLayers();
@@ -1549,6 +1599,7 @@ function clearSelection() {
 }
 function selectFrame() {
     selected = null;
+    updateCodeHighlight(false);
     send({ cmd: "deselect" });
     frameSel = curKey;
     renderInspector();

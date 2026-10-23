@@ -39,6 +39,9 @@ export function agentMain() {
     let editing = null;
     let gesture = null;
     let cssProps = [];
+    // elements made in this editor session (drawn, inserted from the + menu, dropped, duplicated from one of those): they are always styled with Tailwind
+    const made = new WeakSet();
+    const markMade = (el) => { made.add(el); el.querySelectorAll("*").forEach((n) => made.add(n)); };
     const primary = () => sels[sels.length - 1] || null;
     const px = (n) => n / zoom;
 
@@ -175,6 +178,7 @@ export function agentMain() {
             geom: geomOf(el),
             rect: el === document.body ? null : pageRect(el),
             computed: computedOf(el),
+            added: made.has(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
         };
@@ -239,6 +243,7 @@ export function agentMain() {
         if (t.html) el.innerHTML = t.html;
         ensurePositioned(container);
         container.appendChild(el);
+        markMade(el);
         el.style.position = "absolute";
         setPx(el, "left", lx);
         setPx(el, "top", ly);
@@ -915,7 +920,7 @@ export function agentMain() {
         setText: (el, m) => { if (el.children.length === 0) el.textContent = m.text; },
         setAttr: (el, m) => { m.value === null ? el.removeAttribute(m.name) : el.setAttribute(m.name, m.value); },
         remove: (el) => { const p = el.parentElement; el.remove(); sels = p && p !== root ? [p] : []; },
-        duplicate: (el) => { const c = el.cloneNode(true); el.after(c); sels = [c]; },
+        duplicate: (el) => { const c = el.cloneNode(true); el.after(c); if (made.has(el)) markMade(c); sels = [c]; },
         move: (el, m) => {
             if (m.dir < 0 && el.previousElementSibling) el.previousElementSibling.before(el);
             if (m.dir > 0 && el.nextElementSibling) el.nextElementSibling.after(el);
@@ -939,6 +944,7 @@ export function agentMain() {
             const n = tpl.content.firstElementChild;
             if (!n) return;
             if (m.position === "inside") el.appendChild(n); else el.after(n);
+            markMade(n);
             sels = [n];
         },
         setGeom: (el, m) => {
