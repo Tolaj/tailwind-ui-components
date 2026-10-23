@@ -4,7 +4,7 @@ import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor } from "./inspector.js";
-import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS } from "./float-toolbar.js";
+import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
 import { selectionHtml } from "./selection-overlay.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 
@@ -1394,7 +1394,18 @@ function resizeFrame(g, dx, dy) {
     const d = docs.get(g.key);
     const vertical = g.h.includes("n") || g.h.includes("s");
     d.board = { x: Math.round(x), y: Math.round(y), w, ...(vertical || (d.board && d.board.h) ? { h } : {}) };
+    rememberCustom(d);
     layout();
+}
+
+/** The last size set by hand (anything that isn't Desktop, Tablet or Mobile) stays available as the Custom button. */
+let lastCustom = null;
+try { lastCustom = JSON.parse(localStorage.getItem("wc:customSize") || "null"); } catch { /* storage is optional */ }
+function rememberCustom(d) {
+    const w = d.board && d.board.w;
+    if (!w || DEVICES.some(([p]) => p === w)) return;
+    lastCustom = { w, h: (d.board && d.board.h) || null };
+    try { localStorage.setItem("wc:customSize", JSON.stringify(lastCustom)); } catch { /* storage is optional */ }
 }
 
 /** Sets the live frame's width and/or height (null height = follow the content). Used by the frame toolbar. */
@@ -1405,6 +1416,7 @@ function setFrameSize(sz) {
     if ("w" in sz) b.w = clampSize(sz.w, 8000);
     if ("h" in sz) { if (sz.h === null) delete b.h; else b.h = clampSize(sz.h, 20000); }
     d.board = b;
+    rememberCustom(d);
     queueBoardSave(curKey);
     layout();
 }
@@ -1459,7 +1471,7 @@ function toolbarState() {
     if (mode !== "edit" || gestureOn || tool !== "move") return null;
     if (frameSel === curKey) {
         const d = docs.get(curKey);
-        return { kind: "frame", frame: { w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h) } };
+        return { kind: "frame", frame: { w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), custom: lastCustom } };
     }
     if (!selected || selected.tag === "body" || !selected.rect) return null;
     const editing = Boolean(editingInfo && editingInfo.on);
@@ -1544,6 +1556,7 @@ ftb.addEventListener("mousedown", (e) => {
     const a = document.activeElement;
     if (a && ftb.contains(a) && a.matches("input")) a.blur();
     const dev = e.target.closest("[data-ftdev]");
+    if (dev && dev.dataset.ftdev === "custom") return lastCustom && setFrameSize({ w: lastCustom.w, h: lastCustom.h });
     if (dev) return setDevice(Number(dev.dataset.ftdev));
     const b = e.target.closest("[data-ft]");
     if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft]();

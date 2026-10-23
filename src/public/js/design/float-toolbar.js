@@ -73,10 +73,16 @@ function shapeBar(st) {
         ${more(st)}`;
 }
 
-const DEVICES = [[1280, "Desktop"], [768, "Tablet"], [390, "Mobile"]];
+export const DEVICES = [[1280, "Desktop"], [768, "Tablet"], [390, "Mobile"]];
 function frameBar(st) {
     const f = st.frame;
-    return `${DEVICES.map(([w, l]) => `<button type="button" data-ftdev="${w}" class="h-7 rounded-lg px-2 text-[12px] font-medium hover:bg-neutral-100 ${f.w === w ? "bg-neutral-100" : ""}">${l}</button>`).join("")}
+    const preset = DEVICES.some(([w]) => w === f.w);
+    // a Custom button appears once the frame has a size that isn't a preset, and keeps your last manual size within reach
+    const custom = f.custom || (!preset ? { w: f.w, h: f.auto ? null : f.h } : null);
+    const customBtn = custom
+        ? `<button type="button" data-ftdev="custom" title="${custom.w} × ${custom.h || "auto"}" class="h-7 rounded-lg px-2 text-[12px] font-medium hover:bg-neutral-100 ${!preset ? "bg-neutral-100" : ""}">Custom</button>`
+        : "";
+    return `${DEVICES.map(([w, l]) => `<button type="button" data-ftdev="${w}" class="h-7 rounded-lg px-2 text-[12px] font-medium hover:bg-neutral-100 ${f.w === w ? "bg-neutral-100" : ""}">${l}</button>`).join("")}${customBtn}
         <span class="sep"></span><span class="lbl2">W</span><input type="number" min="120" max="8000" data-ftin="fw" value="${f.w}"><span class="lbl2">H</span><input type="number" min="120" max="20000" data-ftin="fh" value="${f.auto ? "" : f.h}" placeholder="auto" title="Leave empty to grow with the content">`;
 }
 
