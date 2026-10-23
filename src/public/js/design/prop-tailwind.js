@@ -45,13 +45,17 @@ const LENGTH_WORDS = /^(auto|full|screen|min|max|fit|px|none|xs|sm|md|lg|xl|[2-9
 
 // groups on Tailwind's spacing scale: an exact pixel size becomes the scale step (16px -> p-4), anything else an arbitrary value
 const SCALED = new Set(["w", "h", "minW", "maxW", "minH", "maxH", "gap", "gapX", "gapY", "inset", "top", "right", "bottom", "left", "p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "spaceX", "spaceY", "translateX", "translateY"]);
+// sizes with a name, where the name means the same in Tailwind v3 and v4 (v3's rounded-sm is 2px, v4's 4px: left out)
+const RADIUS_NAMES = { 6: "md", 8: "lg", 12: "xl", 16: "2xl", 24: "3xl" };
+const FONT_NAMES = { 12: "xs", 14: "sm", 16: "base", 18: "lg", 20: "xl", 24: "2xl", 30: "3xl", 36: "4xl", 48: "5xl", 60: "6xl", 72: "7xl", 96: "8xl", 128: "9xl" };
 /** A pixel size as the value of a group: 16 -> "4", 1 -> "px", -88 -> "-88px", 13 -> "13px". */
 export function fromPx(key, n) {
     const a = Math.abs(n), sign = n < 0 ? "-" : "";
     if (SCALED.has(key)) return sign + (a === 1 ? "px" : STEPS.includes(String(a / 4)) ? String(a / 4) : `${a}px`);
     if (key === "borderWidth") return [0, 1, 2, 4, 8].includes(a) ? String(a) : `${a}px`;
     if (/^border[TRBL]$/.test(key)) return [0, 2, 4, 8].includes(a) ? String(a) : `${a}px`;
-    if (/^radius/.test(key)) return a === 0 ? "none" : `${a}px`;
+    if (/^radius/.test(key)) return a === 0 ? "none" : a >= 9999 ? "full" : RADIUS_NAMES[a] || `${a}px`;
+    if (key === "fontSize") return FONT_NAMES[a] || `${a}px`;
     return `${sign}${a}px`;
 }
 

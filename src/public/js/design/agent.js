@@ -369,6 +369,13 @@ export function agentMain() {
         tidyStyle(el);
     }
 
+    /** For a child of a flex box: its direction and whether flex sizes it along that axis (flex-1, grow, a basis), which a width or height can't override. */
+    const flexItemOf = (el) => {
+        const p = el.parentElement;
+        if (!p || el === document.body || !/flex/.test(getComputedStyle(p).display)) return null;
+        const cs = getComputedStyle(el), dir = getComputedStyle(p).flexDirection.startsWith("row") ? "row" : "column";
+        return { dir, sized: (parseFloat(cs.flexGrow) || 0) > 0 || cs.flexBasis !== "auto" };
+    };
     const describe = (el) => {
         if (!el) return null;
         const attrs = {};
@@ -387,6 +394,7 @@ export function agentMain() {
             rect: el === document.body ? null : pageRect(el),
             computed: computedOf(el),
             sources: sourcesOf(el, cssProps),
+            flexItem: flexItemOf(el),
             added: made.has(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
@@ -766,6 +774,11 @@ export function agentMain() {
             if (hd.length === 2 || hd === "e" || hd === "w") h = w / r; else w = h * r;
         }
         w = Math.max(1, w); h = Math.max(1, h);
+        // a flex child that flex sizes along its axis (flex-1, grow) ignores a size there: leave that axis alone, or the margin that
+        // keeps the opposite edge in place would push it sideways instead
+        const fx = !g.abs && g.fx && g.fx.sized ? g.fx.dir : null;
+        if (fx === "row") w = g.g.w;
+        if (fx === "column") h = g.g.h;
         // the edges being dragged snap to the edges and centres of the boxes around, like a move does
         let keysX = [], keysY = [];
         if (g.rot === 0 && !e.shiftKey && !e.altKey) {
@@ -787,12 +800,12 @@ export function agentMain() {
             keysY = edgeY === null ? [] : [hd.includes("s") ? 2 : 0];
             g.guide = { want: [hd.includes("e") ? "right" : hd.includes("w") ? "left" : null, hd.includes("s") ? "down" : hd.includes("n") ? "up" : null].filter(Boolean), box: { x: hd.includes("w") ? pr.x + pr.w - w : pr.x, y: hd.includes("n") ? pr.y + pr.h - h : pr.y, w, h }, keysX, keysY };
         } else g.guide = null;
-        setPx(g.el, "width", w);
-        setPx(g.el, "height", h);
+        if (fx !== "row") setPx(g.el, "width", w);
+        if (fx !== "column") setPx(g.el, "height", h);
         if (!g.abs) {
             if (g.rot === 0) {
-                if (hd.includes("w")) setPx(g.el, "marginLeft", g.ml - (w - g.g.w));
-                if (hd.includes("n")) setPx(g.el, "marginTop", g.mt - (h - g.g.h));
+                if (hd.includes("w") && fx !== "row") setPx(g.el, "marginLeft", g.ml - (w - g.g.w));
+                if (hd.includes("n") && fx !== "column") setPx(g.el, "marginTop", g.mt - (h - g.g.h));
             }
             return;
         }
@@ -852,7 +865,7 @@ export function agentMain() {
             gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
         } else {
             const cs0 = getComputedStyle(el);
-            gesture = { type: "resize", el, pre: sourcesOf(el, GESTURE_PROPS), inl0: inlineOf(el, GESTURE_PROPS), h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
+            gesture = { type: "resize", el, fx: flexItemOf(el), pre: sourcesOf(el, GESTURE_PROPS), inl0: inlineOf(el, GESTURE_PROPS), h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
         }
     }
 
@@ -927,8 +940,17 @@ export function agentMain() {
         if (g.type === "pan") return;
         if (g.moved && g.type === "move") return askConvert(g.items.map((i) => gestureItem(i.el, i.pre, ["left", "top"])));
         if (g.moved && g.type === "resize") {
+            // a size or position the resize rewrote without changing it (a corner dragged sideways, the top-left of a box resized from
+            // its bottom-right) is dropped, not saved as a class
+            [["width", g.g.w], ["height", g.g.h], ["left", g.g.x], ["top", g.g.y]].forEach(([p, was]) => {
+                if (!g.inl0[p] && Math.round(parseFloat(g.el.style.getPropertyValue(p))) === Math.round(was)) g.el.style.removeProperty(p);
+            });
+            tidyStyle(g.el);
             const props = GESTURE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.inl0[p]); // what the resize wrote
-            return askConvert([gestureItem(g.el, g.pre, props)]);
+            const item = gestureItem(g.el, g.pre, props);
+            // pulled along the axis flex sizes it on: nothing changed there, and the editor says why
+            if (!g.abs && g.fx && g.fx.sized && (g.fx.dir === "row" ? /[ew]/.test(g.h) : /[ns]/.test(g.h))) item.blocked = g.fx.dir === "row" ? "width" : "height";
+            return askConvert([item]);
         }
         if (g.moved) changed();
         else post({ type: "selected", info: describe(primary()) });

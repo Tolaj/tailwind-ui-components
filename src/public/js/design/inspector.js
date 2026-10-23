@@ -77,7 +77,7 @@ export function mountDatalists() {
 }
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-export const ui = { closeInTabs: false, docTailwind: true, tab: "design", bp: "", st: "", open: new Set(["geom", "css-layout", "css-size", "css-spacing", "css-type", "css-fill", "css-border", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
+export const ui = { closeInTabs: false, docTailwind: true, closed: new Set(), tab: "design", bp: "", st: "", open: new Set(["geom", "css-layout", "css-size", "css-spacing", "css-type", "css-fill", "css-border", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
 export const variant = () => `${ui.bp ? ui.bp + ":" : ""}${ui.st ? ui.st + ":" : ""}`;
 
 export const val = (sel, k) => { const r = getGroup(sel.classes, k, variant()); return r ? r.value : ""; };
@@ -152,12 +152,20 @@ const contentFields = (s) => {
     return text || rows ? `<div class="sec"><div class="secb nopad"><p class="sub first">Content</p>${text}${rows}</div></div>` : "";
 };
 
+/** A child that flex sizes along its axis ignores a width (or height) set on it: say so, with a one-click way out. */
+const flexNote = (s) => {
+    const f = s.flexItem;
+    if (!f || !f.sized) return "";
+    const what = f.dir === "row" ? "width" : "height";
+    return `<p class="hintnote">Its ${what} is set by the flex layout: it grows to fill the ${f.dir === "row" ? "row" : "column"}, so a ${what} you set here has no effect. <button type="button" data-do="flexnone">Size it myself</button></p>`;
+};
+
 function geomBody(s) {
     const g = s.geom || {};
     const abs = Boolean(g.abs);
     const cell = (k, label, v, enabled) => `<label class="cell ${enabled ? "" : "opacity-50"}"><span class="clbl">${label}</span><input class="fi" data-geom="${k}" value="${esc(v ?? "")}" ${enabled ? "" : "disabled"} autocomplete="off"></label>`;
     const alignBtn = (m, l, t) => `<button type="button" data-align="${m}" title="${t}" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
-    return `${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#111] bg-[#e5f4ff] text-[#111]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
+    return `${flexNote(s)}${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#111] bg-[#e5f4ff] text-[#111]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
         ${abs ? `<div class="flex gap-1">${alignBtn("left", "Left", "Align left")}${alignBtn("hcenter", "Center", "Align horizontal centers")}${alignBtn("right", "Right", "Align right")}${alignBtn("top", "Top", "Align top")}${alignBtn("vcenter", "Middle", "Align vertical centers")}${alignBtn("bottom", "Bottom", "Align bottom")}</div>` : ""}
         ${(s.count || 1) > 2 ? `<div class="flex gap-1">${alignBtn("distribute-h", "Space horizontally", "Distribute horizontally")}${alignBtn("distribute-v", "Space vertically", "Distribute vertically")}</div>` : ""}
         <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
@@ -224,9 +232,9 @@ function propSections(s) {
     return CSS_SECTIONS.map(([id, title, controls]) => {
         const props = controls === "box" ? ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"] : controls.map((c) => c.p);
         const hasSet = props.some((p) => ownsValue(srcOf(s, p)));
-        const open = ui.open.has(id);
+        const open = ui.open.has(id) || (id === "css-offsets" && s.geom && s.geom.abs && !ui.closed.has(id)); // a free element is placed by these
         const body = controls === "box" ? propBox(s) : controls.map((c) => propRow(s, c)).join("");
-        return `<div class="sec"><button type="button" class="sech" data-sec="${id}"><span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${hasSet ? '<i class="dot"></i>' : ""}</button>${open ? `<div class="secb">${body}</div>` : ""}</div>`;
+        return `<div class="sec"><button type="button" class="sech" data-sec="${id}" data-open="${open}"><span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${hasSet ? '<i class="dot"></i>' : ""}</button>${open ? `<div class="secb">${body}</div>` : ""}</div>`;
     }).join("");
 }
 

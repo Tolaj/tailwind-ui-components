@@ -687,6 +687,8 @@ function setProps(props, raw, group, clear = [], cssOverride, key) {
  * design's CSS. The frame puts the classes on, checks them and saves the result as one undo step (agent.js applyGesture).
  */
 function convertGesture(items) {
+    const blocked = items.find((it) => it.blocked);
+    if (blocked) flashHint(`This element's ${blocked.blocked} is set by its flex layout. Use "Size it myself" in the panel to size it by hand.`);
     send({ cmd: "applyGesture", items: items.map((it) => {
         const tw = it.made || modeFor({ classes: it.classes }) === "tailwind";
         let classes = it.classes;
@@ -712,6 +714,23 @@ function convertGesture(items) {
     }) });
 }
 
+/** A flex child that grows to fill its row: stop flex from sizing it (flex-none, or flex: none in CSS), so a width or height set on it applies. */
+function sizeItMyself() {
+    if (!selected) return;
+    if (modeFor(selected) !== "tailwind") return cmd({ cmd: "setStyleProps", path: selected.path, props: { flex: "none" } });
+    let classes = setGroup(selected.classes, "grow", "", variant()) ?? selected.classes;
+    classes = setGroup(classes, "flexNum", "flex-none", variant()) ?? classes;
+    setClassString(classes);
+}
+/** A short note in the hint under the canvas, back to the usual text after a few seconds. */
+let hintTimer = 0;
+function flashHint(text) {
+    const h = $("canvasHint");
+    clearTimeout(hintTimer);
+    h.textContent = text;
+    hintTimer = setTimeout(() => { h.textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Scroll to pan, Ctrl/Cmd + scroll to zoom." : h.textContent; }, 4000);
+}
+
 function setDevice(w) {
     // a preset is a whole size: its width, with the height following the content (a hand-set height belongs to Custom)
     setFrameSize({ w, h: null });
@@ -734,7 +753,12 @@ insp.addEventListener("click", (e) => {
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
     const sec = t.closest("[data-sec]");
-    if (sec) { ui.open.has(sec.dataset.sec) ? ui.open.delete(sec.dataset.sec) : ui.open.add(sec.dataset.sec); return renderInspector(); }
+    if (sec) {
+        const id = sec.dataset.sec;
+        // data-open is what is shown (a section can open by itself), so a click always flips what you see
+        if (sec.dataset.open === "true" || (sec.dataset.open === undefined && ui.open.has(id))) { ui.open.delete(id); ui.closed.add(id); } else { ui.open.add(id); ui.closed.delete(id); }
+        return renderInspector();
+    }
     const sg = t.closest("[data-seg]");
     if (sg) return applyValue(sg.dataset.seg, sg.dataset.v);
     const pal = t.closest("[data-pal]");
@@ -752,6 +776,7 @@ insp.addEventListener("click", (e) => {
     const d = t.closest("[data-do]");
     if (!d || !selected) return;
     if (d.dataset.do === "group") return send({ cmd: "group" });
+    if (d.dataset.do === "flexnone") return sizeItMyself();
     if (d.dataset.do === "ungroup") return send({ cmd: "ungroup" });
     const path = selected.path;
     if (d.dataset.do === "up") cmd({ cmd: "move", path, dir: -1 });
