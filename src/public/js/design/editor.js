@@ -630,7 +630,7 @@ function setProp(prop, raw, cssOverride, key) {
     const onTw = src.source === "tailwind";
     const winning = onTw ? variantOf(src.token) : "";
     const vp = winning || newVariant(s.classes, group); // a md:/xl: class that gives the value is edited where it is
-    const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, ...m }, key);
+    const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, key, ...m }, key);
     if (v === "") {
         if (onTw && group) { const next = setGroup(s.classes, group, "", winning); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
         if (src.source === "inline") return send({ route: "css", css: null });
@@ -675,9 +675,9 @@ function setProps(props, raw, group, clear = [], cssOverride, key) {
         let classes = s.classes;
         for (const k of clear) { const next = setGroup(classes, k, "", vp); if (next !== null) classes = next; }
         const next = setGroup(classes, group, tv, vp);
-        if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css }, key); }
+        if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css, key }, key); }
     }
-    cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token }, key);
+    cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token, key }, key);
 }
 
 /**
@@ -2005,9 +2005,10 @@ function applyPanel(key, raw) {
     const c = selected.computed || {};
     const borderless = SIDES4.every((d) => !parseFloat(c[`border-${d}-width`]));
     // a border width on a box with no border style shows nothing: give it a solid one first (its own undo step)
-    const solid = () => { if (borderless && n > 0) setProps(allSides((d) => `border-${d}-style`), "solid", "borderStyle"); };
-    if (key === "bw-all") { solid(); return setProps(allSides((d) => `border-${d}-width`), nn, "borderWidth", ["borderT", "borderR", "borderB", "borderL"]); }
-    if (key.startsWith("bw-")) { solid(); const d = key.slice(3); return setProps([`border-${d}-width`], nn, `border${SIDE_KEY[d]}`); }
+    const one = `border-${Date.now()}`; // the style and the width below share it: one undo step
+    const solid = () => { if (borderless && n > 0) setProps(allSides((d) => `border-${d}-style`), "solid", "borderStyle", [], undefined, one); };
+    if (key === "bw-all") { solid(); return setProps(allSides((d) => `border-${d}-width`), nn, "borderWidth", ["borderT", "borderR", "borderB", "borderL"], undefined, one); }
+    if (key.startsWith("bw-")) { solid(); const d = key.slice(3); return setProps([`border-${d}-width`], nn, `border${SIDE_KEY[d]}`, [], undefined, one); }
     if (key === "r-all") return FLOAT_ACTIONS.radius(nn);
     if (key.startsWith("r-")) return setProps([`border-${CORNER[key.slice(2)]}-radius`], nn, CORNER_KEY[key.slice(2)]);
     const [kind, side] = key.split("-"); // padding-h, margin-top ...
@@ -2055,8 +2056,9 @@ const FLOAT_ACTIONS = {
     bstyle(kind) {
         const c = selected.computed || {};
         const none = ["top", "right", "bottom", "left"].every((d) => !parseFloat(c[`border-${d}-width`]));
-        setProps(SIDES4.map((d) => `border-${d}-style`), kind, "borderStyle");
-        if (kind !== "none" && none) setProps(SIDES4.map((d) => `border-${d}-width`), 1, "borderWidth", ["borderT", "borderR", "borderB", "borderL"]); // a line style on a borderless box: make it visible
+        const one = `border-${Date.now()}`; // style and width: one undo step
+        setProps(SIDES4.map((d) => `border-${d}-style`), kind, "borderStyle", [], undefined, one);
+        if (kind !== "none" && none) setProps(SIDES4.map((d) => `border-${d}-width`), 1, "borderWidth", ["borderT", "borderR", "borderB", "borderL"], undefined, one); // a line style on a borderless box: make it visible
     },
     dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },

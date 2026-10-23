@@ -1323,7 +1323,7 @@ export function agentMain() {
         if (m.cmd === "autoLayout") { autoLayout(); return; }
         if (m.cmd === "setProp") {
             const el = elAt(m.path);
-            if (el) setProp(el, m).then(() => { changed(); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });
+            if (el) setProp(el, m).then(() => { changed(false, m.key); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });
             return;
         }
         if (mutate[m.cmd]) {
