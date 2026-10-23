@@ -359,6 +359,8 @@ const cmd = (msg, key = "") => { pendingKey = key; send(msg); };
 
 // ── Layers ───────────────────────────────────────────────────────────────────
 const pathKey = (p) => (p || []).join(".");
+// A small page icon: the Pages section and the page rows use it instead of repeating the word "page"
+const PAGE_ICON = '<svg class="shrink-0 text-neutral-500" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="3" y="2" width="10" height="12" rx="1.5"/></svg>';
 // Figma-style chevron: points right when closed, down when open
 const chevron = (open) => `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="${open ? "transform:rotate(90deg);" : ""}"><path d="M4.5 2.5 8 6 4.5 9.5"/></svg>`;
 
@@ -401,17 +403,23 @@ function renderLayers() {
             if (opened) revealedKey = null;
         }
     }
+    // With the left panel open, Pages are their own section above, so Layers is just the current page's element tree.
+    if (leftOpen) {
+        $("layers").innerHTML = tree ? layerNode(tree, 0) : '<div class="px-2 py-2 text-[11px] text-neutral-500">Loading…</div>';
+        revealLayer();
+        return;
+    }
     // The top level is the frames themselves. The live frame shows its element tree only while it, or something in it, is selected.
     const showTree = Boolean(tree) && (frameSel === curKey || Boolean(selected));
     const list = [...docs.values()];
     const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
     const frameRow = (d, depth) => {
         const active = d.key === curKey;
-        const title = (active ? data.title : d.meta.title) || "Untitled design";
+        const title = (active ? data.title : d.meta.title) || "Untitled page";
         const on = active && frameSel === curKey;
         return `<div class="layer-row cursor-pointer gap-1 px-1 ${on ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-frame="${d.key}">
             <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center text-neutral-500">${chevron(active && showTree)}</span>
-            <span class="shrink-0 font-mono text-[11px] text-neutral-500">${d.kind === "section" ? "section" : "frame"}</span>
+            ${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}
             <span class="truncate font-medium text-neutral-800">${esc(title)}</span></div>` + (active && showTree ? layerNode(tree, depth + 1) : "");
     };
     $("layers").innerHTML = tops.map((d) => frameRow(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => frameRow(c, 1)).join("")).join("");
@@ -419,6 +427,55 @@ function renderLayers() {
 }
 
 const parsePath = (s) => (s === "" ? [] : s.split(".").map(Number));
+
+// ── Pages section (left panel) ───────────────────────────────────────────────
+function renderPagesList() {
+    const el = $("pagesList");
+    if (!leftOpen || el.querySelector(".frename")) return; // not while a name is being typed
+    const list = [...docs.values()];
+    const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
+    const row = (d, depth) => {
+        const active = d.key === curKey;
+        const title = (active ? data.title : d.meta.title) || "Untitled page";
+        return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}</div>`;
+    };
+    el.innerHTML = tops.map((d) => row(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => row(c, 1)).join("")).join("");
+}
+$("pagesList").addEventListener("click", (e) => {
+    const row = e.target.closest("[data-page]");
+    if (!row || e.target.closest(".frename")) return;
+    viewTouched = true;
+    activate(row.dataset.page);
+    fitTo([row.dataset.page], Math.max(view.z, 0.5));
+});
+$("pagesList").addEventListener("dblclick", (e) => {
+    const row = e.target.closest("[data-page]");
+    if (!row || e.target.closest(".frename")) return;
+    const key = row.dataset.page;
+    const d = docs.get(key);
+    const current = (key === curKey ? data.title : d.meta.title) || "";
+    const label = row.querySelector("span.truncate");
+    const input = document.createElement("input");
+    input.className = "frename";
+    input.style.cssText = "min-width:0;width:100%;height:20px;font-size:12px";
+    input.value = current;
+    input.maxLength = 80;
+    label.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (save) => {
+        if (done) return;
+        done = true;
+        const name = input.value.trim();
+        input.remove();
+        renderPagesList();
+        if (save && name && name !== current) renameFrame(key, name, current);
+    };
+    input.addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Enter") { ev.preventDefault(); finish(true); } if (ev.key === "Escape") { ev.preventDefault(); finish(false); } });
+    input.addEventListener("blur", () => finish(true));
+});
+$("pagesAdd").addEventListener("click", () => $("newDesignBtn").click());
 
 $("layers").addEventListener("click", (e) => {
     const fr = e.target.closest("[data-frame]");
@@ -666,7 +723,7 @@ async function persist(d) {
         const res = await fetch("/api/components", {
             method: "POST", headers: JSON_HEADERS,
             body: JSON.stringify({
-                ...body, title: m.title || "Untitled design", category: m.category || DEFAULT_CATEGORY, description: m.description || "A design on the canvas.",
+                ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
                 tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
             }),
         });
@@ -1128,7 +1185,7 @@ function refreshLabels() {
         const title = active ? data.title : d.meta.title;
         const ver = active ? data.version : d.meta.version;
         const state = (active ? isNew : d.isNew) ? "new" : d.kind === "section" ? "section" : `v${ver}`;
-        en.label.innerHTML = `${esc(title || "Untitled design")}<span>${state}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}`;
+        en.label.innerHTML = `${esc(title || "Untitled page")}<span>${state}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}`;
     });
 }
 
@@ -1151,13 +1208,14 @@ function renderDesigns() {
     const pages = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
     const row = (d, depth) => {
         const active = d.key === curKey;
-        const title = (active ? data.title : d.meta.title) || "Untitled design";
+        const title = (active ? data.title : d.meta.title) || "Untitled page";
         return `<div class="layer-row cursor-pointer gap-1 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-design="${d.key}">
             <span class="shrink-0 font-mono text-[10px] ${active ? "" : "text-neutral-500"}">${d.kind === "section" ? "sec" : "page"}</span>
             <span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot"></i>' : ""}</div>`;
     };
+    renderPagesList();
     $("designsCount").textContent = String(list.length);
-    $("designsName").textContent = data.title || "Untitled design";
+    $("designsName").textContent = data.title || "Untitled page";
     placePills();
     $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
 }
@@ -1480,7 +1538,7 @@ $("newDesignBtn").addEventListener("click", async () => {
     docs.set(key, {
         key, kind: "page", parent: null, board: null, source: "", loaded: true, isNew: true, height: 0,
         parsed: parseComponentSource(""), markup: "", history: [], hIndex: -1, savedMarkup: "",
-        meta: { id: null, title: "Untitled design", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A design on the canvas.", tags: [], isPublished: false, project },
+        meta: { id: null, title: "Untitled page", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A page on the canvas.", tags: [], isPublished: false, project },
     });
     makeWrap(key);
     viewTouched = true;
@@ -1654,7 +1712,9 @@ document.addEventListener("click", (e) => {
     $("designsMenu").classList.add("hidden");
     if (ftMenu && !e.target.closest("#ftb")) { ftMenu = false; renderFloat(); }
 });
-$("designsBtn").addEventListener("click", (e) => { e.stopPropagation(); $("addMenu").classList.add("hidden"); $("designsMenu").classList.toggle("hidden"); });
+const toggleDesignsMenu = (e) => { e.stopPropagation(); $("addMenu").classList.add("hidden"); $("designsMenu").classList.toggle("hidden"); };
+$("designsBtn").addEventListener("click", toggleDesignsMenu);
+$("navMoreBtn").addEventListener("click", toggleDesignsMenu);
 $("designsMenu").addEventListener("click", (e) => e.stopPropagation());
 
 // The Layers can live in the right panel (a tab) or, when you open it, in a panel on the left. Never both at once.
@@ -1664,7 +1724,12 @@ function setLeft(open) {
     $("leftPanel").classList.toggle("hidden", !open);
     $("leftPanel").classList.toggle("flex", open);
     $("leftBtn").classList.toggle("on", open);
-    (open ? $("leftBody") : $("layersPane")).appendChild($("layers"));
+    (open ? $("layersHost") : $("layersPane")).appendChild($("layers"));
+    // Back, the toggle and the page menu move into the panel's header while it is open, and back to the floating tools when it closes
+    if (open) $("leftHead").appendChild($("navGroup")); else $("pillL").insertBefore($("navGroup"), $("navSep"));
+    $("navSep").classList.toggle("hidden", open);
+    renderPagesList();
+    renderLayers();
     document.querySelector('#panelTabs [data-ptab="layers"]').classList.toggle("hidden", open);
     $("panelHead").classList.toggle("hidden", open); // with one tab left, the "Properties" label is only noise
     ui.closeInTabs = open; // so the close button moves into the Design / Classes / AI row
@@ -1675,7 +1740,6 @@ function setLeft(open) {
     scheduleLayout();
 }
 $("leftBtn").addEventListener("click", () => setLeft(!leftOpen));
-$("leftClose").addEventListener("click", () => setLeft(false));
 
 // side panel: closed until you want every property or the layer tree
 let panelTab = "props";

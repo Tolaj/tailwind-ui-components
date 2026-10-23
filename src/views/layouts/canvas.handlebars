@@ -53,6 +53,16 @@
         .pill { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.10); }
         .pop { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
         #pillL.tight #designsName { display: none; }
+        /* Left panel: Pages and Layers are two sections; the header only keeps Back, the toggle and a menu */
+        .sec2 { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 3px; font-size: 11px; font-weight: 600; color: #8c8c8c; }
+        #navMoreBtn { display: none; }
+        #leftHead #navGroup { width: 100%; }
+        #leftHead #navGroup > span:nth-of-type(3) { display: none; } /* the second divider (span 1 is the hidden back label) */
+        #leftHead #navGroup > .relative { display: flex; align-items: center; margin-left: auto; flex: 0 0 auto; }
+        #leftHead #designsBtn { display: none; }
+        #leftHead #navMoreBtn { display: inline-flex; }
+        #leftHead #designsMenu { left: auto; right: 0; width: 224px; }
+        #leftHead #designs, #leftHead #newDesignBtn { display: none; } /* the Pages section already lists them */
         .tbtn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: #404040; }
         .tbtn:hover { background: #f0f0f0; }
         .tbtn.on { background: #daebff; color: #0b6fc2; }
