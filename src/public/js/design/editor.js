@@ -1671,21 +1671,30 @@ function renderFrameSel() {
     const el = $("fsel");
     const d = docs.get(curKey);
     const p = positions()[curKey];
-    if (frameSel !== curKey || mode !== "edit" || !p) { el.innerHTML = ""; return; }
+    if (frameSel !== curKey || mode !== "edit" || !p) { el.innerHTML = ""; linesFrame = ""; paintLines(); return; }
     const z = view.z;
     const box = `left:${Math.round((view.x + p.x * z) * 100) / 100}px;top:${Math.round((view.y + p.y * z) * 100) / 100}px;width:${Math.round(widthOf(d) * z * 100) / 100}px;height:${Math.round(heightOfDoc(d) * z * 100) / 100}px;`;
     const fx = view.x + p.x * z, fy = view.y + p.y * z;
-    const outline = `<svg class="sout"><rect x="${fx - 0.75}" y="${fy - 0.75}" width="${widthOf(d) * z + 1.5}" height="${heightOfDoc(d) * z + 1.5}" fill="none" stroke="#111" stroke-width="1.5"/></svg>`;
-    el.innerHTML = outline + `<div class="fbox" style="${box}">` + FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("") + "</div>";
+    const outline = `<svg class="sout"><rect x="${fx - 0.75}" y="${fy - 0.75}" width="${widthOf(d) * z + 1.5}" height="${heightOfDoc(d) * z + 1.5}" fill="none" stroke="#fff" stroke-width="1.5"/></svg>`;
+    linesFrame = outline;
+    paintLines();
+    el.innerHTML = `<div class="fbox" style="${box}">` + FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("") + "</div>";
 }
 
 /** The selection box and its handles, above the frame (see selection-overlay.js). */
 let selData = null;
+// the outlines of the selection and of the selected frame share one layer that inverts what is under it; handles and labels sit above it
+let linesSel = "", linesFrame = "";
+const paintLines = () => { $("lines").innerHTML = linesSel + linesFrame; };
 function renderSel() {
     const el = $("sel");
     const p = positions()[curKey];
-    if (mode !== "edit" || frameSel === curKey || !selData || !p) { el.innerHTML = ""; return; }
-    el.innerHTML = selectionHtml(selData, { zoom: view.z, ox: view.x + p.x * view.z, oy: view.y + p.y * view.z });
+    if (mode !== "edit" || frameSel === curKey || !selData || !p) { el.innerHTML = ""; $("slbl").innerHTML = ""; linesSel = ""; paintLines(); return; }
+    const parts = selectionHtml(selData, { zoom: view.z, ox: view.x + p.x * view.z, oy: view.y + p.y * view.z });
+    linesSel = parts.lines;
+    paintLines();
+    el.innerHTML = parts.html;
+    $("slbl").innerHTML = parts.label; // the size label keeps its own colours, so it sits outside the inverting layers
 }
 
 function renderFloat(force) {

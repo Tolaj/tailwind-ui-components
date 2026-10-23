@@ -146,7 +146,9 @@
                 </div>
                 {{!-- Selection and frame handles are drawn in screen pixels, above the zoomed plane, so they look the
                 same at any zoom --}}
+                <div id="lines" class="pointer-events-none absolute inset-0 z-[14] overflow-hidden"></div>
                 <div id="sel" class="pointer-events-none absolute inset-0 z-[15] overflow-hidden"></div>
+                <div id="slbl" class="pointer-events-none absolute inset-0 z-[17] overflow-hidden"></div>
                 <div id="fsel" class="pointer-events-none absolute inset-0 z-[16] overflow-hidden"></div>
                 <div id="marquee" class="pointer-events-none absolute z-20"
                     style="display:none;border:1px solid #111;background:rgba(0,0,0,.06)"></div>

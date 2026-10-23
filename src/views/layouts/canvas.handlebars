@@ -125,18 +125,21 @@
         #ftb .sidebtn.on { background: #ededed; color: #111; }
         #ftb .lbl2 { font-size: 11px; color: #8c8c8c; padding: 0 2px 0 6px; }
         /* the selected element: drawn above the frame so its edge never clips it; sizes use --iz to stay constant on screen */
-        #sel .sout, #fsel .sout { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+        /* the selection inverts whatever is under it (white lines, difference blend), so it reads on light and dark designs alike */
+        #lines { mix-blend-mode: difference; } /* only the lines invert; the handles are always black, with a thin white rim so they show on dark designs */
+        #lines .sout { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
         #sel .sbox { position: absolute; box-sizing: border-box; pointer-events: none; transform-origin: 50% 50%; }
         #sel .sh { position: absolute; pointer-events: auto; }
         /* rings are drawn with box-shadow, not border: browsers round a thin border up to a full pixel, which at high zoom turns the handle solid blue */
-        #sel .sc { width: 9px; height: 9px; background: #fff; box-shadow: inset 0 0 0 1.5px #111; }
-        #sel .sd { width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 1.5px #111; }
-        #sel .slabel.pt { transform: none; }
-        #sel .slabel { position: absolute; transform: translateX(-50%); background: #111; color: #fff; font: 500 11px/1 Inter, system-ui, sans-serif; padding: 4px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+        #sel .sc { width: 7px; height: 7px; background: #111; box-shadow: 0 0 0 .75px rgba(255,255,255,.8); }
+        #sel .sc::after, #sel .sd::after, #fsel .fc::after { content: ""; position: absolute; inset: -5px; } /* the square is small, its grab area is not */
+        #sel .sd { width: 8px; height: 8px; border-radius: 50%; background: #111; box-shadow: 0 0 0 .75px rgba(255,255,255,.8); }
+        #slbl .slabel.pt { transform: none; }
+        #slbl .slabel { position: absolute; transform: translateX(-50%); background: #111; color: #fff; font: 500 11px/1 Inter, system-ui, sans-serif; padding: 4px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
         /* the selected frame: handles scale with the zoom so they keep their size */
         #fsel .fh { position: absolute; pointer-events: auto; }
         #fsel .fbox { position: absolute; box-sizing: border-box; pointer-events: none; }
-        #fsel .fc { width: 9px; height: 9px; background: #fff; box-shadow: inset 0 0 0 1.5px #111; }
+        #fsel .fc { width: 7px; height: 7px; background: #111; box-shadow: 0 0 0 .75px rgba(255,255,255,.8); }
 
         /* inspector */
         #inspector { font-size: 11px; }

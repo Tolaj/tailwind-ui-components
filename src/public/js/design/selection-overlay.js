@@ -66,16 +66,16 @@ function outline(it, z, ox, oy) {
     const f = Math.min(1, W / ((h[0] + h[1]) || Infinity), W / ((h[3] + h[2]) || Infinity), H / ((v[0] + v[3]) || Infinity), H / ((v[1] + v[2]) || Infinity));
     h = h.map((r) => r * f); v = v.map((r) => r * f);
     const d = `M${round(x + h[0])} ${round(y)}H${round(x + W - h[1])}A${round(h[1])} ${round(v[1])} 0 0 1 ${round(x + W)} ${round(y + v[1])}V${round(y + H - v[2])}A${round(h[2])} ${round(v[2])} 0 0 1 ${round(x + W - h[2])} ${round(y + H)}H${round(x + h[3])}A${round(h[3])} ${round(v[3])} 0 0 1 ${round(x)} ${round(y + H - v[3])}V${round(y + v[0])}A${round(h[0])} ${round(v[0])} 0 0 1 ${round(x + h[0])} ${round(y)}Z`;
-    const halo = `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3.5"/>`;
-    return halo + `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#111" stroke-width="1.5"/>`;
+    return `<path d="${d}" transform="rotate(${it.rot} ${round(x + W / 2)} ${round(y + H / 2)})" fill="none" stroke="#fff" stroke-width="1.5"/>`;
 }
 
 /**
+ * Returns { lines, html }: the outlines go in their own layer that inverts what is under it; the handles and label go above it.
  * data: what the agent posted ({ items, handles, label, bbox, at }), in the frame's own coordinates.
  * view: { zoom, ox, oy }: the zoom, and where the frame's top-left corner is on screen (relative to the canvas).
  */
 export function selectionHtml(data, { zoom: z, ox, oy }) {
-    if (!data || !data.items || !data.items.length) return "";
+    if (!data || !data.items || !data.items.length) return { lines: "", html: "", label: "" };
     const boxes = data.items.map((it) => {
         const W = it.w * z, H = it.h * z;
         const inner = data.handles && data.items.length === 1 ? handles(it, W, H, z) : "";
@@ -89,5 +89,5 @@ export function selectionHtml(data, { zoom: z, ox, oy }) {
             ? `<div class="slabel" style="left:${round(ox + (data.bbox.x + data.bbox.w / 2) * z)}px;top:${round(oy + (data.bbox.y + data.bbox.h) * z + 8)}px;">${esc(data.label)}</div>`
             : "";
     const lines = `<svg class="sout">${data.items.map((it) => outline(it, z, ox, oy)).join("")}</svg>`;
-    return lines + boxes + label;
+    return { lines, html: boxes, label };
 }
