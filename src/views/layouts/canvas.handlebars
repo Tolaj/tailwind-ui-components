@@ -151,6 +151,22 @@
         .itabs button { padding: 5px 9px; border-radius: 5px; font-size: 11px; font-weight: 500; color: #777; }
         .itabs button.on { background: #f0f0f0; color: #000; }
         .vbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 8px 4px; }
+        /* the editor's colour picker (color-picker.js), opened beside the selection */
+        .cpick { position: fixed; z-index: 60; display: none; width: 232px; padding: 10px; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+        .cp-sv { position: relative; height: 150px; border-radius: 6px; cursor: crosshair; touch-action: none; overflow: hidden; }
+        .cp-white, .cp-black { position: absolute; inset: 0; }
+        .cp-white { background: linear-gradient(to right, #fff, rgba(255,255,255,0)); }
+        .cp-black { background: linear-gradient(to top, #000, rgba(0,0,0,0)); }
+        .cp-dot { position: absolute; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35); transform: translate(-50%, -50%); pointer-events: none; }
+        .cp-hue { position: relative; height: 12px; margin: 10px 0; border-radius: 6px; cursor: pointer; touch-action: none; background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+        .cp-knob { position: absolute; top: 50%; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35); transform: translate(-50%, -50%); pointer-events: none; }
+        .cp-row { display: flex; align-items: center; gap: 6px; }
+        .cp-prev { width: 26px; height: 26px; flex: none; border-radius: 6px; border: 1px solid rgba(0,0,0,.1); }
+        .cp-hex { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid #e0e0e0; border-radius: 6px; font: 12px ui-monospace, Menlo, monospace; color: #222; }
+        .cp-hex:focus { outline: none; border-color: #111; }
+        .cp-drop { width: 26px; height: 26px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid #e0e0e0; border-radius: 6px; color: #444; }
+        .cp-drop svg { width: 14px; height: 14px; }
+        .cp-drop:hover { background: #f5f5f5; }
         .arrange { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; font-size: 10.5px; color: #555; }
         .arrange span { flex: 1; }
         .arrange button { padding: 3px 8px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fff; font-size: 10.5px; }

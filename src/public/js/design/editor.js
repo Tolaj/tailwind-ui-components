@@ -7,6 +7,7 @@ import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor, srcOf }
 import { groupOf, twValue, twShown, variantOf, fromPx, hasScale } from "./prop-tailwind.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
 import { selectionHtml } from "./selection-overlay.js";
+import { openColorPicker, closeColorPicker, colorPickerOpener } from "./color-picker.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 
 const $ = (id) => document.getElementById(id);
@@ -299,6 +300,7 @@ window.addEventListener("message", (e) => {
     // An edit reports the same element back: that must not blur a field still in use (a colour picker being dragged).
     const otherElement = m.type === "selected" && !(selected && m.info && pathKey(selected.path) === pathKey(m.info.path));
     if (otherElement || (m.type === "gesture" && m.on)) {
+        closeColorPicker(); // its colours belong to the element it was opened for
         const a = document.activeElement;
         if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
     }
@@ -2090,6 +2092,34 @@ document.addEventListener("pointerdown", (e) => {
 }, true);
 // The border colour follows the picker while it is dragged, not only once it closes. Everything from opening the picker to
 // closing it is one undo step, however slowly it is dragged: a "live:" key, merged without the time limit (commit).
+// ── Our colour picker instead of the browser's ───────────────────────────────
+// The browser's picker opens on top of the element being coloured; ours opens beside the selection. A press on any colour
+// field in the bar or the panel opens it and feeds that field as if it were being dragged: "input" while picking, "change" once
+// it closes, so live updates and one undo step per pick work exactly as before. The field is found again each time, since the
+// bar or panel may have been rebuilt meanwhile.
+const COLOR_FIELDS = ["ftcol", "ftp", "propcolor", "ccustom"];
+function fieldSelector(t) {
+    const k = COLOR_FIELDS.find((d) => t.dataset[d] !== undefined);
+    return k ? `${ftb.contains(t) ? "#ftb" : "#inspector"} input[type="color"][data-${k}="${CSS.escape(t.dataset[k])}"]` : null;
+}
+/** The selected element on screen: the outline drawn around it. */
+function selectionRect() {
+    const rs = [...$("sel").children].map((n) => n.getBoundingClientRect()).filter((r) => r.width > 8 && r.height > 8);
+    if (!rs.length) return null;
+    return { left: Math.min(...rs.map((r) => r.left)), top: Math.min(...rs.map((r) => r.top)), right: Math.max(...rs.map((r) => r.right)), bottom: Math.max(...rs.map((r) => r.bottom)) };
+}
+document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest('input[type="color"]');
+    if (!t || !(ftb.contains(t) || insp.contains(t)) || !selected) return;
+    const sel = fieldSelector(t);
+    if (!sel) return;
+    e.preventDefault(); // not the browser's picker
+    const opener = t.closest("label") || t;
+    if (colorPickerOpener() === opener) return closeColorPicker(); // the same swatch again: done
+    const feed = (type, hex) => { const f = document.querySelector(sel); if (f) { f.value = hex; f.dispatchEvent(new Event(type, { bubbles: true })); } };
+    openColorPicker({ value: t.value, near: selectionRect(), bounds: canvas.getBoundingClientRect(), opener, onInput: (hex) => feed("input", hex), onClose: (hex) => feed("change", hex) });
+}, true);
+
 const FT_COLOR = { text: "color", fill: "background-color" };
 ftb.addEventListener("input", (e) => {
     const t = e.target;
