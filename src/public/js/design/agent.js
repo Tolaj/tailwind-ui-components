@@ -125,14 +125,15 @@ export function agentMain() {
         const el = primary();
         const items = sels.filter((e) => e !== document.body).map(boxOf);
         const handles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing);
-        let label = "";
+        let label = "", at = null;
         if (el && el !== document.body && gesture && gesture.moved) {
             const g = geomOf(el);
-            label = sels.length > 1 ? `${sels.length} selected` : `${g.w} × ${g.h}`;
+            if (gesture.type === "radius") { label = `Radius ${gesture.r}`; at = gesture.at; }
+            else label = sels.length > 1 ? `${sels.length} selected` : `${g.w} × ${g.h}`;
         }
         const bbox = el && el !== document.body && alive(el) ? pageRect(el) : null;
-        const data = JSON.stringify({ items, handles, label, bbox });
-        if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox }); }
+        const data = JSON.stringify({ items, handles, label, bbox, at });
+        if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
         place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
     }
 
@@ -468,7 +469,7 @@ export function agentMain() {
         else if (g.type === "reorder") reorderGesture(g, e);
         else if (g.type === "resize") { resizeGesture(g, e); redraw(); }
         else if (g.type === "rotate") { rotateGesture(g, e); redraw(); }
-        else if (g.type === "radius") { radiusGesture(g, e); redraw(); }
+        else if (g.type === "radius") { g.at = { x: e.clientX, y: e.clientY }; radiusGesture(g, e); redraw(); }
         else if (g.type === "marquee") marqueeSelect(g, e);
         else if (g.type === "pan") { post({ type: "pan", dx: e.clientX - g.sx, dy: e.clientY - g.sy }); g.sx = e.clientX; g.sy = e.clientY; }
     }

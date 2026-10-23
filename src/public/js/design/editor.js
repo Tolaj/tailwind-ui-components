@@ -1593,7 +1593,11 @@ const FLOAT_ACTIONS = {
         const next = { left: "center", start: "center", center: "right", right: "left", justify: "left" }[cur] || "center";
         tw() ? applyValue("textAlign", `text-${next}`) : styleProp("text-align", next);
     },
-    radius(n) { tw() ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0"); },
+    radius(n) {
+        // an inline border-radius would beat a Tailwind class, so edit it where it lives
+        const inline = /border-(?:[a-z]+-)*radius/.test(selected.style || "");
+        tw() && !inline ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0");
+    },
     more() { ftMenu = !ftMenu; renderFloat(true); },
     dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },

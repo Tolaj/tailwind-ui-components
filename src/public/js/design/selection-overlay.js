@@ -11,8 +11,16 @@ const ARC = '<path d="M19 6A13 13 0 0 1 6 19"/><path d="M15.5 9.5 19 5.5 22.5 9.
 const CORNER_TURN = { se: 0, sw: 90, nw: 180, ne: 270 };
 const rotateCursor = (deg) => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(${Math.round(deg)} 12 12)"><g stroke="#fff" stroke-width="4.2">${ARC}</g><g stroke="#111" stroke-width="1.8">${ARC}</g></g></svg>`;
-    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, crosshair`;
+    return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 12 12, crosshair`;
 };
+
+// (These cursor URLs go inside style="..." attributes, so they use single quotes.)
+// The radius cursor: the normal pointer with a small corner curve below it. The hotspot is the pointer's tip.
+const RADIUS_PATH = '<path d="M15 25.5V23a5 5 0 0 1 5-5h3.5" fill="none" stroke-linecap="round"/>';
+const radiusCursor = (() => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><path d="M4 2.5V19l4.2-3.8 2.7 6 2.5-1.1-2.6-5.9h5.6z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><g stroke="#fff" stroke-width="4">${RADIUS_PATH}</g><g stroke="#111" stroke-width="1.8">${RADIUS_PATH}</g></svg>`;
+    return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 4 2, default`;
+})();
 
 const CORNERS = { nw: [0, 0], ne: [1, 0], se: [1, 1], sw: [0, 1] };
 export const HANDLE_CURSORS = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
@@ -31,7 +39,7 @@ function handles(it, zoom) {
     // corner radius: a dot just inside each corner, further in the rounder the corner is
     if (Math.min(it.w, it.h) * zoom >= 40) {
         const inset = Math.min(it.r0 + 11 * iz, Math.min(it.w, it.h) / 2);
-        Object.entries(CORNERS).forEach(([name, [fx, fy]]) => add(`rad-${name}`, `left:${round(fx ? it.w - inset : inset)}px;top:${round(fy ? it.h - inset : inset)}px;transform:translate(-50%, -50%);`, "default", "sd"));
+        Object.entries(CORNERS).forEach(([name, [fx, fy]]) => add(`rad-${name}`, `left:${round(fx ? it.w - inset : inset)}px;top:${round(fy ? it.h - inset : inset)}px;transform:translate(-50%, -50%);`, radiusCursor, "sd"));
     }
     // resizing: the whole length of each edge, then a square on each corner
     const edge = "calc(10px * var(--iz))";
@@ -51,8 +59,11 @@ export function selectionHtml(data, zoom) {
         const inner = data.handles && data.items.length === 1 ? handles(it, zoom) : "";
         return `<div class="sbox" style="left:${round(it.x)}px;top:${round(it.y)}px;width:${round(it.w)}px;height:${round(it.h)}px;transform:rotate(${it.rot}deg);border-radius:${it.radius};">${inner}</div>`;
     }).join("");
-    const label = data.label && data.bbox
-        ? `<div class="slabel" style="left:${round(data.bbox.x + data.bbox.w / 2)}px;top:${round(data.bbox.y + data.bbox.h + 8 * iz)}px;">${esc(data.label)}</div>`
-        : "";
+    // a size label sits under the element; the radius label follows the pointer, like the size label does while resizing
+    const label = data.label && data.at
+        ? `<div class="slabel pt" style="left:${round(data.at.x + 16 * iz)}px;top:${round(data.at.y + 14 * iz)}px;">${esc(data.label)}</div>`
+        : data.label && data.bbox
+            ? `<div class="slabel" style="left:${round(data.bbox.x + data.bbox.w / 2)}px;top:${round(data.bbox.y + data.bbox.h + 8 * iz)}px;">${esc(data.label)}</div>`
+            : "";
     return boxes + label;
 }
