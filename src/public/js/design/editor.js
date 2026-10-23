@@ -346,6 +346,8 @@ const cmd = (msg, key = "") => { pendingKey = key; send(msg); };
 
 // ── Layers ───────────────────────────────────────────────────────────────────
 const pathKey = (p) => (p || []).join(".");
+// Figma-style chevron: points right when closed, down when open
+const chevron = (open) => `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="${open ? "transform:rotate(90deg);" : ""}"><path d="M4.5 2.5 8 6 4.5 9.5"/></svg>`;
 
 function layerNode(n, depth) {
     const key = pathKey(n.path);
@@ -353,7 +355,7 @@ function layerNode(n, depth) {
     const isCollapsed = collapsed.has(key);
     const isSel = selected && pathKey(selected.path) === key;
     const row = `<div class="layer-row cursor-pointer gap-1 px-1 ${isSel ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-path="${key}" ${n.tag === "body" ? "" : 'draggable="true"'}>
-        <span data-caret="${key}" class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400">${has ? (isCollapsed ? "▸" : "▾") : ""}</span>
+        <span data-caret="${key}" class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-200">${has ? chevron(!isCollapsed) : ""}</span>
         <span class="shrink-0 font-mono text-[11px] text-neutral-500">${n.tag}</span>
         <span class="truncate text-neutral-800">${esc(n.label)}</span></div>`;
     return row + (has && !isCollapsed ? n.children.map((c) => layerNode(c, depth + 1)).join("") : "");
@@ -395,7 +397,7 @@ function renderLayers() {
         const title = (active ? data.title : d.meta.title) || "Untitled design";
         const on = active && frameSel === curKey;
         return `<div class="layer-row cursor-pointer gap-1 px-1 ${on ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-frame="${d.key}">
-            <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400">${active && showTree ? "▾" : "▸"}</span>
+            <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center text-neutral-500">${chevron(active && showTree)}</span>
             <span class="shrink-0 font-mono text-[11px] text-neutral-500">${d.kind === "section" ? "section" : "frame"}</span>
             <span class="truncate font-medium text-neutral-800">${esc(title)}</span></div>` + (active && showTree ? layerNode(tree, depth + 1) : "");
     };

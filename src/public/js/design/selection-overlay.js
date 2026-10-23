@@ -19,12 +19,12 @@ const rotateCursor = (deg) => {
     return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 12 12, crosshair`;
 };
 
-// The radius cursor: the normal pointer with a small corner curve below it. The hotspot is the pointer's tip.
-const RADIUS_PATH = '<path d="M15 25.5V23a5 5 0 0 1 5-5h3.5" fill="none" stroke-linecap="round"/>';
-const radiusCursor = (() => {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><path d="M4 2.5V19l4.2-3.8 2.7 6 2.5-1.1-2.6-5.9h5.6z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><g stroke="#fff" stroke-width="4">${RADIUS_PATH}</g><g stroke="#111" stroke-width="1.8">${RADIUS_PATH}</g></svg>`;
-    return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 4 2, default`;
-})();
+// The radius cursor, like Figma's: the black pointer with a thick white outline and a small corner curve beside it.
+// 32px canvas; the hotspot is the pointer's tip.
+const POINTER = "M6.5 3.5V22.6l4.6-4.3 3.1 7 3.4-1.5-3.1-6.9h6.6z";
+const RADIUS_PATH = '<path d="M21.5 29.5V27a5 5 0 0 1 5-5h2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+export const radiusCursorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="${POINTER}" fill="#000" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/><g stroke="#fff" stroke-width="4.2">${RADIUS_PATH}</g><g stroke="#000" stroke-width="1.9">${RADIUS_PATH}</g></svg>`;
+const radiusCursor = `url('data:image/svg+xml,${encodeURIComponent(radiusCursorSvg)}') 6 3, default`;
 
 const CORNERS = { nw: [0, 0], ne: [1, 0], se: [1, 1], sw: [0, 1] };
 export const HANDLE_CURSORS = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
