@@ -1094,7 +1094,7 @@ function setRole(key) {
 function refreshLabels() {
     docs.forEach((d, key) => {
         const en = wraps.get(key);
-        if (!en) return;
+        if (!en || en.renaming) return;
         const active = key === curKey;
         const title = active ? data.title : d.meta.title;
         const ver = active ? data.version : d.meta.version;
@@ -1211,7 +1211,7 @@ function frameEvent(e) {
 }
 
 canvas.addEventListener("pointerdown", (e) => {
-    if (e.target === $("panShield")) return;
+    if (e.target === $("panShield") || e.target.closest(".frename")) return;
     // the middle button always pans (the arrow tool uses empty space to draw a selection box instead)
     if (e.button === 1 && !e.target.closest("#ftb")) {
         e.preventDefault();
@@ -1310,6 +1310,56 @@ function finishMarquee(g, e) {
     if (key !== curKey) activate(key);
     selectFrame();
 }
+
+/** Double-click a frame's name to rename it. Enter or clicking away saves, Esc cancels. */
+function startRename(key) {
+    const en = wraps.get(key);
+    const d = docs.get(key);
+    if (!en || !d || en.renaming) return;
+    en.renaming = true;
+    const current = (key === curKey ? data.title : d.meta.title) || "";
+    en.label.innerHTML = `<input class="frename" value="${esc(current)}" maxlength="80" aria-label="Frame name">`;
+    const input = en.label.querySelector("input");
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (save) => {
+        if (done) return;
+        done = true;
+        en.renaming = false;
+        const name = input.value.trim();
+        refreshLabels();
+        if (save && name && name !== current) renameFrame(key, name, current);
+    };
+    input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") { e.preventDefault(); finish(true); }
+        if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener("blur", () => finish(true));
+}
+
+async function renameFrame(key, name, previous) {
+    const d = docs.get(key);
+    const isNewDoc = key === curKey ? isNew : d.isNew;
+    const apply = (t) => { d.meta.title = t; if (key === curKey) data.title = t; updateChrome(); };
+    apply(name);
+    if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its name when it is
+    try {
+        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ title: name }) });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message);
+    } catch (err) {
+        apply(previous);
+        alert(err.message || "Could not rename it");
+    }
+}
+canvas.addEventListener("dblclick", (e) => {
+    // the canvas holds the pointer during a click, so look at what is really under the cursor
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const label = under && under.closest("[data-label]");
+    if (label && !label.querySelector("input")) startRename(label.closest(".fwrap").dataset.key);
+});
 
 function clearSelection() {
     frameSel = null;
