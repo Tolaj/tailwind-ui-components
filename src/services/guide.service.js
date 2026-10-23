@@ -1,6 +1,7 @@
 import Component from "../models/component.model.js";
 import Project from "../models/project.model.js";
 import { extractSpec } from "./spec.service.js";
+import { projectContext } from "./project.service.js";
 
 const TOKEN_GROUPS = [
     ["colors", "Colors"],
@@ -40,9 +41,11 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
 
     if (!n) {
         const empty = "# Design guide\n\nThis library is empty. Save a few components (or use Save to library on gallery components) and this guide will describe your colors, type, spacing and components.\n";
-        return { markdown: empty, tokensMarkdown: "", count: 0 };
+        const ctx = await projectContext(userId);
+        return { markdown: ctx ? `${ctx}\n\n${empty}` : empty, tokensMarkdown: "", count: 0 };
     }
 
+    const activeContext = await projectContext(userId);
     const agg = aggregate(specs);
     const tokenLines = TOKEN_GROUPS.map(([key, label]) =>
         agg[key].length ? `- **${label}:** ${agg[key].map(([name, c]) => `${name} (${c}/${n})`).join(", ")}` : null
@@ -72,6 +75,7 @@ export async function buildDesignGuide(userId, { maxIndex = 150, referenceOnly =
 
     const markdown = [
         "# Design guide",
+        ...(activeContext ? [activeContext, ""] : []),
         `Generated from ${n} component${n === 1 ? "" : "s"} in this library.`,
         "",
         "## How to use this library",

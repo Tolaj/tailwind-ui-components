@@ -2,7 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import Project from "../models/project.model.js";
 import Component from "../models/component.model.js";
-import { listProjects } from "../services/project.service.js";
+import { listProjects, getActiveProject, setActiveProject } from "../services/project.service.js";
 
 // ── Pages ────────────────────────────────────────────────────────────────────
 export const projectPages = express.Router();
@@ -21,12 +21,13 @@ projectPages.get("/:id", async (req, res) => {
         if (!mongoose.isValidObjectId(req.params.id)) throw new Error("bad id");
         const project = await Project.findOne({ _id: req.params.id, owner: req.session.user.id }).lean();
         if (!project) throw new Error("missing");
+        const active = await getActiveProject(req.session.user.id);
         const items = await Component.find({ createdBy: req.session.user.id, project: project._id })
             .select("title description kind parent order tags version htmlCode board updatedAt")
             .sort("order createdAt")
             .lean();
         const data = {
-            project: { id: String(project._id), name: project.name, description: project.description },
+            project: { id: String(project._id), name: project.name, description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
                 version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y } : null, updatedAt: c.updatedAt,
@@ -61,9 +62,20 @@ projectApi.put("/:id", async (req, res) => {
     const update = {};
     if (name) update.name = name;
     if (req.body && req.body.description !== undefined) update.description = description;
+    if (req.body && req.body.brief !== undefined) update.brief = String(req.body.brief).slice(0, 4000);
     const p = await Project.findOneAndUpdate({ _id: req.params.id, owner: req.session.user.id }, update, { new: true });
     if (!p) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: { id: String(p._id), name: p.name, description: p.description } });
+});
+
+// Makes this the project Claude works in by default (or clears it with { active: false }).
+projectApi.post("/:id/activate", async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
+    const owned = await Project.exists({ _id: req.params.id, owner: req.session.user.id });
+    if (!owned) return res.status(404).json({ success: false, message: "Not found" });
+    const on = !(req.body && req.body.active === false);
+    await setActiveProject(req.session.user.id, on ? req.params.id : null);
+    res.json({ success: true, active: on });
 });
 
 // Saves frame positions in one call. A null position resets that frame to automatic layout (Tidy up).

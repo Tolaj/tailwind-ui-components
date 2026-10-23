@@ -252,6 +252,9 @@ function renderHeader() {
     const sec = items.filter((i) => i.kind === "section").length;
     $("projStats").textContent = `${pg.length} page${pg.length === 1 ? "" : "s"} · ${sec} section${sec === 1 ? "" : "s"}`;
     $("newPageBtn").href = `/design/new?project=${project.id}`;
+    const ab = $("activeBtn");
+    ab.textContent = project.active ? "Active project ✓" : "Set as active";
+    ab.className = project.active ? "h-7 rounded-md border border-[#0d99ff] bg-[#e5f4ff] px-2.5 text-xs font-medium text-[#0b6fc2]" : "h-7 rounded-md border border-neutral-200 px-2.5 text-xs hover:bg-neutral-50";
     $("boardEmpty").classList.toggle("hidden", items.length > 0);
     $("boardEmpty").classList.toggle("flex", items.length === 0);
 }
@@ -269,8 +272,10 @@ function renderDetails() {
     if (!it) {
         el.innerHTML = `<p class="font-semibold text-neutral-900">${esc(project.name)}</p>
             <label class="mt-3 block text-neutral-500">Description</label>
-            <textarea id="descInput" rows="3" class="fi area" placeholder="What is this project?">${esc(project.description)}</textarea>
-            <button type="button" id="saveDesc" class="mt-2 h-7 w-full rounded-md border border-neutral-200 hover:bg-neutral-50">Save description</button>
+            <textarea id="descInput" rows="2" class="fi area" placeholder="What is this project?">${esc(project.description)}</textarea>
+            <label class="mt-3 block text-neutral-500">Brief for Claude and designers</label>
+            <textarea id="briefInput" rows="7" class="fi area" placeholder="Brand, audience, tone, colors, navigation, rules. Claude reads this automatically when this is the active project.">${esc(project.brief || "")}</textarea>
+            <button type="button" id="saveDesc" class="mt-2 h-7 w-full rounded-md border border-neutral-200 hover:bg-neutral-50">Save</button>
             <p class="mt-4 text-neutral-500">Click a frame to see its details. Drag frames to arrange them. Double-click a frame to open it in the editor.</p>`;
         return;
     }
@@ -308,9 +313,16 @@ document.addEventListener("click", async (e) => {
     }
     if (e.target.id === "saveDesc") {
         const description = $("descInput").value;
-        const res = await fetch(`/api/projects/${project.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description }) });
-        if ((await res.json()).success) { project.description = description; e.target.textContent = "Saved"; setTimeout(() => (e.target.textContent = "Save description"), 1200); }
+        const brief = $("briefInput").value;
+        const res = await fetch(`/api/projects/${project.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description, brief }) });
+        if ((await res.json()).success) { project.description = description; project.brief = brief; e.target.textContent = "Saved"; setTimeout(() => (e.target.textContent = "Save"), 1200); }
     }
+});
+
+$("activeBtn").addEventListener("click", async () => {
+    const res = await fetch(`/api/projects/${project.id}/activate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: !project.active }) });
+    const json = await res.json();
+    if (json.success) { project.active = json.active; renderHeader(); }
 });
 
 $("renameBtn").addEventListener("click", async () => {

@@ -17,7 +17,7 @@ export const claudeMdSnippet = () => `## UI library
 This project uses a shared component library through the \`${SERVER_NAME}\` MCP server.
 
 When you build or change UI:
-1. Call \`get_design_guide\` first. It lists the design tokens and every available component.
+1. Call \`get_context\` first: it returns the active project, its brief and the pages so far. Then call \`get_design_guide\`. It lists the design tokens and every available component.
 2. Call \`search_components\` for what you need. Reuse a match instead of writing new markup.
 3. Fetch full code with \`get_component\` (use format \`react\`, \`vue\` or \`svelte\` to match this project) only for the components you will use.
 4. If you must write something new, follow the tokens (colors, radius, spacing, type) from the guide.

@@ -9,7 +9,7 @@ import { normalizeTags } from "../controllers/component.controller.js";
 import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 import { importDesign } from "../services/import.service.js";
-import { resolveProject, listProjects, projectTree } from "../services/project.service.js";
+import { resolveProject, listProjects, projectTree, getActiveProject, setActiveProject, projectContext } from "../services/project.service.js";
 import Project from "../models/project.model.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
 import { publicBase } from "../utils/publicUrl.js";
@@ -58,7 +58,7 @@ const TOOLS = [
                 htmlCode: { type: "string" },
                 tags: { type: "array", items: { type: "string" } },
                 category: { type: "string", description: "Gallery category slug, default apps-general" },
-                project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
+                project: { type: "string", description: "Project name or id to file this under (created if new). Optional: defaults to the user's active project." },
             },
             required: ["title", "description", "htmlCode"],
         },
@@ -74,7 +74,7 @@ const TOOLS = [
                 description: { type: "string", description: "One sentence about what it is" },
                 tags: { type: "array", items: { type: "string" } },
                 split: { type: "boolean", description: "Also save each stacked section as its own component. Default false." },
-                project: { type: "string", description: "Project name or id to file this under (created if it does not exist), e.g. 'Acme website'" },
+                project: { type: "string", description: "Project name or id to file this under (created if new). Optional: defaults to the user's active project." },
             },
             required: ["title", "html"],
         },
@@ -85,7 +85,7 @@ const TOOLS = [
         inputSchema: {
             type: "object",
             properties: {
-                project: { type: "string", description: "Project name or id, e.g. 'Acme dashboard' (created if it does not exist)" },
+                project: { type: "string", description: "Project name or id (created if new). Optional: defaults to the user's active project." },
                 pages: {
                     type: "array",
                     description: "One entry per page, in order",
@@ -101,8 +101,23 @@ const TOOLS = [
                 },
                 tags: { type: "array", items: { type: "string" } },
             },
-            required: ["project", "pages"],
+            required: ["pages"],
         },
+    },
+    {
+        name: "get_context",
+        description: "START HERE in a new chat. Returns the user's ACTIVE project: its description, the brief and notes you must follow, and the pages already designed. Read it before designing so new pages match the existing ones.",
+        inputSchema: { type: "object", properties: {} },
+    },
+    {
+        name: "set_active_project",
+        description: "Make a project the one the user is working in (created if new). Later saves go there by default. Call it when the user says which project they are working on.",
+        inputSchema: { type: "object", properties: { project: { type: "string", description: "Project name or id" } }, required: ["project"] },
+    },
+    {
+        name: "update_project",
+        description: "Write down the project's description and brief (brand, audience, tone, colors, rules, navigation) so every later chat follows it. Use it when the user explains what the project is or how it should look.",
+        inputSchema: { type: "object", properties: { project: { type: "string", description: "Project name or id. Defaults to the active project." }, description: { type: "string" }, brief: { type: "string", description: "Longer notes for designers and AI, up to 4000 characters" } } },
     },
     {
         name: "list_projects",
@@ -112,7 +127,7 @@ const TOOLS = [
     {
         name: "create_project",
         description: "Create a project to group related pages and sections, e.g. 'Acme website'. save_design also creates a project automatically when you pass a new project name.",
-        inputSchema: { type: "object", properties: { name: { type: "string" }, description: { type: "string" } }, required: ["name"] },
+        inputSchema: { type: "object", properties: { name: { type: "string" }, description: { type: "string" }, brief: { type: "string", description: "Notes the user wants every design to follow" } }, required: ["name"] },
     },
     {
         name: "get_project",
@@ -128,6 +143,16 @@ const TOOLS = [
 
 const text = (value) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
 const fail = (message) => ({ isError: true, content: [{ type: "text", text: message }] });
+
+/** The project to file things under: the one named, else the user's active project. Naming a new project when none is active makes it active. */
+async function projectFor(userId, ref) {
+    if (ref && String(ref).trim()) {
+        const p = await resolveProject(userId, ref, { create: true });
+        if (p && !(await getActiveProject(userId))) await setActiveProject(userId, p._id);
+        return p;
+    }
+    return getActiveProject(userId);
+}
 
 async function callTool(userId, name, args = {}) {
     switch (name) {
@@ -166,7 +191,7 @@ async function callTool(userId, name, args = {}) {
         }
         case "save_component": {
             if (!args.title || !args.description || !args.htmlCode) return fail("title, description and htmlCode are required");
-            const proj = await resolveProject(userId, args.project, { create: true });
+            const proj = await projectFor(userId, args.project);
             const c = await Component.create({
                 project: proj ? proj._id : null,
                 kind: proj ? "page" : "component",
@@ -185,7 +210,7 @@ async function callTool(userId, name, args = {}) {
         case "save_design": {
             if (!args.html || !args.title) return fail("title and html are required");
             try {
-                const proj = await resolveProject(userId, args.project, { create: true });
+                const proj = await projectFor(userId, args.project);
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
                     tags: args.tags, split: args.split === true, project: proj ? proj._id : null,
@@ -197,9 +222,10 @@ async function callTool(userId, name, args = {}) {
         }
         case "save_pages": {
             const pagesIn = Array.isArray(args.pages) ? args.pages : [];
-            if (!args.project || !pagesIn.length) return fail("project and at least one page are required");
+            if (!pagesIn.length) return fail("at least one page is required");
             if (pagesIn.length > 30) return fail("Save at most 30 pages per call");
-            const proj = await resolveProject(userId, args.project, { create: true });
+            const proj = await projectFor(userId, args.project);
+            if (!proj) return fail("No project given and no active project. Pass project (a name) or call set_active_project first.");
             const saved = [];
             const failed = [];
             for (const pg of pagesIn) {
@@ -216,6 +242,24 @@ async function callTool(userId, name, args = {}) {
                 message: `Saved ${saved.length} page(s) as separate components in project "${proj.name}"${failed.length ? `; ${failed.length} failed` : ""}.`,
             });
         }
+        case "get_context": {
+            const ctx = await projectContext(userId);
+            return text(ctx || "No active project yet. Ask which project the user is working on, then call set_active_project (or create_project).");
+        }
+        case "set_active_project": {
+            const p = await resolveProject(userId, args.project, { create: true });
+            if (!p) return fail("project is required");
+            await setActiveProject(userId, p._id);
+            return text(await projectContext(userId));
+        }
+        case "update_project": {
+            const p = args.project ? await resolveProject(userId, args.project) : await getActiveProject(userId);
+            if (!p) return fail("No such project and no active project. Pass project or call set_active_project first.");
+            if (args.description !== undefined) p.description = String(args.description).slice(0, 300);
+            if (args.brief !== undefined) p.brief = String(args.brief).slice(0, 4000);
+            await p.save();
+            return text({ id: String(p._id), name: p.name, message: "Project updated" });
+        }
         case "list_projects":
             return text(await listProjects(userId));
         case "create_project": {
@@ -223,13 +267,14 @@ async function callTool(userId, name, args = {}) {
             if (!name) return fail("name is required");
             const existing = await resolveProject(userId, name);
             if (existing) return text({ id: String(existing._id), name: existing.name, message: "Project already exists" });
-            const p = await Project.create({ name: name.slice(0, 80), description: String(args.description || "").slice(0, 300), owner: userId });
+            const p = await Project.create({ name: name.slice(0, 80), description: String(args.description || "").slice(0, 300), brief: String(args.brief || "").slice(0, 4000), owner: userId });
+            if (!(await getActiveProject(userId))) await setActiveProject(userId, p._id);
             return text({ id: String(p._id), name: p.name, message: "Project created" });
         }
         case "get_project": {
             const p = await resolveProject(userId, args.project);
             if (!p) return fail(`No project named "${args.project}". Use list_projects to see them.`);
-            return text({ id: String(p._id), name: p.name, description: p.description, pages: await projectTree(userId, p._id) });
+            return text({ id: String(p._id), name: p.name, description: p.description, brief: p.brief || "", pages: await projectTree(userId, p._id) });
         }
         case "get_design_guide": {
             const { markdown } = await buildDesignGuide(userId);
@@ -271,11 +316,14 @@ const TITLES = {
     save_design: "Save a finished design",
     save_pages: "Save several pages",
     list_tags: "List tags",
+    get_context: "Read the active project",
+    set_active_project: "Set the active project",
+    update_project: "Update the project brief",
     list_projects: "List projects",
     create_project: "Create a project",
     get_project: "Get a project",
 };
-const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags", "list_projects", "get_project"]);
+const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags", "list_projects", "get_project", "get_context"]);
 
 // Hints let clients (Claude shows these in its permission UI) treat read tools as safe.
 const ANNOTATED_TOOLS = TOOLS.map((t) => ({
@@ -324,11 +372,12 @@ async function handleRpc(msg, userId) {
         switch (method) {
             case "initialize": {
                 const asked = params && params.protocolVersion;
+                const context = await projectContext(userId);
                 return ok({
                     protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
                     capabilities: { tools: { listChanged: false } },
                     serverInfo: { name: "tailwind-ui-library", title: "Windcraft component library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing, save each page as its own component: use save_pages with a project when there are several pages, or save_design for a single screen. Never merge multiple pages into one HTML document.",
+                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing, save each page as its own component: use save_pages with a project when there are several pages, or save_design for a single screen. Never merge multiple pages into one HTML document." + (context ? `\n\n${context}` : "\n\nNo active project yet: when the user says what they are working on, call set_active_project or create_project."),
                 });
             }
             case "ping":
