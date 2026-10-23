@@ -699,7 +699,7 @@ function convertGesture(items) {
             if (!tw && pre.source !== "tailwind") return;
             const group = groupOf(prop);
             if (!group) return;
-            const tv = prop === "position" ? twValue(prop, value) : fromPx(group, Math.round(parseFloat(value)));
+            const tv = /^-?[\d.]+px$/.test(value) ? fromPx(group, Math.round(parseFloat(value))) : twValue(prop, value, false); // a size, or a word (flex, column, absolute)
             if (tv === null) return;
             const built = GROUPS[group].build(tv);
             if (!GROUPS[group].re.test(built)) return;
@@ -728,7 +728,36 @@ function flashHint(text) {
     const h = $("canvasHint");
     clearTimeout(hintTimer);
     h.textContent = text;
-    hintTimer = setTimeout(() => { h.textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Scroll to pan, Ctrl/Cmd + scroll to zoom." : h.textContent; }, 4000);
+    hintTimer = setTimeout(() => { h.textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Alt-drag to place freely. Scroll to pan, Ctrl/Cmd + scroll to zoom." : h.textContent; }, 4000);
+}
+
+/**
+ * Row / Column / Grid for a box whose children are stacked in the flow, in one undo step: Tailwind classes (flex, flex-col,
+ * grid grid-cols-N, gap-*) unless its display comes from CSS or it is a CSS-only element, then the same as inline CSS. The gap
+ * keeps the children's current spacing (agent.js arrangeOf).
+ */
+function arrange(kind) {
+    const a = selected && selected.arrange;
+    if (!a) return;
+    const gap = kind === "row" ? a.rowGap : a.colGap;
+    const cols = Math.min(a.count, 3);
+    const src = srcOf(selected, "display").source;
+    if (src === "inline" || src === "design" || modeFor(selected) !== "tailwind") {
+        return cmd({ cmd: "setStyleProps", path: selected.path, props: {
+            display: kind === "grid" ? "grid" : "flex",
+            "flex-direction": kind === "col" ? "column" : null,
+            "grid-template-columns": kind === "grid" ? `repeat(${cols}, minmax(0, 1fr))` : null,
+            gap: kind === "grid" ? `${a.colGap}px ${a.rowGap}px` : `${gap}px`, // row-gap column-gap
+        } });
+    }
+    let c = selected.classes;
+    const set = (k, v) => { const next = setGroup(c, k, v, ""); if (next !== null) c = next; };
+    set("display", kind === "grid" ? "grid" : "flex");
+    set("flexDir", kind === "col" ? "flex-col" : "");
+    set("gridCols", kind === "grid" ? String(cols) : "");
+    // a grid's columns get the spacing as gap-x; down the columns the children's own margins still space them (gap-y)
+    if (kind === "grid") { set("gap", ""); set("gapX", a.rowGap ? fromPx("gapX", a.rowGap) : ""); set("gapY", a.colGap ? fromPx("gapY", a.colGap) : ""); } else set("gap", gap ? fromPx("gap", gap) : "");
+    setClassString(c);
 }
 
 function setDevice(w) {
@@ -746,6 +775,8 @@ insp.addEventListener("click", (e) => {
     if (pw) return setDevice(Number(pw.dataset.pgw));
     const pa = t.closest("[data-pgact]");
     if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : $("detailsBtn").click();
+    const arr = t.closest("[data-arrange]");
+    if (arr && selected) return arrange(arr.dataset.arrange);
     const rst = t.closest("[data-propreset]");
     if (rst && selected) return setProp(rst.dataset.propreset, "");
     const pseg = t.closest("[data-propseg]");
@@ -777,6 +808,7 @@ insp.addEventListener("click", (e) => {
     if (!d || !selected) return;
     if (d.dataset.do === "group") return send({ cmd: "group" });
     if (d.dataset.do === "flexnone") return sizeItMyself();
+    if (d.dataset.do === "autolayout") return send({ cmd: "autoLayout" });
     if (d.dataset.do === "ungroup") return send({ cmd: "ungroup" });
     const path = selected.path;
     if (d.dataset.do === "up") cmd({ cmd: "move", path, dir: -1 });
@@ -903,7 +935,7 @@ function setMode(next) {
     $("playBtn").classList.toggle("on", mode === "preview");
     $("inspector").style.opacity = $("layers").style.opacity = mode === "edit" ? "" : "0.4";
     $("inspector").style.pointerEvents = $("layers").style.pointerEvents = mode === "edit" ? "" : "none";
-    $("canvasHint").textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Scroll to pan, Ctrl/Cmd + scroll to zoom." : "Preview: running with its JavaScript. Press play again to go back to editing.";
+    $("canvasHint").textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Alt-drag to place freely. Scroll to pan, Ctrl/Cmd + scroll to zoom." : "Preview: running with its JavaScript. Press play again to go back to editing.";
     updateShield();
     loadFrame();
 }
@@ -1001,6 +1033,7 @@ function handleKey({ key, meta, shift }) {
     if (!selected) return;
     if (meta && key === "d") return send({ cmd: "duplicateSel" });
     if (meta && key === "g") return send({ cmd: shift ? "ungroup" : "group" });
+    if (!meta && shift && key === "a") return send({ cmd: "autoLayout" });
     if (selected.tag === "body") return;
     if (key === "delete" || key === "backspace") return send({ cmd: "deleteSel" });
 }
@@ -1010,7 +1043,7 @@ document.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
     if (e.code === "Space") { e.preventDefault(); setSpace(true); return; }
     if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); handleKey({ key: e.key, meta: false, shift: true }); return; }
-    if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (!meta && !e.altKey && TOOL_KEYS[key])) {
+    if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (!meta && !e.altKey && TOOL_KEYS[key]) || (!meta && e.shiftKey && key === "a")) {
         e.preventDefault();
         handleKey({ key, meta, shift: e.shiftKey });
     }

@@ -376,6 +376,20 @@ export function agentMain() {
         const cs = getComputedStyle(el), dir = getComputedStyle(p).flexDirection.startsWith("row") ? "row" : "column";
         return { dir, sized: (parseFloat(cs.flexGrow) || 0) > 0 || cs.flexBasis !== "auto" };
     };
+    /**
+     * A box with two or more children stacked in the normal flow can be made a row, column or grid. The gap that keeps today's
+     * spacing: in the flow, touching margins collapse into the larger one; in flex they add up, so the margins come off the gap.
+     */
+    const arrangeOf = (el) => {
+        if (!el || el === document.body || !/^(block|flow-root|list-item)$/.test(getComputedStyle(el).display)) return null;
+        const kids = Array.prototype.filter.call(el.children, (k) => !["SCRIPT", "STYLE"].includes(k.tagName) && !isAbs(k));
+        if (kids.length < 2) return null;
+        const med = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)] || 0; };
+        const rs = kids.map((k) => ({ r: k.getBoundingClientRect(), cs: getComputedStyle(k) }));
+        const space = med(rs.slice(1).map((b, i) => b.r.top - rs[i].r.bottom));
+        const margins = med(rs.slice(1).map((b, i) => (parseFloat(rs[i].cs.marginBottom) || 0) + (parseFloat(b.cs.marginTop) || 0)));
+        return { count: kids.length, colGap: Math.max(0, Math.round(space - margins)), rowGap: Math.max(0, Math.round(space)) };
+    };
     const describe = (el) => {
         if (!el) return null;
         const attrs = {};
@@ -395,6 +409,7 @@ export function agentMain() {
             computed: computedOf(el),
             sources: sourcesOf(el, cssProps),
             flexItem: flexItemOf(el),
+            arrange: arrangeOf(el),
             added: made.has(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
@@ -664,6 +679,12 @@ export function agentMain() {
     // ── Gestures ────────────────────────────────────────────────────────────────────────────
     function startMove(e, items) {
         const abs = items.filter(isAbs);
+        // Alt-drag on an element in the page flow places it freely: it turns absolute (where it is) on the first movement, so an
+        // Alt-click alone changes nothing
+        if (!abs.length && e.altKey && items[0] && items[0] !== document.body && items[0].parentElement) {
+            gesture = { type: "move", freeOnMove: items[0], items: [], sx: e.clientX, sy: e.clientY, moved: false, container: items[0].parentElement };
+            return;
+        }
         if (abs.length) {
             gesture = { type: "move", items: abs.map((el) => ({ el, g: geomOf(el), pre: sourcesOf(el, ["left", "top"]) })), sx: e.clientX, sy: e.clientY, moved: false, container: abs[0].parentElement || document.body };
         } else {
@@ -672,6 +693,16 @@ export function agentMain() {
     }
 
     function moveGesture(g, e) {
+        if (g.freeOnMove) {
+            const el = g.freeOnMove;
+            g.freeOnMove = null;
+            const pre = sourcesOf(el, FREE_PROPS);
+            freePosition(el, true);
+            g.items = [{ el, g: geomOf(el), pre }];
+            g.container = el.parentElement;
+            g.freed = true;
+            setSelection([el], true);
+        }
         let dx = e.clientX - g.sx, dy = e.clientY - g.sy;
         if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
         const o = originOf(g.container);
@@ -679,7 +710,7 @@ export function agentMain() {
         const x0 = Math.min(...g.items.map((i) => i.g.x)) + dx, y0 = Math.min(...g.items.map((i) => i.g.y)) + dy;
         const x1 = Math.max(...g.items.map((i) => i.g.x + i.g.w)) + dx, y1 = Math.max(...g.items.map((i) => i.g.y + i.g.h)) + dy;
         const box = { x: x0 + o.x, y: y0 + o.y, w: x1 - x0, h: y1 - y0 };
-        const measure = e.altKey || e.metaKey; // Alt: no snapping, just the distances to what is around
+        const measure = g.freed ? e.metaKey : e.altKey || e.metaKey; // Alt: no snapping, just the distances (an Alt-drag that freed the element: Cmd)
         const s = measure ? { dx: null, dy: null } : snapDelta(box, g.targets, [0, 1, 2], [0, 1, 2]);
         // Snaps are sticky: once locked on a line (a centre, an edge, an equal gap) the box stays there until the pointer has moved a
         // clear distance past it, then it lets go. So it moves in steps from line to line, not smoothly through them.
@@ -938,7 +969,8 @@ export function agentMain() {
             return changed();
         }
         if (g.type === "pan") return;
-        if (g.moved && g.type === "move") return askConvert(g.items.map((i) => gestureItem(i.el, i.pre, ["left", "top"])));
+        if (g.type === "move" && g.freeOnMove) return post({ type: "selected", info: describe(primary()) }); // Alt-click: nothing freed
+        if (g.moved && g.type === "move") return askConvert(g.items.map((i) => gestureItem(i.el, i.pre, g.freed ? FREE_PROPS : ["left", "top"])));
         if (g.moved && g.type === "resize") {
             // a size or position the resize rewrote without changing it (a corner dragged sideways, the top-left of a box resized from
             // its bottom-right) is dropped, not saved as a class
@@ -1033,6 +1065,41 @@ export function agentMain() {
         changed();
     }
 
+    /**
+     * Shift+A: several free elements in one parent become a flex row or column (whichever way they are spread), in the order
+     * they sit, with the gap they have most often, in a free box where they were. The box is the editor's, so it gets Tailwind
+     * classes (askConvert); the elements lose their own position and keep their size.
+     */
+    function autoLayout() {
+        const items = sels.filter((el) => isAbs(el) && el.parentElement);
+        if (items.length < 2) return;
+        const par = items[0].parentElement;
+        if (items.some((el) => el.parentElement !== par)) return;
+        const rs = items.map((el) => ({ el, r: pageRect(el) }));
+        const x0 = Math.min(...rs.map((i) => i.r.x)), y0 = Math.min(...rs.map((i) => i.r.y));
+        const x1 = Math.max(...rs.map((i) => i.r.x + i.r.w)), y1 = Math.max(...rs.map((i) => i.r.y + i.r.h));
+        const row = (x1 - x0) - Math.max(...rs.map((i) => i.r.w)) >= (y1 - y0) - Math.max(...rs.map((i) => i.r.h));
+        rs.sort((a, b) => (row ? a.r.x - b.r.x : a.r.y - b.r.y));
+        const gaps = rs.slice(1).map((b, i) => (row ? b.r.x - (rs[i].r.x + rs[i].r.w) : b.r.y - (rs[i].r.y + rs[i].r.h))).map((g) => Math.max(0, Math.round(g))).sort((a, b) => a - b);
+        const gap = gaps[Math.floor(gaps.length / 2)] || 0;
+        const o = originOf(par);
+        const box = document.createElement("div");
+        Object.assign(box.style, { position: "absolute", display: "flex", alignItems: "flex-start", gap: `${gap}px` });
+        if (!row) box.style.flexDirection = "column";
+        setPx(box, "left", x0 - o.x); setPx(box, "top", y0 - o.y);
+        par.insertBefore(box, rs[0].el);
+        made.add(box);
+        rs.forEach(({ el }) => {
+            [...el.classList].filter((t) => POSITION_TOKEN.test(t)).forEach((t) => el.classList.remove(t));
+            if (!el.classList.length) el.removeAttribute("class");
+            ["position", "left", "top", "right", "bottom", "transform"].forEach((p) => el.style.removeProperty(p));
+            tidyStyle(el);
+            box.appendChild(el);
+        });
+        setSelection([box], true);
+        askConvert([gestureItem(box, {}, ["position", "left", "top", "display", "flex-direction", "align-items", "gap"])]);
+    }
+
     function ungroup() {
         const el = primary();
         if (!el || el === document.body || !isAbs(el) || !el.children.length || !el.parentElement) return;
@@ -1071,6 +1138,8 @@ export function agentMain() {
         changed(false, "nudge");
     }
 
+    const POSITION_TOKEN = /^(?:[\w-]+:)*(?:absolute|fixed|-?(?:left|top|right|bottom|inset(?:-[xy])?)-\S+)$/;
+    const FREE_PROPS = ["position", "left", "top", "width", "height"];
     function freePosition(el, on) {
         if (!el || el === document.body) return;
         if (on) {
@@ -1079,11 +1148,16 @@ export function agentMain() {
             ensurePositioned(par);
             const o = originOf(par);
             const r = pageRect(el);
-            el.classList.add("absolute");
-            el.style.position = "absolute";
-            setPx(el, "left", r.x - o.x); setPx(el, "top", r.y - o.y); setPx(el, "width", r.w); setPx(el, "height", r.h);
+            el.style.position = "absolute"; // as pixels for now: askConvert turns them into classes on a Tailwind element
+            // an absolute box's margins still push it, so they come off its left / top: it stays exactly where it was
+            const cs = getComputedStyle(el);
+            setPx(el, "left", r.x - o.x - (parseFloat(cs.marginLeft) || 0)); setPx(el, "top", r.y - o.y - (parseFloat(cs.marginTop) || 0));
+            // keep the size only where being absolute would change it (a full-width block shrinks to its content)
+            [["width", "w"], ["height", "h"]].forEach(([p, k]) => { if (Math.abs(pageRect(el)[k] - r[k]) > 0.5) setPx(el, p, r[k]); });
         } else {
-            el.classList.remove("absolute", "fixed");
+            // the position classes too, at any breakpoint (absolute md:left-[..] top-10 ...); a size it was given stays
+            [...el.classList].filter((t) => POSITION_TOKEN.test(t)).forEach((t) => el.classList.remove(t));
+            if (!el.classList.length) el.removeAttribute("class");
             ["position", "left", "top", "width", "height", "transform"].forEach((p) => el.style.removeProperty(p));
             if (!el.getAttribute("style")) el.removeAttribute("style");
         }
@@ -1099,6 +1173,7 @@ export function agentMain() {
         const k = e.key.toLowerCase();
         if (e.code === "Space") { e.preventDefault(); post({ type: "space", down: true }); return; }
         if (meta && k === "g") { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
+        if (e.shiftKey && !meta && k === "a") { e.preventDefault(); autoLayout(); return; }
         if (meta && k === "d") { e.preventDefault(); duplicate(); return; }
         if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelection(); return; }
         if (e.key.startsWith("Arrow") && sels.length) {
@@ -1192,7 +1267,7 @@ export function agentMain() {
             if (m.h !== undefined && m.h !== null) setPx(el, "height", Math.max(1, m.h));
             if (m.rot !== undefined && m.rot !== null) { el.style.transform = Number(m.rot) % 360 === 0 ? "" : `rotate(${Number(m.rot)}deg)`; if (!el.style.transform) el.style.removeProperty("transform"); }
         },
-        freePosition: (el, m) => freePosition(el, m.on),
+
         setStyleProps: (el, m) => {
             Object.keys(m.props).forEach((prop) => { const v = m.props[prop]; if (v === null || v === "") el.style.removeProperty(prop); else el.style.setProperty(prop, v); });
             if (!el.getAttribute("style")) el.removeAttribute("style");
@@ -1235,6 +1310,17 @@ export function agentMain() {
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
+        if (m.cmd === "freePosition") {
+            const el = elAt(m.path);
+            if (!el) return;
+            if (!m.on) { freePosition(el, false); changed(); return; }
+            if (isAbs(el)) return;
+            const pre = sourcesOf(el, FREE_PROPS);
+            freePosition(el, true);
+            askConvert([gestureItem(el, pre, FREE_PROPS)]);
+            return;
+        }
+        if (m.cmd === "autoLayout") { autoLayout(); return; }
         if (m.cmd === "setProp") {
             const el = elAt(m.path);
             if (el) setProp(el, m).then(() => { changed(); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });

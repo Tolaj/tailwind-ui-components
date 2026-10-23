@@ -168,7 +168,7 @@ function geomBody(s) {
     return `${flexNote(s)}${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#111] bg-[#e5f4ff] text-[#111]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
         ${abs ? `<div class="flex gap-1">${alignBtn("left", "Left", "Align left")}${alignBtn("hcenter", "Center", "Align horizontal centers")}${alignBtn("right", "Right", "Align right")}${alignBtn("top", "Top", "Align top")}${alignBtn("vcenter", "Middle", "Align vertical centers")}${alignBtn("bottom", "Bottom", "Align bottom")}</div>` : ""}
         ${(s.count || 1) > 2 ? `<div class="flex gap-1">${alignBtn("distribute-h", "Space horizontally", "Distribute horizontally")}${alignBtn("distribute-v", "Space vertically", "Distribute vertically")}</div>` : ""}
-        <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
+        <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button><button type="button" data-do="autolayout" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Shift+A: line them up in a row or column with even spacing">Auto layout</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
 }
 
 
@@ -228,12 +228,15 @@ function propBox(s) {
         <div class="bmr">${i("margin-bottom", "-")}</div></div>`;
 }
 
+/** Children stacked in the normal flow: make them a row, a column or a grid, keeping their spacing (editor.js arrange). */
+const arrangeRow = (s) => (s.arrange ? `<div class="arrange"><span>Arrange ${s.arrange.count} children</span>${[["row", "Row"], ["col", "Column"], ["grid", "Grid"]].map(([k, l]) => `<button type="button" data-arrange="${k}">${l}</button>`).join("")}</div>` : "");
+
 function propSections(s) {
     return CSS_SECTIONS.map(([id, title, controls]) => {
         const props = controls === "box" ? ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"] : controls.map((c) => c.p);
         const hasSet = props.some((p) => ownsValue(srcOf(s, p)));
         const open = ui.open.has(id) || (id === "css-offsets" && s.geom && s.geom.abs && !ui.closed.has(id)); // a free element is placed by these
-        const body = controls === "box" ? propBox(s) : controls.map((c) => propRow(s, c)).join("");
+        const body = (id === "css-layout" ? arrangeRow(s) : "") + (controls === "box" ? propBox(s) : controls.map((c) => propRow(s, c)).join(""));
         return `<div class="sec"><button type="button" class="sech" data-sec="${id}" data-open="${open}"><span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${hasSet ? '<i class="dot"></i>' : ""}</button>${open ? `<div class="secb">${body}</div>` : ""}</div>`;
     }).join("");
 }
