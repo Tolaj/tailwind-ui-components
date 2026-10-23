@@ -438,7 +438,7 @@ function renderDetailsBlock() {
         pr.innerHTML = `<span class="truncate">${esc(data.project.name)}</span><span class="sub2">${ARROW}</span>`;
     } else {
         pr.href = "#";
-        pr.innerHTML = '<span class="mut">No project</span><span class="sub2">Choose</span>';
+        pr.innerHTML = '<span class="mut truncate">No project</span>';
     }
 }
 $("pagesList").addEventListener("click", (e) => {
