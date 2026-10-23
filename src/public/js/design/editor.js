@@ -120,7 +120,7 @@ function updateChrome() {
     pl.classList.toggle("hidden", !data.project);
     pl.classList.toggle("inline-flex", Boolean(data.project));
     $("projSep").classList.toggle("hidden", !data.project);
-    if (data.project) { pl.textContent = `Project: ${data.project.name}`; pl.href = `/projects/${data.project.id}`; }
+    if (data.project) { pl.innerHTML = `<span class="truncate">Project: ${esc(data.project.name)}</span><svg class="shrink-0 text-neutral-500" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5h5v5M9.5 2.5l-6 6"/></svg>`; pl.href = `/projects/${data.project.id}`; }
     const empty = model.markup.trim() === "";
     $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
     $("startCard").classList.toggle("flex", empty && mode === "edit");
@@ -1233,15 +1233,16 @@ function renderDesigns() {
         const title = (active ? data.title : d.meta.title) || "Untitled page";
         return `<div class="layer-row cursor-pointer gap-1 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-design="${d.key}">
             <span class="shrink-0 font-mono text-[10px] ${active ? "" : "text-neutral-500"}">${d.kind === "section" ? "sec" : "page"}</span>
-            <span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot"></i>' : ""}</div>`;
+            <span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot"></i>' : ""}${active ? PAGE_EDIT : ""}</div>`;
     };
     renderPagesList();
     $("designsCount").textContent = String(list.length);
-    $("designsName").textContent = data.title || "Untitled page";
+    $("designsName").textContent = (data.project && data.project.name) || data.title || "Untitled page";
     placePills();
     $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
 }
 $("designs").addEventListener("click", (e) => {
+    if (e.target.closest("[data-pedit]")) { $("detailsBtn").click(); return; }
     const r = e.target.closest("[data-design]");
     if (!r) return;
     viewTouched = true;
