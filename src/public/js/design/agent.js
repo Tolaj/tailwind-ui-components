@@ -273,6 +273,38 @@ export function agentMain() {
      * class is now what gives the property its value (something stronger, like the design's CSS or a md: class, makes it fall back);
      * "css" writes the inline style, made !important when the design's own CSS would still win.
      */
+    // ── After a drag, resize or draw: pixels become Tailwind classes (the editor builds them, this frame checks them) ──
+    const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top"];
+    const inlineOf = (el, props) => { const o = {}; props.forEach((p) => { o[p] = el.style.getPropertyValue(p); }); return o; };
+    /** What the editor needs to turn an element's new inline pixels into classes: the values, its classes, and where each value came from before. */
+    function gestureItem(el, pre, props) {
+        const values = {};
+        props.forEach((p) => { const v = el.style.getPropertyValue(p); if (v && !el.style.getPropertyPriority(p)) values[p] = v; });
+        return { path: pathOf(el), classes: el.getAttribute("class") || "", made: made.has(el), pre: pre || {}, values };
+    }
+    /**
+     * The editor's answer: per element, the class string and the class meant to give each property its value. The classes go on
+     * first, and only once Tailwind has built them is the inline pixel removed, all in one go, so nothing flickers. If any of an
+     * element's properties then takes its value from something else, that element gets its classes and pixels back.
+     */
+    async function applyGesture(m) {
+        const work = (m.items || []).map((it) => ({ it, el: elAt(it.path), props: Object.keys(it.tokens || {}) })).filter((w) => w.el && w.props.length);
+        work.forEach((w) => { w.prevClass = w.el.getAttribute("class"); w.prevStyle = w.el.getAttribute("style"); w.el.setAttribute("class", w.it.classes); });
+        if (work.length) await settle();
+        work.forEach((w) => {
+            const { el, it, props } = w;
+            props.forEach((p) => el.style.removeProperty(p));
+            tidyStyle(el);
+            const now = sourcesOf(el, props);
+            const lost = props.some((p) => { const s = now[p] || {}; return s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== it.tokens[p]); });
+            if (!lost) return;
+            if (w.prevClass === null) el.removeAttribute("class"); else el.setAttribute("class", w.prevClass);
+            if (w.prevStyle === null) el.removeAttribute("style"); else el.setAttribute("style", w.prevStyle);
+        });
+        redraw();
+        changed();
+    }
+
     let propSeq = 0;
     async function setProp(el, m) {
         const seq = ++propSeq; // a colour picker being dragged sends edit after edit: only the latest one gets checked (and maybe undone)
@@ -422,14 +454,14 @@ export function agentMain() {
             if (deg) line.style.transform = `rotate(${deg}deg)`;
             setSelection([line]);
             setTool("move");
-            return changed();
+            return post({ type: "convert", items: [gestureItem(line, {}, ["position", "left", "top", "width", "height"])] });
         }
         const el = dragged && !(g.kind === "text" || g.kind === "button")
             ? createAt(g.kind, g.container, x0, y0, w, h)
             : createAt(g.kind, g.container, x0, y0);
         setSelection([el]);
         setTool("move");
-        changed();
+        post({ type: "convert", items: [gestureItem(el, {}, ["position", "left", "top", "width", "height"])] });
         if (t.text) startEdit(el, true);
     }
 
@@ -600,7 +632,7 @@ export function agentMain() {
     function startMove(e, items) {
         const abs = items.filter(isAbs);
         if (abs.length) {
-            gesture = { type: "move", items: abs.map((el) => ({ el, g: geomOf(el) })), sx: e.clientX, sy: e.clientY, moved: false, container: abs[0].parentElement || document.body };
+            gesture = { type: "move", items: abs.map((el) => ({ el, g: geomOf(el), pre: sourcesOf(el, ["left", "top"]) })), sx: e.clientX, sy: e.clientY, moved: false, container: abs[0].parentElement || document.body };
         } else {
             gesture = { type: "reorder", el: items[0], rect: pageRect(items[0]), sx: e.clientX, sy: e.clientY, moved: false, before: null };
         }
@@ -795,7 +827,7 @@ export function agentMain() {
             gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
         } else {
             const cs0 = getComputedStyle(el);
-            gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
+            gesture = { type: "resize", el, pre: sourcesOf(el, GESTURE_PROPS), inl0: inlineOf(el, GESTURE_PROPS), h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
         }
     }
 
@@ -867,6 +899,11 @@ export function agentMain() {
             return changed();
         }
         if (g.type === "pan") return;
+        if (g.moved && g.type === "move") return post({ type: "convert", items: g.items.map((i) => gestureItem(i.el, i.pre, ["left", "top"])) });
+        if (g.moved && g.type === "resize") {
+            const props = GESTURE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.inl0[p]); // what the resize wrote
+            return post({ type: "convert", items: [gestureItem(g.el, g.pre, props)] });
+        }
         if (g.moved) changed();
         else post({ type: "selected", info: describe(primary()) });
     }
@@ -1149,6 +1186,7 @@ export function agentMain() {
         if (m.cmd === "ungroup") { ungroup(); return; }
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
+        if (m.cmd === "applyGesture") { applyGesture(m); return; }
         if (m.cmd === "setProp") {
             const el = elAt(m.path);
             if (el) setProp(el, m).then(() => { changed(); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });

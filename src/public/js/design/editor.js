@@ -363,6 +363,8 @@ window.addEventListener("message", (e) => {
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
+    } else if (m.type === "convert") {
+        convertGesture(m.items || []);
     } else if (m.type === "key") {
         handleKey(m);
     }
@@ -650,6 +652,37 @@ function setProps(props, raw, group, clear = [], cssOverride, key) {
         if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css }, key); }
     }
     cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token }, key);
+}
+
+/**
+ * A drag, resize or new shape has ended and its pixels are inline. Each value becomes a Tailwind class (at its own md: / hover:
+ * variant if a class set it before) when the element is Tailwind's: made here, or the value came from a class, or nothing set it
+ * on an element that uses Tailwind. A value that came from CSS stays CSS, and so does everything on an element styled only by its
+ * design's CSS. The frame puts the classes on, checks them and saves the result as one undo step (agent.js applyGesture).
+ */
+function convertGesture(items) {
+    send({ cmd: "applyGesture", items: items.map((it) => {
+        const tw = it.made || modeFor({ classes: it.classes }) === "tailwind";
+        let classes = it.classes;
+        const tokens = {};
+        Object.entries(it.values).forEach(([prop, value]) => {
+            const pre = it.pre[prop] || { source: "default" };
+            if (!it.made && (pre.source === "inline" || pre.source === "design")) return; // it was CSS: it stays CSS
+            if (!tw && pre.source !== "tailwind") return;
+            const group = groupOf(prop);
+            if (!group) return;
+            const tv = prop === "position" ? twValue(prop, value) : fromPx(group, Math.round(parseFloat(value)));
+            if (tv === null) return;
+            const built = GROUPS[group].build(tv);
+            if (!GROUPS[group].re.test(built)) return;
+            const vp = pre.source === "tailwind" ? variantOf(pre.token) : variant();
+            const next = setGroup(classes, group, tv, vp);
+            if (next === null) return;
+            classes = next;
+            tokens[prop] = vp + built;
+        });
+        return { path: it.path, classes, tokens };
+    }) });
 }
 
 function setDevice(w) {
