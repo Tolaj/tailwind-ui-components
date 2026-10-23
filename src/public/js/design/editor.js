@@ -154,7 +154,8 @@ function step(delta) {
 }
 
 // ── The plane: every design in the project on one infinite surface ───────────
-const MIN_Z = 0.05, MAX_Z = 4;
+const MIN_Z = 0.02, MAX_Z = 256; // 2% to 25600%
+const GRID_FROM = 4; // the pixel grid appears at 400%
 const view = { x: 0, y: 0, z: 1 };
 let viewTouched = false;
 let sentZoom = 0;
@@ -174,11 +175,27 @@ function positions() {
 function applyView() {
     $("plane").style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
     $("plane").style.setProperty("--iz", String(1 / view.z));
-    canvas.style.backgroundSize = `${24 * view.z}px ${24 * view.z}px`;
-    canvas.style.backgroundPosition = `${view.x}px ${view.y}px`;
+    // dot grid: always about 16-32 screen pixels apart (the spacing doubles or halves as you zoom), and whole pixels so the dots stay crisp
+    let dot = 24 * view.z;
+    while (dot < 16) dot *= 2;
+    while (dot >= 32) dot /= 2;
+    dot = Math.round(dot);
+    canvas.style.backgroundSize = `${dot}px ${dot}px`;
+    canvas.style.backgroundPosition = `${Math.round(view.x)}px ${Math.round(view.y)}px`;
+    updatePixelGrid();
     if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); renderSel(); }
     syncZoomSel();
     placeFloat();
+}
+
+/** From 400% every design pixel gets a hairline, over the designs and under the selection, like Figma's pixel grid. */
+function updatePixelGrid() {
+    const g = $("pgrid");
+    if (view.z < GRID_FROM) return g.classList.add("hidden");
+    g.classList.remove("hidden");
+    // cover just what is on screen, in the plane's own units, snapped to whole pixels
+    const x0 = Math.floor(-view.x / view.z), y0 = Math.floor(-view.y / view.z);
+    Object.assign(g.style, { left: `${x0}px`, top: `${y0}px`, width: `${Math.ceil(canvas.clientWidth / view.z) + 2}px`, height: `${Math.ceil(canvas.clientHeight / view.z) + 2}px` });
 }
 
 function syncZoomSel() {
