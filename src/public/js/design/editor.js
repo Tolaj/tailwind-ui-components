@@ -5,6 +5,7 @@ import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor } from "./inspector.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS } from "./float-toolbar.js";
+import { selectionHtml } from "./selection-overlay.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 
 const $ = (id) => document.getElementById(id);
@@ -89,6 +90,8 @@ function loadFrame() {
     editingInfo = null;
     gestureOn = false;
     ftMenu = false;
+    selData = null;
+    renderSel();
     renderInspector();
     renderFloat();
     frame.srcdoc = mode === "edit" ? editDocument() : buildPreviewDocument(parseComponentSource(assemble()), { width: curWidth() });
@@ -173,7 +176,7 @@ function applyView() {
     $("plane").style.setProperty("--iz", String(1 / view.z));
     canvas.style.backgroundSize = `${24 * view.z}px ${24 * view.z}px`;
     canvas.style.backgroundPosition = `${view.x}px ${view.y}px`;
-    if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); }
+    if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); renderSel(); }
     syncZoomSel();
     placeFloat();
 }
@@ -291,6 +294,9 @@ window.addEventListener("message", (e) => {
             if (!inspectorEditing()) renderInspector();
             renderFloat();
         }
+    } else if (m.type === "overlay") {
+        selData = m;
+        renderSel();
     } else if (m.type === "editing") {
         editingInfo = m;
         renderFloat();
@@ -1107,8 +1113,24 @@ window.addEventListener("beforeunload", () => {
 });
 
 let gesture = null;
+/** A pointer position in the live frame's own coordinates (what the in-frame agent works in). */
+function frameEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    const p = positions()[curKey] || { x: 0, y: 0 };
+    return { clientX: (e.clientX - r.left - view.x) / view.z - p.x, clientY: (e.clientY - r.top - view.y) / view.z - p.y, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey };
+}
+
 canvas.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.target === $("panShield")) return;
+    const sh = e.target.closest("[data-sh]");
+    if (sh) {
+        // a selection handle: the agent runs the resize / rotate / radius, fed with this pointer
+        gesture = { type: "sel", hd: sh.dataset.sh };
+        canvas.style.cursor = getComputedStyle(sh).cursor;
+        send({ cmd: "hstart", hd: sh.dataset.sh, e: frameEvent(e) });
+        try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
+        return;
+    }
     const fh = e.target.closest("[data-fh]");
     const label = e.target.closest("[data-label]");
     const shield = e.target.closest("[data-shield]");
@@ -1128,6 +1150,7 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
     if (!gesture) return;
+    if (gesture.type === "sel") return send({ cmd: "hmove", e: frameEvent(e) });
     const dx = e.clientX - gesture.sx, dy = e.clientY - gesture.sy;
     if (!gesture.moved && Math.hypot(dx, dy) < 4) return;
     gesture.moved = true;
@@ -1143,10 +1166,11 @@ canvas.addEventListener("pointermove", (e) => {
     if (gesture.key === curKey) { frame.style.left = `${p.x}px`; frame.style.top = `${p.y}px`; }
     renderFloat();
 });
-canvas.addEventListener("pointerup", () => {
+canvas.addEventListener("pointerup", (e) => {
     const g = gesture;
     gesture = null;
     if (!g) return;
+    if (g.type === "sel") { canvas.style.cursor = ""; return send({ cmd: "hend", e: frameEvent(e) }); }
     if (g.type === "pan") { if (!g.moved) clearSelection(); return; }
     if (g.type === "fresize") { if (g.moved) queueBoardSave(g.key); return; }
     g.wrap.classList.remove("dragging");
@@ -1293,6 +1317,7 @@ const FRAME_HANDLES = [
 const FRAME_CORNERS = [["nw", "left:0;top:0;cursor:nwse-resize;"], ["ne", "left:100%;top:0;cursor:nesw-resize;"], ["se", "left:100%;top:100%;cursor:nwse-resize;"], ["sw", "left:0;top:100%;cursor:nesw-resize;"]];
 
 function renderFrameSel() {
+    renderSel();
     const el = $("fsel");
     if (frameSel !== curKey || mode !== "edit") return el.classList.add("hidden");
     const d = docs.get(curKey);
@@ -1301,6 +1326,17 @@ function renderFrameSel() {
     Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${heightOfDoc(d)}px`, outline: "calc(1.5px * var(--iz, 1)) solid #0d99ff" });
     if (!el.firstChild) el.innerHTML = FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("");
     el.classList.remove("hidden");
+}
+
+/** The selection box and its handles, above the frame (see selection-overlay.js). */
+let selData = null;
+function renderSel() {
+    const el = $("sel");
+    const p = positions()[curKey];
+    if (mode !== "edit" || frameSel === curKey || !selData || !p) { el.innerHTML = ""; return; }
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.innerHTML = selectionHtml(selData, view.z);
 }
 
 function renderFloat(force) {
@@ -1415,6 +1451,7 @@ new ResizeObserver(() => scheduleLayout()).observe(canvas);
 mountDatalists();
 setPanelTab("props");
 setPanel(pref("wc:panel") === "1");
+setTool("move", true); // start on the arrow, highlighted in the toolbar
 buildWraps();
 updateChrome();
 renderInspector();

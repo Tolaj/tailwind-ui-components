@@ -43,6 +43,8 @@
         .fwrap.dragging { z-index: 50; cursor: grabbing; }
         .fwrap.dragging .frame { box-shadow: 0 8px 30px rgba(0,0,0,.25); cursor: grabbing; }
 
+        #canvas, #ftb, #sel { -webkit-user-select: none; user-select: none; }
+        #ftb input { -webkit-user-select: text; user-select: text; }
         /* floating controls */
         .pill { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.10); }
         .pop { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
@@ -60,6 +62,12 @@
         #ftb .swatch { position: relative; width: 24px; height: 24px; border-radius: 7px; border: 1px solid rgba(0,0,0,.2); overflow: hidden; margin: 0 2px; }
         #ftb .swatch input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
         #ftb .lbl2 { font-size: 11px; color: #8c8c8c; padding: 0 2px 0 6px; }
+        /* the selected element: drawn above the frame so its edge never clips it; sizes use --iz to stay constant on screen */
+        #sel .sbox { position: absolute; box-sizing: border-box; pointer-events: none; transform-origin: 50% 50%; box-shadow: inset 0 0 0 calc(1.5px * var(--iz, 1)) #0d99ff; }
+        #sel .sh { position: absolute; pointer-events: auto; }
+        #sel .sc { width: calc(9px * var(--iz, 1)); height: calc(9px * var(--iz, 1)); background: #fff; border: calc(1.5px * var(--iz, 1)) solid #0d99ff; box-sizing: border-box; }
+        #sel .sd { width: calc(8px * var(--iz, 1)); height: calc(8px * var(--iz, 1)); border-radius: 50%; background: #fff; border: calc(1.5px * var(--iz, 1)) solid #0d99ff; box-sizing: border-box; }
+        #sel .slabel { position: absolute; transform: translateX(-50%) scale(var(--iz, 1)); transform-origin: 50% 0; background: #0d99ff; color: #fff; font: 500 11px/1 Inter, system-ui, sans-serif; padding: 4px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
         /* the selected frame: handles scale with the zoom so they keep their size */
         #fsel .fh { position: absolute; pointer-events: auto; }
         #fsel .fc { width: calc(9px * var(--iz, 1)); height: calc(9px * var(--iz, 1)); background: #fff; border: calc(1.5px * var(--iz, 1)) solid #0d99ff; box-sizing: border-box; }

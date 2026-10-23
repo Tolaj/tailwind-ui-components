@@ -11,14 +11,20 @@ export function agentMain() {
     const mk = (css) => { const d = document.createElement("div"); d.style.cssText = css; return d; };
     const overlay = mk("position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;");
     const hoverBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.06);pointer-events:none;display:none;box-sizing:border-box;`);
-    const selLayer = mk("position:absolute;left:0;top:0;");
     const guideLayer = mk("position:absolute;left:0;top:0;");
     const draftBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.08);display:none;box-sizing:border-box;`);
     const marqueeBox = mk(`position:absolute;border:1px solid ${BLUE};background:rgba(13,153,255,.1);display:none;box-sizing:border-box;`);
     const insertLine = mk(`position:absolute;background:${BLUE};display:none;pointer-events:none;`);
-    const tagLabel = mk(`position:absolute;background:${BLUE};color:#fff;font:500 11px/1 Inter,system-ui,sans-serif;padding:3px 6px;border-radius:2px;display:none;white-space:nowrap;pointer-events:none;`);
-    overlay.append(hoverBox, selLayer, guideLayer, draftBox, marqueeBox, insertLine, tagLabel);
+    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, insertLine);
     root.appendChild(overlay);
+
+    // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
+    // pointing hand over it. Everything inherits the cursor set on <html> (arrow, grab, crosshair...); text being typed keeps its I-beam.
+    const cursorStyle = document.createElement("style");
+    cursorStyle.setAttribute("data-wc-agent-style", "");
+    cursorStyle.textContent = "html * { cursor: inherit !important; } [contenteditable=true], [contenteditable=true] * { cursor: text !important; }";
+    document.head.appendChild(cursorStyle);
+    root.style.cursor = "default"; // the Move tool is active from the start
 
     // ── State ───────────────────────────────────────────────────────────────────────────────
     let tool = "move";
@@ -95,75 +101,39 @@ export function agentMain() {
     const alive = (el) => el && document.body.contains(el);
 
     // ── Overlay drawing ─────────────────────────────────────────────────────────────────────
-    const CORNERS = [["nw", 0, 0], ["ne", 1, 0], ["se", 1, 1], ["sw", 0, 1]];
-    const HCURSOR = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
-    // The rotate cursor is an arc that wraps around the corner it belongs to, drawn for the bottom-right corner and
-    // turned a quarter for each of the others, plus however far the element itself is already rotated.
-    const ARC = '<path d="M19 6A13 13 0 0 1 6 19"/><path d="M15.5 9.5 19 5.5 22.5 9.5"/><path d="M9.5 15.5 5.5 19 9.5 22.5"/>';
-    const CORNER_TURN = { se: 0, sw: 90, nw: 180, ne: 270 };
-    const rotateCursor = (deg) => {
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(${Math.round(deg)} 12 12)"><g stroke="#fff" stroke-width="4.2">${ARC}</g><g stroke="#111" stroke-width="1.8">${ARC}</g></g></svg>`;
-        return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, crosshair`;
-    };
-
     function place(box, el) {
         if (!el || !alive(el)) { box.style.display = "none"; return; }
         const r = pageRect(el);
         Object.assign(box.style, { display: "block", left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
     }
 
+    // The selection box, handles and size label are drawn by the editor, above the frame, so nothing clips them at the
+    // frame's edge and the outline of an element hanging outside the frame stays visible. The agent only describes it.
+    let lastOverlay = "";
+    const boxOf = (el) => {
+        const br = pageRect(el);
+        const w = el.offsetWidth || br.w, h = el.offsetHeight || br.h;
+        const cs = getComputedStyle(el);
+        return {
+            x: br.x + br.w / 2 - w / 2, y: br.y + br.h / 2 - h / 2, w, h, rot: rotationOf(el),
+            radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map((c) => cs[`border${c}Radius`] || "0").join(" "),
+            r0: parseFloat(cs.borderTopLeftRadius) || 0,
+        };
+    };
     function redraw() {
         sels = sels.filter(alive);
-        selLayer.innerHTML = "";
         const el = primary();
-        const showHandles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing);
-        if (!showHandles) {
-            sels.forEach((e) => {
-                const r = pageRect(e);
-                selLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;`));
-            });
-        } else {
-            // the box turns with the element: border, resize edges, corner squares and the rotate zones live inside one rotated container
-            const rot = rotationOf(el);
-            const br = pageRect(el);
-            const w = el.offsetWidth || br.w;
-            const h = el.offsetHeight || br.h;
-            const ccs = getComputedStyle(el);
-            const rounding = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map((c) => ccs[`border${c}Radius`] || "0").join(" ");
-            const box = mk(`position:absolute;left:${br.x + br.w / 2 - w / 2}px;top:${br.y + br.h / 2 - h / 2}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg);transform-origin:50% 50%;border:${px(1.5)}px solid ${BLUE};border-radius:${rounding};box-sizing:border-box;pointer-events:none;`);
-            selLayer.appendChild(box);
-            const s = px(9);
-            const e = px(10);
-            const bw = px(1.5);
-            const add = (css, name, cursor) => { const hnd = mk(`position:absolute;${css}pointer-events:auto;cursor:${cursor};`); hnd.dataset.h = name; box.appendChild(hnd); };
-            // rotating: the area just outside each corner (under the corner squares)
-            const z = px(24);
-            CORNERS.forEach(([name, fx, fy]) => add(`left:${fx ? w - bw - s / 2 : -bw - z + s / 2}px;top:${fy ? h - bw - s / 2 : -bw - z + s / 2}px;width:${z}px;height:${z}px;`, `rot-${name}`, rotateCursor(CORNER_TURN[name] + rot)));
-            // corner radius: a dot just inside each corner, further in the rounder the corner is
-            if (Math.min(w, h) >= 40) {
-                const radius = parseFloat(ccs.borderTopLeftRadius) || 0;
-                const inset = Math.min(radius + px(11), Math.min(w, h) / 2);
-                const dot = px(8);
-                CORNERS.forEach(([name, fx, fy]) => add(`left:${(fx ? w - inset : inset) - bw - dot / 2}px;top:${(fy ? h - inset : inset) - bw - dot / 2}px;width:${dot}px;height:${dot}px;border-radius:50%;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, `rad-${name}`, "default"));
-            }
-            // resizing: the whole length of each edge, then a square on each corner
-            const edgeW = Math.max(0, w - s), edgeH = Math.max(0, h - s);
-            ["n", "e", "s", "w"].forEach((name) => {
-                const horizontal = name === "n" || name === "s";
-                add(horizontal
-                    ? `left:${s / 2 - bw}px;top:${(name === "n" ? 0 : h) - bw - e / 2}px;width:${edgeW}px;height:${e}px;`
-                    : `left:${(name === "w" ? 0 : w) - bw - e / 2}px;top:${s / 2 - bw}px;width:${e}px;height:${edgeH}px;`, name, HCURSOR[name]);
-            });
-            CORNERS.forEach(([name, fx, fy]) => add(`left:${w * fx - bw - s / 2}px;top:${h * fy - bw - s / 2}px;width:${s}px;height:${s}px;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, name, HCURSOR[name]));
-        }
-        place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
-        // the size label only appears while dragging; otherwise it would sit behind the editor's floating toolbar
-        if (el && alive(el) && el !== document.body && gesture && gesture.moved) {
-            const r = pageRect(el);
+        const items = sels.filter((e) => e !== document.body).map(boxOf);
+        const handles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing);
+        let label = "";
+        if (el && el !== document.body && gesture && gesture.moved) {
             const g = geomOf(el);
-            tagLabel.textContent = sels.length > 1 ? `${sels.length} selected` : `${el.tagName.toLowerCase()}  ${g.w} × ${g.h}`;
-            Object.assign(tagLabel.style, { display: "block", left: `${r.x}px`, top: `${Math.max(0, r.y - px(22))}px`, transform: `scale(${1 / zoom})`, transformOrigin: "0 100%" });
-        } else tagLabel.style.display = "none";
+            label = sels.length > 1 ? `${sels.length} selected` : `${g.w} × ${g.h}`;
+        }
+        const bbox = el && el !== document.body && alive(el) ? pageRect(el) : null;
+        const data = JSON.stringify({ items, handles, label, bbox });
+        if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox }); }
+        place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; };
@@ -442,31 +412,30 @@ export function agentMain() {
         g.hits = hits;
     }
 
+    /** A handle drawn by the editor was pressed. The editor then forwards the pointer (hmove / hend) in this frame's coordinates. */
+    function beginHandle(hd, e) {
+        const el = primary();
+        if (!el || el === document.body) return;
+        const g = geomOf(el);
+        const br = pageRect(el);
+        if (hd.startsWith("rad")) {
+            gesture = { type: "radius", el, corner: hd.slice(4), c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, rot: g.rot, w: el.offsetWidth || br.w, h: el.offsetHeight || br.h, prev: el.style.borderRadius, r: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, sx: e.clientX, sy: e.clientY, moved: false };
+        } else if (hd.startsWith("rot")) {
+            const cx = br.x + br.w / 2, cy = br.y + br.h / 2;
+            gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
+        } else {
+            const cs0 = getComputedStyle(el);
+            gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
+        }
+    }
+
     document.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
         if (editing && editing.contains(e.target)) return;
         if (editing) finishEdit();
-        const hd = e.target && e.target.dataset && e.target.dataset.h;
         try { root.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
         e.preventDefault();
 
-        if (hd) {
-            const el = primary();
-            const g = geomOf(el);
-            if (hd.startsWith("rad")) {
-                const br = pageRect(el);
-                gesture = { type: "radius", el, corner: hd.slice(4), c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, rot: g.rot, w: el.offsetWidth || br.w, h: el.offsetHeight || br.h, prev: el.style.borderRadius, r: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, sx: e.clientX, sy: e.clientY, moved: false };
-            } else if (hd.startsWith("rot")) {
-                const r = pageRect(el);
-                const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-                gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
-            } else {
-                const br = pageRect(el);
-                const cs0 = getComputedStyle(el);
-                gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
-            }
-            return;
-        }
         if (tool === "hand") { gesture = { type: "pan", sx: e.clientX, sy: e.clientY, moved: false }; root.style.cursor = "grabbing"; return; }
         if (DRAW.has(tool)) {
             gesture = { type: "draw", kind: tool, sx: e.clientX, sy: e.clientY, container: containerAt(e.clientX, e.clientY), moved: false };
@@ -483,7 +452,7 @@ export function agentMain() {
         startMove(e, sels.length ? sels : [t]);
     }, true);
 
-    document.addEventListener("pointermove", (e) => {
+    function onMove(e) {
         const g = gesture;
         if (!g) {
             if (!editing && tool === "move") { hov = targetOf(e); redraw(); }
@@ -502,9 +471,10 @@ export function agentMain() {
         else if (g.type === "radius") { radiusGesture(g, e); redraw(); }
         else if (g.type === "marquee") marqueeSelect(g, e);
         else if (g.type === "pan") { post({ type: "pan", dx: e.clientX - g.sx, dy: e.clientY - g.sy }); g.sx = e.clientX; g.sy = e.clientY; }
-    }, true);
+    }
+    document.addEventListener("pointermove", onMove, true);
 
-    document.addEventListener("pointerup", (e) => {
+    function onUp(e) {
         const g = gesture;
         gesture = null;
         clearGuides();
@@ -528,7 +498,8 @@ export function agentMain() {
         if (g.type === "pan") return;
         if (g.moved) changed();
         else post({ type: "selected", info: describe(primary()) });
-    }, true);
+    }
+    document.addEventListener("pointerup", onUp, true);
 
     const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
     document.addEventListener("dblclick", (e) => {
@@ -777,6 +748,9 @@ export function agentMain() {
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
         if (m.cmd === "cssProps") { cssProps = m.props || []; return; }
+        if (m.cmd === "hstart") { beginHandle(m.hd, m.e); return; }
+        if (m.cmd === "hmove") { onMove(m.e); return; }
+        if (m.cmd === "hend") { onUp(m.e); return; }
         if (m.cmd === "exec") {
             if (editing && m.name) { editing.focus(); document.execCommand(m.name, false, m.arg || null); postEditing(); }
             return;
