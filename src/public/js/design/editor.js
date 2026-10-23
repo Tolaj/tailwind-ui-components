@@ -311,6 +311,9 @@ window.addEventListener("message", (e) => {
             if (!inspectorEditing()) renderInspector();
             renderFloat();
         }
+    } else if (m.type === "typing") {
+        model.markup = m.html;
+        updateChrome();
     } else if (m.type === "overlay") {
         selData = m;
         renderSel();
@@ -355,13 +358,58 @@ function layerNode(n, depth) {
     return row + (has && !isCollapsed ? n.children.map((c) => layerNode(c, depth + 1)).join("") : "");
 }
 
+let revealedKey = null;
+/** Scrolls the Layers panel to the selected row (opening its collapsed parents first). Only when the selection changed, so scrolling by hand isn't undone. */
+function revealLayer(force) {
+    const key = selected ? pathKey(selected.path) : null;
+    if (!key && key !== "") { revealedKey = null; return; }
+    if (!force && key === revealedKey) return;
+    const pane = $("layersPane");
+    if (pane.classList.contains("hidden") || $("panel").classList.contains("hidden")) return;
+    const row = $("layers").querySelector(".layer-row.is-selected");
+    if (!row) return;
+    revealedKey = key;
+    const pr = pane.getBoundingClientRect(), rr = row.getBoundingClientRect();
+    if (rr.top < pr.top + 8 || rr.bottom > pr.bottom - 8) pane.scrollTop += (rr.top + rr.height / 2) - (pr.top + pr.height / 2);
+}
+
+let expandedFor = null;
 function renderLayers() {
-    $("layers").innerHTML = tree ? layerNode(tree, 0) : "";
+    // a new selection must be visible in the tree: open every parent of the selected element (once per selection, so you can still collapse one afterwards)
+    const selKey = selected ? pathKey(selected.path) : null;
+    if (selKey !== expandedFor) {
+        expandedFor = selKey;
+        if (selected && selected.path && selected.path.length) {
+            let opened = false;
+            for (let i = 0; i < selected.path.length; i++) { if (collapsed.delete(pathKey(selected.path.slice(0, i)))) opened = true; }
+            if (opened) revealedKey = null;
+        }
+    }
+    // The top level is the frames themselves. The live frame shows its element tree only while it, or something in it, is selected.
+    const showTree = Boolean(tree) && (frameSel === curKey || Boolean(selected));
+    const list = [...docs.values()];
+    const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
+    const frameRow = (d, depth) => {
+        const active = d.key === curKey;
+        const title = (active ? data.title : d.meta.title) || "Untitled design";
+        const on = active && frameSel === curKey;
+        return `<div class="layer-row cursor-pointer gap-1 px-1 ${on ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-frame="${d.key}">
+            <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400">${active && showTree ? "▾" : "▸"}</span>
+            <span class="shrink-0 font-mono text-[11px] text-neutral-500">${d.kind === "section" ? "section" : "frame"}</span>
+            <span class="truncate font-medium text-neutral-800">${esc(title)}</span></div>` + (active && showTree ? layerNode(tree, depth + 1) : "");
+    };
+    $("layers").innerHTML = tops.map((d) => frameRow(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => frameRow(c, 1)).join("")).join("");
+    revealLayer();
 }
 
 const parsePath = (s) => (s === "" ? [] : s.split(".").map(Number));
 
 $("layers").addEventListener("click", (e) => {
+    const fr = e.target.closest("[data-frame]");
+    if (fr) {
+        if (fr.dataset.frame !== curKey) activate(fr.dataset.frame);
+        return selectFrame();
+    }
     const caret = e.target.closest("[data-caret]");
     if (caret) {
         const k = caret.dataset.caret;
@@ -725,7 +773,32 @@ window.addEventListener("beforeunload", (e) => { if (anyDirty()) { e.preventDefa
 const codeText = $("codeText");
 const codeOpen = () => !$("codePanel").classList.contains("hidden");
 const codeFocused = () => document.activeElement === codeText;
-function syncCode() { if (codeOpen()) codeText.value = model.markup.trim() ? assemble() : ""; }
+let codeMirror = null;
+/** Scrolls the code box so the character at `index` is in view (measured with an offscreen copy, since a textarea can't be asked). */
+function revealInCode(text, index) {
+    if (!codeMirror) { codeMirror = document.createElement("div"); document.body.appendChild(codeMirror); }
+    const cs = getComputedStyle(codeText);
+    Object.assign(codeMirror.style, { position: "absolute", visibility: "hidden", left: "-9999px", top: "0", width: `${codeText.clientWidth}px`, font: cs.font, lineHeight: cs.lineHeight, padding: cs.padding, boxSizing: "border-box", whiteSpace: "pre-wrap", overflowWrap: "break-word", tabSize: cs.tabSize });
+    codeMirror.textContent = text.slice(0, index) + "\u200b";
+    const y = codeMirror.offsetHeight;
+    const lineH = parseFloat(cs.lineHeight) || 20;
+    if (y - lineH < codeText.scrollTop || y > codeText.scrollTop + codeText.clientHeight - lineH) codeText.scrollTop = Math.max(0, y - codeText.clientHeight / 2);
+}
+
+function syncCode() {
+    if (!codeOpen()) return;
+    const next = model.markup.trim() ? assemble() : "";
+    const prev = codeText.value;
+    if (prev === next) return;
+    const left = codeText.scrollLeft, top = codeText.scrollTop;
+    codeText.value = next;
+    codeText.scrollLeft = left;
+    codeText.scrollTop = top;
+    // show what changed: the first place the new code differs from the old
+    let i = 0;
+    while (i < prev.length && i < next.length && prev[i] === next[i]) i++;
+    if (prev) revealInCode(next, i);
+}
 function setCodePanel(open) {
     $("codePanel").classList.toggle("hidden", !open);
     $("codePanel").classList.toggle("flex", open);
@@ -1138,7 +1211,15 @@ function frameEvent(e) {
 }
 
 canvas.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target === $("panShield")) return;
+    if (e.target === $("panShield")) return;
+    // the middle button always pans (the arrow tool uses empty space to draw a selection box instead)
+    if (e.button === 1 && !e.target.closest("#ftb")) {
+        e.preventDefault();
+        gesture = { type: "pan", mid: true, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+        try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
+        return;
+    }
+    if (e.button !== 0) return;
     const sh = e.target.closest("[data-sh]");
     if (sh) {
         // a selection handle: the agent runs the resize / rotate / radius, fed with this pointer
@@ -1161,18 +1242,27 @@ canvas.addEventListener("pointerdown", (e) => {
         const pos = positions()[key];
         gesture = { type: "frame", key, wrap, sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y, moved: false, label: Boolean(label) };
     } else if (e.target === canvas || e.target === $("plane") || e.target === $("frames")) {
-        gesture = { type: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+        gesture = tool === "move"
+            ? { type: "marquee", sx: e.clientX, sy: e.clientY, moved: false }
+            : { type: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
     } else return;
     try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
 });
+let lastHoverClear = 0;
 canvas.addEventListener("pointermove", (e) => {
-    if (!gesture) return;
+    if (!gesture) {
+        // the pointer is over the canvas, not the live frame: the frame never hears it leave, so tell it to drop its hover highlight
+        const now = Date.now();
+        if (now - lastHoverClear > 100) { lastHoverClear = now; send({ cmd: "hover", path: null }); }
+        return;
+    }
     if (gesture.type === "sel") return send({ cmd: "hmove", e: frameEvent(e) });
     const dx = e.clientX - gesture.sx, dy = e.clientY - gesture.sy;
     if (!gesture.moved && Math.hypot(dx, dy) < 4) return;
     gesture.moved = true;
     viewTouched = true;
     if (gesture.type === "pan") { view.x = gesture.vx + dx; view.y = gesture.vy + dy; return applyView(); }
+    if (gesture.type === "marquee") return drawMarquee(gesture, e);
     if (gesture.type === "fresize") return resizeFrame(gesture, dx / view.z, dy / view.z);
     gesture.wrap.classList.add("dragging");
     const d = docs.get(gesture.key);
@@ -1188,13 +1278,38 @@ canvas.addEventListener("pointerup", (e) => {
     gesture = null;
     if (!g) return;
     if (g.type === "sel") { canvas.style.cursor = ""; return send({ cmd: "hend", e: frameEvent(e) }); }
-    if (g.type === "pan") { if (!g.moved) clearSelection(); return; }
+    if (g.type === "pan") { if (!g.moved && !g.mid) clearSelection(); return; }
+    if (g.type === "marquee") return finishMarquee(g, e);
     if (g.type === "fresize") { if (g.moved) queueBoardSave(g.key); return; }
     g.wrap.classList.remove("dragging");
     if (g.moved) { queueBoardSave(g.key); layout(); return; }
     if (g.key !== curKey) activate(g.key);
     if (g.label) selectFrame();
 });
+
+/** Empty canvas with the arrow: drag a box. Frames it touches get selected. */
+function drawMarquee(g, e) {
+    const r = canvas.getBoundingClientRect();
+    const x0 = Math.min(g.sx, e.clientX) - r.left, y0 = Math.min(g.sy, e.clientY) - r.top;
+    const m = $("marquee");
+    Object.assign(m.style, { display: "block", left: `${x0}px`, top: `${y0}px`, width: `${Math.abs(e.clientX - g.sx)}px`, height: `${Math.abs(e.clientY - g.sy)}px` });
+}
+function finishMarquee(g, e) {
+    $("marquee").style.display = "none";
+    if (!g.moved) return clearSelection();
+    const r = canvas.getBoundingClientRect();
+    const toWorld = (cx, cy) => ({ x: (cx - r.left - view.x) / view.z, y: (cy - r.top - view.y) / view.z });
+    const a = toWorld(Math.min(g.sx, e.clientX), Math.min(g.sy, e.clientY)), b = toWorld(Math.max(g.sx, e.clientX), Math.max(g.sy, e.clientY));
+    const pos = positions();
+    const hit = [...docs.keys()].filter((key) => {
+        const p = pos[key], d = docs.get(key);
+        return p && p.x < b.x && p.x + widthOf(d) > a.x && p.y < b.y && p.y + heightOfDoc(d) > a.y;
+    });
+    if (!hit.length) return clearSelection();
+    const key = hit.includes(curKey) ? curKey : hit[0];
+    if (key !== curKey) activate(key);
+    selectFrame();
+}
 
 function clearSelection() {
     frameSel = null;
@@ -1335,6 +1450,8 @@ const FRAME_CORNERS = [["nw", "left:0;top:0;cursor:nwse-resize;"], ["ne", "left:
 
 function renderFrameSel() {
     renderSel();
+    // a frame's name is blue only while the frame, or something inside it, is selected
+    wraps.forEach((en, key) => en.wrap.classList.toggle("sel", key === curKey && (frameSel === curKey || Boolean(selected && selected.tag !== "body"))));
     const el = $("fsel");
     if (frameSel !== curKey || mode !== "edit") return el.classList.add("hidden");
     const d = docs.get(curKey);
@@ -1451,12 +1568,14 @@ function setPanelTab(t) {
     document.querySelectorAll("#panelTabs .ptab").forEach((b) => b.classList.toggle("is-on", b.dataset.ptab === t));
     $("inspector").classList.toggle("hidden", t !== "props");
     $("layersPane").classList.toggle("hidden", t !== "layers");
+    revealLayer(true);
 }
 function setPanel(open) {
     $("panel").classList.toggle("hidden", !open);
     $("panel").classList.toggle("flex", open);
     $("panelBtn").classList.toggle("on", open);
     pref("wc:panel", open ? "1" : "0");
+    if (open) revealLayer(true);
     scheduleLayout();
 }
 $("panelBtn").addEventListener("click", () => setPanel($("panel").classList.contains("hidden")));

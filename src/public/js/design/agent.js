@@ -500,6 +500,10 @@ export function agentMain() {
         else post({ type: "selected", info: describe(primary()) });
     }
     document.addEventListener("pointerup", onUp, true);
+    // leaving the frame must also drop the hover highlight (no pointermove arrives once the pointer is outside)
+    const dropHover = () => { if (hov && !gesture) { hov = null; redraw(); } };
+    root.addEventListener("pointerleave", dropHover);
+    document.addEventListener("mouseleave", dropHover);
 
     const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
     document.addEventListener("dblclick", (e) => {
@@ -510,6 +514,13 @@ export function agentMain() {
         startEdit(el, false);
     }, true);
     document.addEventListener("selectionchange", () => { if (editing) postEditing(); });
+    // while typing, keep the editor's copy of the markup (and so the Code panel) current instead of waiting for the edit to finish
+    let typingTimer = null;
+    document.addEventListener("input", () => {
+        if (!editing) return;
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => { if (editing) post({ type: "typing", html: serialize() }); }, 80);
+    }, true);
     document.addEventListener("focusout", (e) => { if (editing && e.target === editing) finishEdit(); }, true);
     document.addEventListener("submit", (e) => e.preventDefault(), true);
     document.addEventListener("click", (e) => { if (!(editing && editing.contains(e.target))) { e.preventDefault(); e.stopPropagation(); } }, true);
