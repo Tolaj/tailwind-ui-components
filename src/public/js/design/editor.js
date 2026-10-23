@@ -367,8 +367,8 @@ function revealLayer(force) {
     const key = selected ? pathKey(selected.path) : null;
     if (!key && key !== "") { revealedKey = null; return; }
     if (!force && key === revealedKey) return;
-    const pane = $("layersPane");
-    if (pane.classList.contains("hidden") || $("panel").classList.contains("hidden")) return;
+    const pane = leftOpen ? $("leftBody") : $("layersPane");
+    if (!leftOpen && (pane.classList.contains("hidden") || $("panel").classList.contains("hidden"))) return;
     const row = $("layers").querySelector(".layer-row.is-selected");
     if (!row) return;
     revealedKey = key;
@@ -483,6 +483,7 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 
 insp.addEventListener("click", (e) => {
     const t = e.target;
+    if (t.closest("[data-closepanel]")) return setPanel(false);
     const sm = t.closest("[data-stylemode]");
     if (sm) { ui.styleMode = sm.dataset.stylemode; return renderInspector(); }
     const rst = t.closest("[data-cssreset]");
@@ -1631,6 +1632,26 @@ document.addEventListener("click", (e) => {
 $("designsBtn").addEventListener("click", (e) => { e.stopPropagation(); $("addMenu").classList.add("hidden"); $("designsMenu").classList.toggle("hidden"); });
 $("designsMenu").addEventListener("click", (e) => e.stopPropagation());
 
+// The Layers can live in the right panel (a tab) or, when you open it, in a panel on the left. Never both at once.
+let leftOpen = false;
+function setLeft(open) {
+    leftOpen = open;
+    $("leftPanel").classList.toggle("hidden", !open);
+    $("leftPanel").classList.toggle("flex", open);
+    $("leftBtn").classList.toggle("on", open);
+    (open ? $("leftBody") : $("layersPane")).appendChild($("layers"));
+    document.querySelector('#panelTabs [data-ptab="layers"]').classList.toggle("hidden", open);
+    $("panelHead").classList.toggle("hidden", open); // with one tab left, the "Properties" label is only noise
+    ui.closeInTabs = open; // so the close button moves into the Design / Classes / AI row
+    renderInspector();
+    if (open && panelTab === "layers") setPanelTab("props");
+    pref("wc:left", open ? "1" : "0");
+    if (open) revealLayer(true);
+    scheduleLayout();
+}
+$("leftBtn").addEventListener("click", () => setLeft(!leftOpen));
+$("leftClose").addEventListener("click", () => setLeft(false));
+
 // side panel: closed until you want every property or the layer tree
 let panelTab = "props";
 const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { /* storage is optional */ } return null; };
@@ -1658,6 +1679,7 @@ new ResizeObserver(() => scheduleLayout()).observe(canvas);
 mountDatalists();
 setPanelTab("props");
 setPanel(pref("wc:panel") === "1");
+setLeft(pref("wc:left") === "1");
 setTool("move", true); // start on the arrow, highlighted in the toolbar
 buildWraps();
 updateChrome();
