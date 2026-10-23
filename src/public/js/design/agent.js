@@ -757,6 +757,10 @@ export function agentMain() {
             if (m.rot !== undefined && m.rot !== null) { el.style.transform = Number(m.rot) % 360 === 0 ? "" : `rotate(${Number(m.rot)}deg)`; if (!el.style.transform) el.style.removeProperty("transform"); }
         },
         freePosition: (el, m) => freePosition(el, m.on),
+        setStyleProps: (el, m) => {
+            Object.keys(m.props).forEach((prop) => { const v = m.props[prop]; if (v === null || v === "") el.style.removeProperty(prop); else el.style.setProperty(prop, v); });
+            if (!el.getAttribute("style")) el.removeAttribute("style");
+        },
         setStyleProp: (el, m) => {
             if (m.value === null || m.value === "") el.style.removeProperty(m.prop);
             else el.style.setProperty(m.prop, m.value);

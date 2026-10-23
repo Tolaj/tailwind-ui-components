@@ -25,9 +25,16 @@
         #pagesList .layer-row { margin: 0 4px; }
         #pagesList .layer-row.is-selected { position: sticky; top: 0; z-index: 5; box-shadow: 0 0 0 4px #fff; }
         #layersHead { position: sticky; top: 24px; z-index: 4; background: #fff; } /* the Layers title rides just under the pinned page */
-        .layer-row.drop-before { box-shadow: inset 0 2px 0 #0d99ff; }
-        .layer-row.drop-after { box-shadow: inset 0 -2px 0 #0d99ff; }
-        .layer-row.drop-inside { background: #cfe7ff; }
+        [data-path].layer-row { position: relative; }
+        .layer-row.is-dragging { opacity: .4; }
+        /* where a dragged layer will land: a blue line with a dot (before / after) at the target's indent, or the whole row outlined (inside) */
+        .layer-row.drop-before::after, .layer-row.drop-after::after { content: ""; position: absolute; left: var(--ind, 0); right: 2px; height: 2px; border-radius: 1px; background: #0d99ff; pointer-events: none; }
+        .layer-row.drop-before::after { top: -1px; }
+        .layer-row.drop-after::after { bottom: -1px; }
+        .layer-row.drop-before::before, .layer-row.drop-after::before { content: ""; position: absolute; left: calc(var(--ind, 0px) - 3px); width: 8px; height: 8px; border-radius: 50%; border: 2px solid #0d99ff; background: #fff; box-sizing: border-box; pointer-events: none; z-index: 1; }
+        .layer-row.drop-before::before { top: -4px; }
+        .layer-row.drop-after::before { bottom: -4px; }
+        .layer-row.drop-inside { background: rgba(13,153,255,.14); box-shadow: inset 0 0 0 1.5px #0d99ff; }
         .seg button.is-on { background: #111; color: #fff; }
         .field { height: 28px; width: 100%; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; padding: 0 8px; font-size: 12px; }
         .field:focus { outline: none; border-color: #0d99ff; }
@@ -86,6 +93,36 @@
         #ftb .sep { width: 1px; height: 20px; background: #e5e5e5; margin: 0 2px; }
         #ftb .swatch { position: relative; width: 24px; height: 24px; border-radius: 7px; border: 1px solid rgba(0,0,0,.2); overflow: hidden; margin: 0 2px; }
         #ftb .swatch input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
+        /* the Border / Radius / Spacing panels that open from the bar: sized to sit with its 28px buttons */
+        #ftb { position: absolute; }
+        #ftb .ftpop { position: absolute; left: 0; bottom: calc(100% + 6px); width: 224px; padding: 10px; background: #fff; border: 1px solid #ececec; border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.16); display: flex; flex-direction: column; gap: 6px; z-index: 50; }
+        #ftb.popdown .ftpop { bottom: auto; top: calc(100% + 6px); }
+        #ftb .fttl { font-size: 12px; color: #8c8c8c; padding: 0 2px; }
+        #ftb .frow { display: flex; align-items: center; gap: 6px; }
+        #ftb .fgrid { display: grid; grid-template-columns: 1fr 1fr 26px; align-items: center; gap: 6px; }
+        #ftb .ffield { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid #e6e6e6; border-radius: 8px; background: #fff; color: #9a9a9a; font-size: 12px; }
+        /* no browser or Tailwind focus ring on any of the bar's fields: a focused field just gets a blue border (like Claude Design) and shows its unit */
+        #ftb input:focus, #ftb select:focus, #ftb input:focus-visible, #ftb select:focus-visible { outline: none !important; box-shadow: none !important; --tw-ring-shadow: 0 0 #0000 !important; }
+        #ftb .ffield:focus-within { border-color: #0d99ff; }
+        #ftb .ffield:focus-within .fu { display: inline; }
+        #ftb input[type=number]:focus, #ftb select:focus { background: #f0f0f0; }
+        #ftb .ffield input[type=number]:focus { background: transparent; }
+        #ftb .ffield .fl { flex: none; font-size: 12px; display: inline-flex; align-items: center; }
+        #ftb .ffield .fl svg { width: 14px; height: 14px; }
+        #ftb .ffield .fu { display: none; } /* like Claude Design: just the number, no unit */
+        #ftb .ffield input[type=number] { flex: 1; width: 100%; min-width: 0; height: 100%; padding: 0; text-align: left; font-size: 13px; color: #111; background: transparent; }
+        #ftb .ffield input[type=number]:hover, #ftb .ffield input[type=number]:focus { background: transparent; outline: none; box-shadow: none; border: 0; } /* the field itself shows the focus ring */
+        #ftb .fseg { display: flex; gap: 2px; padding: 2px; background: #f0f0f0; border-radius: 8px; }
+        #ftb .fseg button { flex: 1; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: #555; }
+        #ftb .fseg button svg { width: 14px; height: 14px; }
+        #ftb .fseg button:hover { background: rgba(255,255,255,.6); }
+        #ftb .fseg button.on { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+        #ftb .swatch.big { width: 26px; height: 26px; border-radius: 8px; margin: 0; flex: none; }
+        #ftb .fhex { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid #e6e6e6; border-radius: 8px; font-size: 13px; color: #111; text-transform: uppercase; background: #fff; }
+        #ftb .fhex:focus { outline: none; border-color: #0d99ff; }
+        #ftb .sidebtn { flex: none; width: 26px; height: 26px; border-radius: 8px; color: #444; }
+        #ftb .sidebtn svg { width: 14px; height: 14px; }
+        #ftb .sidebtn.on { background: #dbeafe; color: #1d5fd1; }
         #ftb .lbl2 { font-size: 11px; color: #8c8c8c; padding: 0 2px 0 6px; }
         /* the selected element: drawn above the frame so its edge never clips it; sizes use --iz to stay constant on screen */
         #sel .sout, #fsel .sout { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }

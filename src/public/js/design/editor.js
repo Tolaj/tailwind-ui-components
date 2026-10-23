@@ -90,6 +90,8 @@ function loadFrame() {
     editingInfo = null;
     gestureOn = false;
     ftMenu = false;
+    ftPop = null;
+    ftSides = {};
     selData = null;
     renderSel();
     renderInspector();
@@ -286,6 +288,12 @@ window.addEventListener("message", (e) => {
     if (e.source !== frame.contentWindow) return;
     // a document that was replaced (switching designs reloads the frame) can still have messages in flight
     if (m.load !== undefined && m.load !== loadSeq) return;
+    // Pressing inside the page doesn't take focus from a field in the bar. Let that field commit (to the element it was showing)
+    // before the selection moves on, so the bar then rebuilds for the new element instead of keeping a stale field.
+    if (m.type === "selected" || (m.type === "gesture" && m.on)) {
+        const a = document.activeElement;
+        if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
+    }
     if (m.type === "wheel") {
         const pos = positions()[curKey] || { x: 0, y: 0 };
         return handleWheel({ dx: m.dx, dy: m.dy, zoomKey: m.zoom, cx: view.x + (pos.x + m.x) * view.z, cy: view.y + (pos.y + m.y) * view.z });
@@ -343,7 +351,7 @@ window.addEventListener("message", (e) => {
         setSpace(m.down);
     } else if (m.type === "selected") {
         // the same element reporting again (after an edit) keeps its open menu; a different one starts fresh
-        if (!(selected && m.info && pathKey(selected.path) === pathKey(m.info.path))) ftMenu = false;
+        if (!(selected && m.info && pathKey(selected.path) === pathKey(m.info.path))) { ftMenu = false; ftPop = null; ftSides = {}; }
         selected = m.info;
         frameSel = null;
         renderLayers();
@@ -500,29 +508,46 @@ $("layers").addEventListener("mouseover", (e) => { const row = e.target.closest(
 $("layers").addEventListener("mouseleave", () => send({ cmd: "hover", path: null }));
 
 let dragPath = null;
-$("layers").addEventListener("dragstart", (e) => { const row = e.target.closest("[data-path]"); if (!row) return; dragPath = row.dataset.path; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragPath); });
+$("layers").addEventListener("dragstart", (e) => {
+    const row = e.target.closest("[data-path]");
+    if (!row) return;
+    dragPath = row.dataset.path;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dragPath);
+    // a small label follows the pointer (not a smeared copy of the row), and the row itself dims so it is clear what is moving
+    const chip = document.createElement("div");
+    chip.textContent = row.textContent.replace(/\s+/g, " ").trim();
+    chip.style.cssText = "position:fixed;top:-100px;left:-100px;padding:3px 10px;border-radius:6px;background:rgba(13,153,255,.5);color:#fff;font:12px system-ui,sans-serif;white-space:nowrap";
+    document.body.appendChild(chip);
+    e.dataTransfer.setDragImage(chip, -14, -10); // offset to the lower right, so the pointer and the drop line stay visible
+    setTimeout(() => { chip.remove(); row.classList.add("is-dragging"); }, 0);
+});
 const clearDrop = () => document.querySelectorAll(".drop-before,.drop-after,.drop-inside").forEach((r) => r.classList.remove("drop-before", "drop-after", "drop-inside"));
 const dropZone = (e, row) => { const r = row.getBoundingClientRect(); const y = (e.clientY - r.top) / r.height; return y < 0.28 ? "before" : y > 0.72 ? "after" : "inside"; };
+// an element can't be dropped on itself or inside what it contains
+const badDrop = (target) => dragPath === target || (dragPath !== "" && target.startsWith(`${dragPath}.`));
 $("layers").addEventListener("dragover", (e) => {
     const row = e.target.closest("[data-path]");
     if (!row || dragPath === null) return;
-    e.preventDefault();
     clearDrop();
+    if (badDrop(row.dataset.path)) return;
+    e.preventDefault();
     const zone = dropZone(e, row);
     if (row.dataset.path === "" && zone !== "inside") return;
+    row.style.setProperty("--ind", row.style.paddingLeft || "0px"); // the insertion line starts at the row's own indent, so the new depth is readable
     row.classList.add(`drop-${zone}`);
 });
 $("layers").addEventListener("dragleave", (e) => { if (!e.relatedTarget || !$("layers").contains(e.relatedTarget)) clearDrop(); });
 $("layers").addEventListener("drop", (e) => {
     const row = e.target.closest("[data-path]");
-    if (!row || dragPath === null) return;
+    if (!row || dragPath === null || badDrop(row.dataset.path)) return;
     e.preventDefault();
     const zone = row.dataset.path === "" ? "inside" : dropZone(e, row);
     clearDrop();
     cmd({ cmd: "moveTo", path: parsePath(dragPath), targetPath: parsePath(row.dataset.path), position: zone });
     dragPath = null;
 });
-$("layers").addEventListener("dragend", () => { clearDrop(); dragPath = null; });
+$("layers").addEventListener("dragend", () => { clearDrop(); dragPath = null; document.querySelectorAll(".is-dragging").forEach((r) => r.classList.remove("is-dragging")); });
 
 // ── Inspector (see inspector.js for the controls) ───────────────────────────
 const insp = $("inspector");
@@ -834,7 +859,8 @@ let spaceDown = false;
 const toolIcon = (id) => `<svg class="h-[18px] w-[18px]" fill="${id === "move" ? "currentColor" : "none"}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">${ICONS[id]}</svg>`;
 const CHEVRON = '<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 function renderTools() {
-    const open = !$("shapeMenu")?.classList.contains("hidden");
+    const menu = $("shapeMenu");
+    const open = Boolean(menu) && !menu.classList.contains("hidden");
     const sh = SHAPES.find(([id]) => id === shape);
     $("toolbar").innerHTML = TOOLS.map(([id, label, key], i) => {
         const sep = i === 2 ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : "";
@@ -1589,6 +1615,8 @@ let editingInfo = null;
 let gestureOn = false;
 let frameSel = null;
 let ftMenu = false;
+let ftPop = null; // which of the bar's panels is open: border, radius or spacing
+let ftSides = {}; // per group: true when its fields are shown one per side (your choice; unset means automatic)
 const ftb = $("ftb");
 
 function toolbarState() {
@@ -1600,7 +1628,7 @@ function toolbarState() {
     if (!selected || selected.tag === "body" || !selected.rect) return null;
     const editing = Boolean(editingInfo && editingInfo.on);
     const text = editing || TEXT_TAGS.has(selected.tag) || (selected.leaf && String(selected.text || "").trim() !== "");
-    return { kind: text ? "text" : "shape", sel: selected, editing, fmt: editing ? editingInfo.fmt : null, menu: ftMenu };
+    return { kind: text ? "text" : "shape", sel: selected, editing, fmt: editing ? editingInfo.fmt : null, menu: ftMenu, pop: ftPop, sides: ftSides };
 }
 
 /** Where the thing the toolbar belongs to sits inside the canvas element. */
@@ -1624,6 +1652,7 @@ function placeFloat() {
     let top = a.y - h - a.gap;
     if (top < 56) top = a.y + a.h + 10;
     top = Math.min(Math.max(56, top), Math.max(56, ch - h - 8));
+    ftb.classList.toggle("popdown", top < 270); // a panel opens upward, unless the bar is too close to the top of the canvas
     ftb.style.left = `${Math.round(left)}px`;
     ftb.style.top = `${Math.round(top)}px`;
 }
@@ -1683,11 +1712,35 @@ ftb.addEventListener("mousedown", (e) => {
     if (dev && dev.dataset.ftdev === "custom") return lastCustom && setFrameSize({ w: lastCustom.w, h: lastCustom.h });
     if (dev) return setDevice(Number(dev.dataset.ftdev));
     const b = e.target.closest("[data-ft]");
-    if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft]();
+    if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft](b.dataset.arg, b);
 });
 
 const tw = () => selected && modeFor(selected) === "tailwind";
 const styleProp = (prop, value) => cmd({ cmd: "setStyleProp", path: selected.path, prop, value });
+const styleProps = (props, key) => cmd({ cmd: "setStyleProps", path: selected.path, props }, key);
+const SIDES4 = ["top", "right", "bottom", "left"];
+const CORNER = { tl: "top-left", tr: "top-right", bl: "bottom-left", br: "bottom-right" };
+/** A value typed into one of the bar's panels (a border width, a corner, a padding or margin side) becomes inline CSS, which always wins over classes. */
+function applyPanel(key, raw) {
+    if (key === "border-color-hex") { const h = raw.trim().replace(/^#?/, "#"); return /^#[0-9a-f]{6}$/i.test(h) ? styleProps({ "border-color": h }) : renderFloat(true); }
+    if (key === "border-color") return styleProps({ "border-color": raw });
+    const n = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(n)) return renderFloat(true);
+    const v = `${Math.round(n * 10) / 10}px`; // margins may be negative
+    const nn = `${Math.max(0, Math.round(n * 10) / 10)}px`; // everything else may not
+    const c = selected.computed || {};
+    const borderless = SIDES4.every((d) => !parseFloat(c[`border-${d}-width`]));
+    if (key === "bw-all") return styleProps({ "border-width": nn, ...(borderless && n > 0 ? { "border-style": "solid" } : {}) });
+    if (key.startsWith("bw-")) return styleProps({ [`border-${key.slice(3)}-width`]: nn, ...(borderless && n > 0 ? { "border-style": "solid" } : {}) });
+    if (key === "r-all") return FLOAT_ACTIONS.radius(Math.max(0, n));
+    if (key.startsWith("r-")) return styleProps({ [`border-${CORNER[key.slice(2)]}-radius`]: nn });
+    const [group, side] = key.split("-"); // padding-h, margin-top ...
+    const kind = group === "padding" ? "padding" : "margin";
+    const val = kind === "padding" ? nn : v;
+    if (side === "h") return styleProps({ [`${kind}-left`]: val, [`${kind}-right`]: val });
+    if (side === "v") return styleProps({ [`${kind}-top`]: val, [`${kind}-bottom`]: val });
+    return styleProps({ [`${kind}-${side}`]: val });
+}
 const FLOAT_ACTIONS = {
     bold() {
         if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "bold" });
@@ -1721,7 +1774,16 @@ const FLOAT_ACTIONS = {
         const inline = /border-(?:[a-z]+-)*radius/.test(selected.style || "");
         tw() && !inline ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0");
     },
-    more() { ftMenu = !ftMenu; renderFloat(true); },
+    more() { ftMenu = !ftMenu; ftPop = null; renderFloat(true); },
+    pop(key) { ftPop = ftPop === key ? null : key; ftMenu = false; renderFloat(true); },
+    side(key, btn) { ftSides[key] = !btn.classList.contains("on"); renderFloat(true); },
+    bstyle(kind) {
+        const c = selected.computed || {};
+        const none = ["top", "right", "bottom", "left"].every((d) => !parseFloat(c[`border-${d}-width`]));
+        const props = { "border-style": kind };
+        if (kind !== "none" && none) props["border-width"] = "1px"; // picking a line style on a borderless box gives it a visible border
+        styleProps(props);
+    },
     dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },
     up() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: -1 }); },
@@ -1732,6 +1794,20 @@ const FLOAT_ACTIONS = {
     props() { ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(true); },
 };
 
+// pressing anywhere else in the editor (the canvas, a layer) also lets a focused bar field commit first
+document.addEventListener("pointerdown", (e) => {
+    const a = document.activeElement;
+    if (a && ftb.contains(a) && a.matches("input, select") && !e.target.closest("#ftb")) a.blur();
+}, true);
+// the border colour follows the picker while it is dragged (one undo step per drag), not only once it closes
+ftb.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t.dataset.ftp !== "border-color" || !selected) return;
+    const label = t.closest(".swatch"), hex = ftb.querySelector('[data-ftp="border-color-hex"]');
+    if (label) label.style.background = t.value;
+    if (hex) hex.value = t.value.toUpperCase();
+    styleProps({ "border-color": t.value }, "border-color");
+});
 ftb.addEventListener("change", (e) => {
     const t = e.target;
     if (t.dataset.ftin === "fw") return setFrameSize({ w: Number(t.value) || curWidth() });
@@ -1739,6 +1815,7 @@ ftb.addEventListener("change", (e) => {
     if (!selected) return;
     if (t.dataset.ftsel === "family") return tw() ? applyValue("fontFamily", `font-${t.value}`) : styleProp("font-family", FAMILY_STACKS[t.value]);
     if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? (tw() ? applyValue("fontSize", `${n}px`) : styleProp("font-size", `${n}px`)) : renderFloat(); }
+    if (t.dataset.ftp) return applyPanel(t.dataset.ftp, t.value);
     if (t.dataset.ftin === "radius") return FLOAT_ACTIONS.radius(Math.max(0, Number(t.value) || 0));
     if (t.dataset.ftcol === "text") return tw() ? applyColor("textColor", t.value) : styleProp("color", t.value);
     if (t.dataset.ftcol === "fill") return tw() ? applyColor("bgColor", t.value) : styleProp("background-color", t.value);
@@ -1746,7 +1823,7 @@ ftb.addEventListener("change", (e) => {
 
 document.addEventListener("click", (e) => {
     $("designsMenu").classList.add("hidden");
-    if (ftMenu && !e.target.closest("#ftb")) { ftMenu = false; renderFloat(); }
+    if ((ftMenu || ftPop) && !e.target.closest("#ftb")) { ftMenu = false; ftPop = null; renderFloat(true); }
 });
 const toggleDesignsMenu = (e) => { e.stopPropagation(); $("addMenu").classList.add("hidden"); $("designsMenu").classList.toggle("hidden"); };
 $("designsBtn").addEventListener("click", toggleDesignsMenu);

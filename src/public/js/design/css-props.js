@@ -69,10 +69,17 @@ export const CSS_SECTIONS = [
 
 export const BOX_PROPS = ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"];
 
+/** What the floating bar's Border, Radius and Spacing popovers read, side by side and corner by corner. */
+export const TOOLBAR_PROPS = [
+    ...["top", "right", "bottom", "left"].flatMap((d) => [`border-${d}-width`, `border-${d}-style`, `border-${d}-color`]),
+    "border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius",
+];
+
 /** Every property the panel can show, sent to the in-frame agent so it can report computed values. */
 export const CSS_PROP_LIST = [...new Set([
     ...CSS_SECTIONS.flatMap(([, , c]) => (c === "box" ? [] : c.map((x) => x.p))),
     ...BOX_PROPS,
+    ...TOOLBAR_PROPS,
 ])];
 
 const LENGTH = new Set(["width", "height", "min-width", "max-width", "min-height", "max-height", "top", "right", "bottom", "left", "gap", "font-size", "line-height", "letter-spacing", "border-top-width", "border-radius", ...BOX_PROPS]);

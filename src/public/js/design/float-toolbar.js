@@ -15,6 +15,14 @@ const ICONS = {
     right: icon('<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'),
     justify: icon('<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>'),
     radius: icon('<path d="M5 19v-7a7 7 0 0 1 7-7h7"/>'),
+    border: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4.5" width="16" height="3.4" rx="1.2"/><rect x="4" y="10.3" width="16" height="2.4" rx="1.1"/><rect x="4" y="15.6" width="16" height="1.4" rx=".7"/></svg>',
+    spacing: icon('<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" stroke-dasharray="3 2.6"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.6"/>'),
+    sides: icon('<rect x="4" y="4" width="16" height="16" rx="3.5" stroke-dasharray="3.4 3"/>'),
+    corners: icon('<path d="M4 9V7a3 3 0 0 1 3-3h2M15 4h2a3 3 0 0 1 3 3v2M20 15v2a3 3 0 0 1-3 3h-2M9 20H7a3 3 0 0 1-3-3v-2"/>'),
+    none: icon('<circle cx="12" cy="12" r="8"/><path d="M6.3 6.3l11.4 11.4"/>'),
+    solid: icon('<path d="M4 12h16"/>'),
+    dashed: icon('<path d="M3 12h4M10 12h4M17 12h4"/>'),
+    dotted: icon('<path d="M4 12h.01M8 12h.01M12 12h.01M16 12h.01M20 12h.01" stroke-width="2.4"/>'),
     more: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>',
 };
 
@@ -60,17 +68,73 @@ function textBar(st) {
         <datalist id="ft-sizes">${SIZES.map((n) => `<option value="${n}"></option>`).join("")}</datalist>
         <span class="sep"></span>${swatch("text", color, "Text color")}${hasFill ? swatch("fill", fill, "Fill color") : ""}
         <span class="sep"></span>${btn("bold", ICONS.bold, "Bold", fmt.bold)}${btn("italic", ICONS.italic, "Italic", fmt.italic)}${btn("underline", ICONS.underline, "Underline", fmt.underline)}${btn("link", ICONS.link, "Link")}
-        <span class="sep"></span>${btn("align", ICONS[align], `Align ${align}`)}${more(st)}`;
+        <span class="sep"></span>${btn("align", ICONS[align], `Align ${align}`)}${st.editing ? "" : boxButtons(st)}${more(st)}`;
 }
+
+// Border, Radius and Spacing: three buttons, each opening a small panel above the bar (see popHtml)
+const popBtn = (st, key, svg, title) => `<button type="button" class="tbtn ${st.pop === key ? "on" : ""}" data-ft="pop" data-arg="${key}" title="${title}">${svg}</button>`;
+const boxButtons = (st) => `<span class="sep"></span>${popBtn(st, "border", ICONS.border, "Border")}${popBtn(st, "radius", ICONS.radius, "Corner radius")}${popBtn(st, "spacing", ICONS.spacing, "Padding and margin")}`;
 
 function shapeBar(st) {
     const cs = (st.sel && st.sel.computed) || {};
     const fill = rgbToHex(cs["background-color"] || "");
-    const radius = num(cs["border-radius"]);
     const hasText = st.sel && st.sel.leaf === false ? false : true;
     return `<span class="lbl2">Fill</span>${swatch("fill", fill, "Fill color")}${hasText ? `<span class="lbl2">Text</span>${swatch("text", rgbToHex(cs.color || "") || "#000000", "Text color")}` : ""}
-        <span class="sep"></span><span class="flex items-center pl-1 text-neutral-500" title="Corner radius">${ICONS.radius}</span><input type="number" min="0" max="999" data-ftin="radius" value="${radius === "" ? 0 : radius}" title="Corner radius">
-        ${more(st)}`;
+        ${boxButtons(st)}${more(st)}`;
+}
+
+// ── The panels ───────────────────────────────────────────────────────────────
+const px = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.round(n * 10) / 10 : 0; };
+const field = (label, prop, value, min = 0) => `<label class="ffield"><span class="fl">${label}</span><input type="number" ${min === null ? "" : `min="${min}"`} step="1" data-ftp="${prop}" value="${value}"><span class="fu">px</span></label>`;
+const sidesBtn = (key, open, svg = ICONS.sides) => `<button type="button" class="tbtn sidebtn ${open ? "on" : ""}" data-ft="side" data-arg="${key}" title="${open ? "Same on all sides" : "Each side on its own"}">${svg}</button>`;
+/** Whether a group shows one field per side: your last choice, or automatically when the sides differ. */
+const isOpen = (st, key, differs) => (st.sides && st.sides[key] !== undefined ? st.sides[key] : differs);
+const same = (a) => a.every((v) => v === a[0]);
+/** Four per-side fields in two rows, with the switch back to "all sides" at the end of the first row. */
+const grid4 = (f, btn) => `<div class="fgrid">${f[0]}${f[1]}${btn}${f[2]}${f[3]}</div>`;
+
+function borderPanel(st, cs) {
+    const sides = ["top", "right", "bottom", "left"];
+    const w = sides.map((d) => px(cs[`border-${d}-width`]));
+    const seen = sides.find((d, i) => w[i] > 0) || "top";
+    const kind = w.every((v) => v === 0) ? "none" : ["dashed", "dotted"].includes(cs[`border-${seen}-style`]) ? cs[`border-${seen}-style`] : "solid";
+    const hex = (rgbToHex(cs[`border-${seen}-color`] || "") || "#000000").toUpperCase();
+    const open = isOpen(st, "border", !same(w));
+    const seg = ["none", "solid", "dashed", "dotted"].map((k) => `<button type="button" data-ft="bstyle" data-arg="${k}" title="${k[0].toUpperCase() + k.slice(1)}" class="${kind === k ? "on" : ""}">${ICONS[k]}</button>`).join("");
+    const widths = open
+        ? grid4(["top", "right", "bottom", "left"].map((d, i) => field(d[0].toUpperCase(), `bw-${d}`, w[i])), sidesBtn("border", true))
+        : `<div class="frow">${field(ICONS.border, "bw-all", w[0])}${sidesBtn("border", false)}</div>`;
+    return `<div class="fseg">${seg}</div>
+        <div class="frow"><label class="swatch big" style="background:${hex}"><input type="color" data-ftp="border-color" value="${hex}"></label><input type="text" class="fhex" data-ftp="border-color-hex" value="${hex}" spellcheck="false"></div>
+        ${widths}`;
+}
+
+function radiusPanel(st, cs) {
+    const r = ["top-left", "top-right", "bottom-left", "bottom-right"].map((c) => px(cs[`border-${c}-radius`]));
+    const open = isOpen(st, "radius", !same(r));
+    return open
+        ? grid4([["TL", "tl", 0], ["TR", "tr", 1], ["BL", "bl", 2], ["BR", "br", 3]].map(([l, k, i]) => field(l, `r-${k}`, r[i])), sidesBtn("radius", true, ICONS.corners))
+        : `<div class="frow">${field("", "r-all", r[0])}${sidesBtn("radius", false, ICONS.corners)}</div>`;
+}
+
+function spacingPanel(st, cs) {
+    const group = (key, title, prefix, min) => {
+        const v = ["top", "right", "bottom", "left"].map((d) => px(cs[`${prefix}-${d}`]));
+        const open = isOpen(st, key, v[0] !== v[2] || v[1] !== v[3]);
+        const body = open
+            ? grid4([["T", "top", 0], ["R", "right", 1], ["B", "bottom", 2], ["L", "left", 3]].map(([l, d, i]) => field(l, `${key}-${d}`, v[i], min)), sidesBtn(key, true))
+            : `<div class="frow">${field("H", `${key}-h`, v[1], min)}${field("V", `${key}-v`, v[0], min)}${sidesBtn(key, false)}</div>`;
+        return `<div class="fttl">${title}</div>${body}`;
+    };
+    return `${group("padding", "Padding", "padding", 0)}${group("margin", "Margin", "margin", null)}`;
+}
+
+/** The open panel, if any; placed by CSS above the bar (or below it when the bar is near the top). */
+function popHtml(st) {
+    if (!st.pop || !st.sel) return "";
+    const cs = st.sel.computed || {};
+    const body = st.pop === "border" ? borderPanel(st, cs) : st.pop === "radius" ? radiusPanel(st, cs) : spacingPanel(st, cs);
+    return `<div class="ftpop">${body}</div>`;
 }
 
 export const DEVICES = [[1280, "Desktop"], [768, "Tablet"], [390, "Mobile"]];
@@ -88,7 +152,7 @@ function frameBar(st) {
 
 export function toolbarHtml(st) {
     if (st.kind === "frame") return frameBar(st);
-    return st.kind === "text" ? textBar(st) : shapeBar(st);
+    return (st.kind === "text" ? textBar(st) : shapeBar(st)) + popHtml(st);
 }
 
 export const FAMILY_STACKS = {

@@ -109,3 +109,4 @@ See `.env.example`. Key vars: `MONGO_URI`, `SESSION_SECRET`, `PORT`, `ANTHROPIC_
 See `docs/BUGS.md`
 
 - Shape tools: `TOOLS` has one `shape` slot (`renderTools`, `SHAPES`: rect, ellipse, arrow, line; `shape` remembers the last pick, chevron `#shapeMore` opens `#shapeMenu`). Line and arrow are drawn by the agent's `finishDraw` as a 2px `div` centred on the drag's midpoint and rotated to its angle; the arrow's head is a CSS-triangle `<i>` child (`pointer-events-none`). Keys: R, O, L (line), Shift+L (arrow).
+- Floating bar panels: `float-toolbar.js` `popHtml` (border / radius / spacing) opens from `popBtn` buttons (`data-ft="pop"`, state `ftPop` / `ftSides` in editor.js). Inputs carry `data-ftp` and are applied by `applyPanel` through the agent's `setStyleProps` command (inline styles; margins may be negative). Computed border and corner values come from `TOOLBAR_PROPS` in css-props.js.
