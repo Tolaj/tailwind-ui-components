@@ -14,8 +14,13 @@ export function agentMain() {
     const guideLayer = mk("position:absolute;left:0;top:0;");
     const draftBox = mk(`position:absolute;border:1px solid ${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.7);background:rgba(0,0,0,.05);display:none;box-sizing:border-box;`);
     const marqueeBox = mk(`position:absolute;border:1px solid ${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.7);background:rgba(0,0,0,.06);display:none;box-sizing:border-box;`);
-    const insertLine = mk(`position:absolute;background:${BLUE};display:none;pointer-events:none;`);
-    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, insertLine);
+    const insertLine = mk(`position:absolute;background:${BLUE};box-shadow:0 0 0 1px rgba(255,255,255,.8);display:none;pointer-events:none;`);
+    // while an element is dragged through the page flow: the box that follows the pointer, the container it would land in, and a short note
+    const RIM = "box-shadow:0 0 0 1px rgba(255,255,255,.75);";
+    const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
+    const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
+    const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
+    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -144,12 +149,7 @@ export function agentMain() {
         place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
     }
 
-    const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; };
-    const drawGuide = (kind, pos, from, to) => {
-        guideLayer.appendChild(mk(kind === "v"
-            ? `position:absolute;left:${pos}px;top:${from}px;width:${px(1)}px;height:${to - from}px;background:${RED};`
-            : `position:absolute;top:${pos}px;left:${from}px;height:${px(1)}px;width:${to - from}px;background:${RED};`));
-    };
+    const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
 
     // ── Describing and serializing ──────────────────────────────────────────────────────────
     const computedOf = (el) => {
@@ -298,28 +298,145 @@ export function agentMain() {
     }
 
     // ── Snapping ────────────────────────────────────────────────────────────────────────────
-    function snapLines(container, exclude) {
-        const o = originOf(container);
-        const xs = [], ys = [];
-        const cw = container === document.body ? Math.max(root.scrollWidth, innerWidth) : container.clientWidth;
-        const ch = container === document.body ? Math.max(root.scrollHeight, innerHeight) : container.clientHeight;
-        xs.push(0, cw / 2, cw);
-        ys.push(0, ch / 2, ch);
-        Array.prototype.forEach.call(container.children, (c) => {
-            if (exclude.includes(c) || c.tagName === "SCRIPT" || c.tagName === "STYLE") return;
-            const r = pageRect(c);
-            const x = r.x - o.x, y = r.y - o.y;
-            xs.push(x, x + r.w / 2, x + r.w);
-            ys.push(y, y + r.h / 2, y + r.h);
+    // ── Smart guides ────────────────────────────────────────────────────────────────────────
+    // Everything is in page coordinates. A moving box snaps to the edges and centres of EVERY box around it (not just its siblings),
+    // the lines that lined up are drawn only as far as the boxes involved, and the gaps to the neighbours are measured.
+    const GUIDE_SKIP = new Set(["SCRIPT", "STYLE", "BR", "TEMPLATE", "HEAD", "META", "LINK"]);
+    function targetsFor(exclude) {
+        const out = [];
+        document.body.querySelectorAll("*").forEach((n) => {
+            if (overlay.contains(n) || GUIDE_SKIP.has(n.tagName) || exclude.some((x) => x === n || x.contains(n))) return;
+            const r = pageRect(n);
+            if (r.w >= 1 && r.h >= 1) out.push(r);
         });
-        return { xs, ys, o, cw, ch };
+        out.push({ x: 0, y: 0, w: Math.max(root.scrollWidth, innerWidth), h: Math.max(root.scrollHeight, innerHeight) });
+        return out;
     }
-    function snapBox(box, lines) {
+    const three = (a, len) => [a, a + len / 2, a + len];
+    /** The smallest move that puts one of `vals` on one of the targets' lines, or null when nothing is close enough. */
+    function nearestLine(vals, lineSets, t) {
+        let best = null;
+        vals.forEach((v) => lineSets.forEach((set) => set.forEach((c) => { const d = c - v; if (Math.abs(d) <= t && (best === null || Math.abs(d) < Math.abs(best))) best = d; })));
+        return best;
+    }
+    const cross = (x, y) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;width:${px(9)}px;height:${px(1)}px;background:${RED};transform:translate(-50%,-50%) rotate(45deg);`)) && guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;width:${px(9)}px;height:${px(1)}px;background:${RED};transform:translate(-50%,-50%) rotate(-45deg);`));
+    function chip(x, y, text) {
+        const c = mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${RED};color:#fff;font:600 ${px(11)}px/1 system-ui,sans-serif;padding:${px(3)}px ${px(6)}px;border-radius:${px(4)}px;white-space:nowrap;`);
+        c.textContent = text;
+        guideLayer.appendChild(c);
+    }
+    /** A measured gap: a line between two edges with end ticks and the distance in a red chip. axis "x" runs left to right at height `at`. */
+    function drawGap(axis, from, to, at) {
+        const len = to - from;
+        if (len < 1) return;
+        const line = axis === "x" ? `left:${from}px;top:${at}px;width:${len}px;height:${px(1)}px;` : `left:${at}px;top:${from}px;width:${px(1)}px;height:${len}px;`;
+        guideLayer.appendChild(mk(`position:absolute;${line}background:${RED};`));
+        [from, to].forEach((v) => guideLayer.appendChild(mk(axis === "x"
+            ? `position:absolute;left:${v}px;top:${at - px(4)}px;width:${px(1)}px;height:${px(9)}px;background:${RED};`
+            : `position:absolute;left:${at - px(4)}px;top:${v}px;width:${px(9)}px;height:${px(1)}px;background:${RED};`)));
+        axis === "x" ? chip(from + len / 2, at - px(11), String(Math.round(len))) : chip(at + px(14), from + len / 2, String(Math.round(len)));
+    }
+    /** The nearest box on each side that overlaps `box` in the other direction. */
+    function neighbours(box, targets) {
+        const n = { left: null, right: null, up: null, down: null };
+        const ov = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
+        targets.forEach((r) => {
+            if (ov(r.y, r.y + r.h, box.y, box.y + box.h) > 0) {
+                if (r.x + r.w <= box.x + 0.5 && (!n.left || r.x + r.w > n.left.x + n.left.w)) n.left = r;
+                if (r.x >= box.x + box.w - 0.5 && (!n.right || r.x < n.right.x)) n.right = r;
+            }
+            if (ov(r.x, r.x + r.w, box.x, box.x + box.w) > 0) {
+                if (r.y + r.h <= box.y + 0.5 && (!n.up || r.y + r.h > n.up.y + n.up.h)) n.up = r;
+                if (r.y >= box.y + box.h - 0.5 && (!n.down || r.y < n.down.y)) n.down = r;
+            }
+        });
+        return n;
+    }
+    const mid = (a0, a1, b0, b1) => (Math.max(a0, b0) + Math.min(a1, b1)) / 2;
+    const gapBetween = (side, a, b) => (side === "left" ? a.x - (b.x + b.w) : side === "right" ? b.x - (a.x + a.w) : side === "up" ? a.y - (b.y + b.h) : b.y - (a.y + a.h));
+    /** Beyond the first neighbour: the next boxes in the same direction that sit the same distance apart, so a whole evenly spaced row shows its gaps. */
+    function chainGaps(side, first, d, targets) {
+        const out = [];
+        let cur = first;
+        for (let i = 0; i < 12; i++) {
+            const nb = neighbours(cur, targets)[side];
+            if (!nb || Math.abs(gapBetween(side, cur, nb) - d) > 0.6) break;
+            const horizontal = side === "left" || side === "right";
+            const [a, b] = side === "left" || side === "up" ? [nb, cur] : [cur, nb];
+            out.push(horizontal
+                ? { axis: "x", from: a.x + a.w, to: b.x, at: mid(nb.y, nb.y + nb.h, cur.y, cur.y + cur.h) }
+                : { axis: "y", from: a.y + a.h, to: b.y, at: mid(nb.x, nb.x + nb.w, cur.x, cur.x + cur.w) });
+            cur = nb;
+        }
+        return out;
+    }
+    /** Draw what the box lined up with (only the lines in `keysX` / `keysY`, 0 = start, 1 = centre, 2 = end) and the gaps worth showing. */
+    function showGuides(box, targets, keysX, keysY, measure, want = []) {
+        guideLayer.innerHTML = "";
+        const near = (a, b) => Math.abs(a - b) < 0.6;
+        [["x", keysX], ["y", keysY]].forEach(([axis, keys]) => {
+            const seen = [];
+            keys.forEach((k) => {
+                const v = axis === "x" ? three(box.x, box.w)[k] : three(box.y, box.h)[k];
+                if (seen.some((p) => near(p, v))) return;
+                const parts = targets.map((r) => { const ls = axis === "x" ? three(r.x, r.w) : three(r.y, r.h); const j = ls.findIndex((l) => near(l, v)); return j < 0 ? null : { r, j }; }).filter(Boolean);
+                if (!parts.length) return;
+                seen.push(v);
+                const rs = [box, ...parts.map((p) => p.r)];
+                const lo = Math.min(...rs.map((r) => (axis === "x" ? r.y : r.x))), hi = Math.max(...rs.map((r) => (axis === "x" ? r.y + r.h : r.x + r.w)));
+                guideLayer.appendChild(mk(axis === "x"
+                    ? `position:absolute;left:${v}px;top:${lo}px;width:${px(1)}px;height:${hi - lo}px;background:${RED};`
+                    : `position:absolute;top:${v}px;left:${lo}px;height:${px(1)}px;width:${hi - lo}px;background:${RED};`));
+                // an x on the box and on the two boxes at the far ends of the line (not on every box in between), at their corners or middles
+                const far = [parts.reduce((m, p) => ((axis === "x" ? p.r.y : p.r.x) < (axis === "x" ? m.r.y : m.r.x) ? p : m), parts[0]), parts.reduce((m, p) => ((axis === "x" ? p.r.y + p.r.h : p.r.x + p.r.w) > (axis === "x" ? m.r.y + m.r.h : m.r.x + m.r.w) ? p : m), parts[0])];
+                [{ r: box, j: k }, ...far.filter((p, i) => far.indexOf(p) === i)].forEach(({ r, j }) => {
+                    const a0 = axis === "x" ? r.y : r.x, a1 = axis === "x" ? r.y + r.h : r.x + r.w;
+                    (j === 1 ? [(a0 + a1) / 2] : [a0, a1]).forEach((a) => (axis === "x" ? cross(v, a) : cross(a, v)));
+                });
+            });
+        });
+        // gaps: equal spacing between two neighbours is always shown; with Alt, the distance to the nearest box on every side
+        const n = neighbours(box, targets);
+        const gx = n.left && n.right ? [box.x - (n.left.x + n.left.w), n.right.x - (box.x + box.w)] : null;
+        const gy = n.up && n.down ? [box.y - (n.up.y + n.up.h), n.down.y - (box.y + box.h)] : null;
+        const eqX = gx && near(gx[0], gx[1]), eqY = gy && near(gy[0], gy[1]);
+        // Distances show: with Alt, whenever the box has lined up with something (so you see how far it is from its neighbours), and for equal spacing
+        const lined = guideLayer.children.length > 0;
+        // `want`: the sides along the direction being moved or resized always get their distance to the neighbouring box
+        const sides = measure || lined ? ["left", "right", "up", "down"] : [...new Set([...want, ...(eqX ? ["left", "right"] : []), ...(eqY ? ["up", "down"] : [])])];
+        sides.forEach((side) => {
+            const r = n[side];
+            if (!r) return;
+            chainGaps(side, r, gapBetween(side, box, r), targets).forEach((c) => drawGap(c.axis, c.from, c.to, c.at));
+            if (side === "left") drawGap("x", r.x + r.w, box.x, mid(r.y, r.y + r.h, box.y, box.y + box.h));
+            if (side === "right") drawGap("x", box.x + box.w, r.x, mid(r.y, r.y + r.h, box.y, box.y + box.h));
+            if (side === "up") drawGap("y", r.y + r.h, box.y, mid(r.x, r.x + r.w, box.x, box.x + box.w));
+            if (side === "down") drawGap("y", box.y + box.h, r.y, mid(r.x, r.x + r.w, box.x, box.x + box.w));
+        });
+    }
+    /** How far to nudge `box` along each axis so it lines up with the boxes around it, or sits an equal distance between two of them. */
+    function snapDelta(box, targets, keysX, keysY) {
         const t = px(6);
-        let dx = 0, dy = 0, gx = null, gy = null, bestX = t + 1, bestY = t + 1;
-        [box.x, box.x + box.w / 2, box.x + box.w].forEach((v) => lines.xs.forEach((l) => { const d = l - v; if (Math.abs(d) < Math.min(bestX, t + 1) && Math.abs(d) <= t) { bestX = Math.abs(d); dx = d; gx = l; } }));
-        [box.y, box.y + box.h / 2, box.y + box.h].forEach((v) => lines.ys.forEach((l) => { const d = l - v; if (Math.abs(d) < Math.min(bestY, t + 1) && Math.abs(d) <= t) { bestY = Math.abs(d); dy = d; gy = l; } }));
-        return { dx, dy, gx, gy };
+        const aX = nearestLine(keysX.map((k) => three(box.x, box.w)[k]), targets.map((r) => three(r.x, r.w)), t);
+        const aY = nearestLine(keysY.map((k) => three(box.y, box.h)[k]), targets.map((r) => three(r.y, r.h)), t);
+        const n = neighbours(box, targets);
+        // spacing candidates: an equal distance from the two neighbours either side, or the same distance from a neighbour as that neighbour
+        // sits from the box beyond it (an evenly spaced row stays even)
+        const likeBeyond = (first, side, boxStart, boxEnd) => {
+            if (!first) return null;
+            const beyond = neighbours(first, targets)[side];
+            if (!beyond) return null;
+            const g0 = gapBetween(side, first, beyond);
+            if (g0 < 1) return null;
+            return side === "left" ? first.x + first.w + g0 - boxStart : side === "right" ? first.x - g0 - boxEnd : side === "up" ? first.y + first.h + g0 - boxStart : first.y - g0 - boxEnd;
+        };
+        const between = (a, b, boxStart, boxEnd, aEnd, bStart) => (a && b ? ((bStart - boxEnd) - (boxStart - aEnd)) / 2 : null);
+        const near = (list) => list.filter((d) => d !== null && Math.abs(d) <= t).sort((p, q) => Math.abs(p) - Math.abs(q))[0];
+        const gX = near([between(n.left, n.right, box.x, box.x + box.w, n.left && n.left.x + n.left.w, n.right && n.right.x), likeBeyond(n.left, "left", box.x, box.x + box.w), likeBeyond(n.right, "right", box.x, box.x + box.w)]);
+        const gY = near([between(n.up, n.down, box.y, box.y + box.h, n.up && n.up.y + n.up.h, n.down && n.down.y), likeBeyond(n.up, "up", box.y, box.y + box.h), likeBeyond(n.down, "down", box.y, box.y + box.h)]);
+        // an exact gap wins over an edge that is about as close: the spacing is the thing that is hard to eyeball
+        const choose = (align, gap) => (gap !== undefined && (align === null || Math.abs(gap) <= Math.abs(align) + px(4)) ? gap : align);
+        return { dx: choose(aX, gX), dy: choose(aY, gY) }; // null on an axis where nothing was close enough
     }
 
     // ── Gestures ────────────────────────────────────────────────────────────────────────────
@@ -328,41 +445,95 @@ export function agentMain() {
         if (abs.length) {
             gesture = { type: "move", items: abs.map((el) => ({ el, g: geomOf(el) })), sx: e.clientX, sy: e.clientY, moved: false, container: abs[0].parentElement || document.body };
         } else {
-            gesture = { type: "reorder", el: items[0], sx: e.clientX, sy: e.clientY, moved: false, before: null };
+            gesture = { type: "reorder", el: items[0], rect: pageRect(items[0]), sx: e.clientX, sy: e.clientY, moved: false, before: null };
         }
     }
 
     function moveGesture(g, e) {
         let dx = e.clientX - g.sx, dy = e.clientY - g.sy;
         if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
-        const lines = snapLines(g.container, g.items.map((i) => i.el));
+        const o = originOf(g.container);
+        if (!g.targets) g.targets = targetsFor(g.items.map((i) => i.el));
         const x0 = Math.min(...g.items.map((i) => i.g.x)) + dx, y0 = Math.min(...g.items.map((i) => i.g.y)) + dy;
         const x1 = Math.max(...g.items.map((i) => i.g.x + i.g.w)) + dx, y1 = Math.max(...g.items.map((i) => i.g.y + i.g.h)) + dy;
-        const s = e.altKey || e.metaKey ? { dx: 0, dy: 0, gx: null, gy: null } : snapBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, lines);
-        clearGuides();
-        if (s.gx !== null) drawGuide("v", s.gx + lines.o.x, Math.min(y0, lines.o.y) + lines.o.y - 4000, y1 + lines.o.y + 4000);
-        if (s.gy !== null) drawGuide("h", s.gy + lines.o.y, -4000, x1 + lines.o.x + 4000);
+        const box = { x: x0 + o.x, y: y0 + o.y, w: x1 - x0, h: y1 - y0 };
+        const measure = e.altKey || e.metaKey; // Alt: no snapping, just the distances to what is around
+        const s = measure ? { dx: null, dy: null } : snapDelta(box, g.targets, [0, 1, 2], [0, 1, 2]);
+        // Snaps are sticky: once locked on a line (a centre, an edge, an equal gap) the box stays there until the pointer has moved a
+        // clear distance past it, then it lets go. So it moves in steps from line to line, not smoothly through them.
+        g.hold = g.hold || { x: null, y: null };
+        const release = px(4);
+        if (measure) g.hold = { x: null, y: null };
+        [["x", "dx"], ["y", "dy"]].forEach(([a, d]) => {
+            const h = g.hold[a], fresh = s[d];
+            // keep the line it is on only while it is close, and never over another line that is nearer to the pointer
+            if (h !== null && Math.abs(box[a] - h) <= release && (fresh === null || Math.abs(fresh) >= Math.abs(box[a] - h))) s[d] = h - box[a];
+            else g.hold[a] = fresh === null ? null : box[a] + fresh;
+        });
+        s.dx = s.dx || 0; s.dy = s.dy || 0;
+        box.x += s.dx; box.y += s.dy;
+        const ax = Math.abs(dx), ay = Math.abs(dy);
+        const want = ax > 2 * ay ? ["left", "right"] : ay > 2 * ax ? ["up", "down"] : ["left", "right", "up", "down"]; // the axis it is moving along
+        showGuides(box, g.targets, [0, 1, 2], [0, 1, 2], measure, want);
         g.items.forEach((i) => { setPx(i.el, "left", i.g.x + dx + s.dx); setPx(i.el, "top", i.g.y + dy + s.dy); });
     }
 
-    function reorderGesture(g, e) {
-        const el = g.el;
-        const parentEl = el.parentElement;
-        let best = null, bestPos = null;
-        Array.prototype.forEach.call(parentEl.children, (c) => {
-            if (c === el || c.tagName === "SCRIPT") return;
-            const r = pageRect(c);
-            const horizontal = getComputedStyle(parentEl).flexDirection.startsWith("row") && getComputedStyle(parentEl).display.includes("flex");
-            const cx = e.clientX + window.scrollX, cy = e.clientY + window.scrollY;
-            const inside = cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
-            if (!inside) return;
-            const before = horizontal ? cx < r.x + r.w / 2 : cy < r.y + r.h / 2;
-            best = c; bestPos = before ? "before" : "after";
-            const line = horizontal ? { l: before ? r.x : r.x + r.w, t: r.y, w: px(3), h: r.h } : { l: r.x, t: before ? r.y : r.y + r.h, w: r.w, h: px(3) };
-            Object.assign(insertLine.style, { display: "block", left: `${line.l}px`, top: `${line.t}px`, width: `${line.w}px`, height: `${line.h}px` });
+    // Where would the dragged element land if let go here? Decided from the real layout under the pointer: the container it is over
+    // (flex row or column, grid, plain block flow), the child it is next to, and which side of that child.
+    const layoutOf = (c) => {
+        const cs = getComputedStyle(c);
+        if (cs.display.includes("grid")) return "grid";
+        if (cs.display.includes("flex")) return cs.flexDirection.startsWith("row") ? "flex row" : "flex column";
+        return "page flow";
+    };
+    function dropTarget(el, x, y) {
+        const hit = document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root && !el.contains(n)) || document.body;
+        let c = hit;
+        while (c && c !== document.body && !CONTAINERS.has(c.tagName.toLowerCase())) c = c.parentElement;
+        c = c || document.body;
+        const px0 = x + window.scrollX, py0 = y + window.scrollY;
+        // near the edge of a container, "before / after it" in its own parent wins over "inside it"
+        if (c !== document.body && c.parentElement) {
+            const r = pageRect(c), band = Math.min(14, Math.min(r.w, r.h) / 4);
+            const parentLayout = layoutOf(c.parentElement);
+            const horizontalParent = parentLayout === "flex row" || parentLayout === "grid";
+            const edge = horizontalParent ? Math.min(px0 - r.x, r.x + r.w - px0) : Math.min(py0 - r.y, r.y + r.h - py0);
+            if (edge >= 0 && edge < band) return { container: c.parentElement, ref: c, before: horizontalParent ? px0 < r.x + r.w / 2 : py0 < r.y + r.h / 2, horizontal: horizontalParent };
+        }
+        const kids = Array.prototype.filter.call(c.children, (k) => k !== el && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
+        if (!kids.length) return { container: c, ref: null };
+        // the child the pointer is over, or the nearest one
+        let ref = null, best = Infinity;
+        kids.forEach((k) => {
+            const r = pageRect(k);
+            const dx = px0 < r.x ? r.x - px0 : px0 > r.x + r.w ? px0 - r.x - r.w : 0;
+            const dy = py0 < r.y ? r.y - py0 : py0 > r.y + r.h ? py0 - r.y - r.h : 0;
+            const d = Math.hypot(dx, dy);
+            if (d < best) { best = d; ref = k; }
         });
-        g.target = best; g.pos = bestPos;
-        if (!best) insertLine.style.display = "none";
+        const r = pageRect(ref), l = layoutOf(c);
+        const inline = /^inline/.test(getComputedStyle(ref).display);
+        const horizontal = l === "flex row" || (l === "grid" && py0 >= r.y && py0 <= r.y + r.h) || (l === "page flow" && inline);
+        return { container: c, ref, before: horizontal ? px0 < r.x + r.w / 2 : py0 < r.y + r.h / 2, horizontal };
+    }
+
+    function reorderGesture(g, e) {
+        const t = dropTarget(g.el, e.clientX, e.clientY);
+        g.target = t.ref || t.container;
+        g.pos = t.ref ? (t.before ? "before" : "after") : "inside";
+        // the box that follows the pointer
+        const gx = g.rect.x + (e.clientX - g.sx), gy = g.rect.y + (e.clientY - g.sy);
+        Object.assign(ghostBox.style, { display: "block", left: `${gx}px`, top: `${gy}px`, width: `${g.rect.w}px`, height: `${g.rect.h}px` });
+        // the container it would land in
+        const cr = pageRect(t.container);
+        Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px` });
+        const tag = t.container === document.body ? "page" : t.container.tagName.toLowerCase();
+        dropHint.textContent = `${t.ref ? "Insert in" : "Drop into"} ${tag} · ${layoutOf(t.container)}`;
+        Object.assign(dropHint.style, { display: "block", left: `${cr.x}px`, top: `${Math.max(0, cr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+        if (!t.ref) { insertLine.style.display = "none"; return; }
+        const r = pageRect(t.ref), th = px(2.5);
+        const line = t.horizontal ? { l: (t.before ? r.x : r.x + r.w) - th / 2, t: r.y, w: th, h: r.h } : { l: r.x, t: (t.before ? r.y : r.y + r.h) - th / 2, w: r.w, h: th };
+        Object.assign(insertLine.style, { display: "block", left: `${line.l}px`, top: `${line.t}px`, width: `${line.w}px`, height: `${line.h}px` });
     }
 
     function resizeGesture(g, e) {
@@ -381,6 +552,27 @@ export function agentMain() {
             if (hd.length === 2 || hd === "e" || hd === "w") h = w / r; else w = h * r;
         }
         w = Math.max(1, w); h = Math.max(1, h);
+        // the edges being dragged snap to the edges and centres of the boxes around, like a move does
+        let keysX = [], keysY = [];
+        if (g.rot === 0 && !e.shiftKey && !e.altKey) {
+            if (!g.pr) { g.pr = pageRect(g.el); g.targets = targetsFor([g.el]); }
+            const t = px(6), pr = g.pr;
+            const edgeX = hd.includes("e") ? pr.x + w : hd.includes("w") ? pr.x + pr.w - w : null;
+            const edgeY = hd.includes("s") ? pr.y + h : hd.includes("n") ? pr.y + pr.h - h : null;
+            let sx = edgeX === null ? null : nearestLine([edgeX], g.targets.map((r) => three(r.x, r.w)), t);
+            let sy = edgeY === null ? null : nearestLine([edgeY], g.targets.map((r) => three(r.y, r.h)), t);
+            // sticky, like a move: stay on a line until the edge has been dragged clearly past it
+            g.hold = g.hold || { x: null, y: null };
+            const release = px(4);
+            const hold = (edge, fresh, h) => (h !== null && Math.abs(edge - h) <= release && (fresh === null || Math.abs(fresh) >= Math.abs(edge - h)) ? { s: h - edge, h } : { s: fresh, h: fresh === null ? null : edge + fresh });
+            if (edgeX !== null) { const r = hold(edgeX, sx, g.hold.x); sx = r.s; g.hold.x = r.h; }
+            if (edgeY !== null) { const r = hold(edgeY, sy, g.hold.y); sy = r.s; g.hold.y = r.h; }
+            if (sx !== null) w = Math.max(1, hd.includes("e") ? w + sx : w - sx);
+            if (sy !== null) h = Math.max(1, hd.includes("s") ? h + sy : h - sy);
+            keysX = edgeX === null ? [] : [hd.includes("e") ? 2 : 0];
+            keysY = edgeY === null ? [] : [hd.includes("s") ? 2 : 0];
+            g.guide = { want: [hd.includes("e") ? "right" : hd.includes("w") ? "left" : null, hd.includes("s") ? "down" : hd.includes("n") ? "up" : null].filter(Boolean), box: { x: hd.includes("w") ? pr.x + pr.w - w : pr.x, y: hd.includes("n") ? pr.y + pr.h - h : pr.y, w, h }, keysX, keysY };
+        } else g.guide = null;
         setPx(g.el, "width", w);
         setPx(g.el, "height", h);
         if (!g.abs) {
@@ -487,7 +679,7 @@ export function agentMain() {
             Object.assign(draftBox.style, { display: "block", left: `${x0}px`, top: `${y0}px`, width: `${Math.abs(e.clientX - g.sx)}px`, height: `${Math.abs(e.clientY - g.sy)}px` });
         } else if (g.type === "move") { moveGesture(g, e); redraw(); }
         else if (g.type === "reorder") reorderGesture(g, e);
-        else if (g.type === "resize") { resizeGesture(g, e); redraw(); }
+        else if (g.type === "resize") { resizeGesture(g, e); if (g.guide) showGuides(g.guide.box, g.targets, g.guide.keysX, g.guide.keysY, false, g.guide.want); else guideLayer.innerHTML = ""; redraw(); }
         else if (g.type === "rotate") { rotateGesture(g, e); redraw(); }
         else if (g.type === "radius") { g.at = { x: e.clientX, y: e.clientY }; radiusGesture(g, e); redraw(); }
         else if (g.type === "marquee") marqueeSelect(g, e);
@@ -513,7 +705,8 @@ export function agentMain() {
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") { if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits); return; }
         if (g.type === "reorder" && g.moved && g.target) {
-            if (g.pos === "before") g.target.before(g.el); else g.target.after(g.el);
+            if (g.pos === "before") g.target.before(g.el); else if (g.pos === "after") g.target.after(g.el); else g.target.appendChild(g.el);
+            setSelection([g.el]);
             return changed();
         }
         if (g.type === "pan") return;
