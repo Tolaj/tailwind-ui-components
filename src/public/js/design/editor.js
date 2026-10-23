@@ -281,6 +281,9 @@ window.addEventListener("message", (e) => {
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
+    } else if (m.type === "radius") {
+        // a corner dot was dragged: apply the radius the same way the toolbar does (class in Tailwind mode, style otherwise)
+        if (selected && pathKey(selected.path) === pathKey(m.path)) FLOAT_ACTIONS.radius(m.value);
     } else if (m.type === "info") {
         // the same element with fresh numbers (styles finished loading): update quietly
         if (selected && m.info && pathKey(selected.path) === pathKey(m.info.path)) {
@@ -299,9 +302,10 @@ window.addEventListener("message", (e) => {
     } else if (m.type === "space") {
         setSpace(m.down);
     } else if (m.type === "selected") {
+        // the same element reporting again (after an edit) keeps its open menu; a different one starts fresh
+        if (!(selected && m.info && pathKey(selected.path) === pathKey(m.info.path))) ftMenu = false;
         selected = m.info;
         frameSel = null;
-        ftMenu = false;
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
@@ -1299,19 +1303,31 @@ function renderFrameSel() {
     el.classList.remove("hidden");
 }
 
-function renderFloat() {
+function renderFloat(force) {
     renderFrameSel();
     const st = toolbarState();
     if (!st) { ftb.classList.add("hidden"); ftb.classList.remove("flex"); return; }
-    const sizeFocus = document.activeElement && ftb.contains(document.activeElement) && document.activeElement.matches("input");
-    if (!sizeFocus) ftb.innerHTML = toolbarHtml(st);
+    // don't rebuild the bar under a number field someone is typing in, unless a button asked for it
+    const typing = !force && document.activeElement && ftb.contains(document.activeElement) && document.activeElement.matches("input");
+    if (!typing) ftb.innerHTML = toolbarHtml(st);
     ftb.classList.remove("hidden");
     ftb.classList.add("flex");
     placeFloat();
 }
 
-// the toolbar must not take focus from text being edited, except for its own fields
-ftb.addEventListener("mousedown", (e) => { if (!e.target.closest("select, input, label")) e.preventDefault(); });
+// The bar's buttons act on press, not on click: a value that was just typed makes the bar rebuild itself,
+// which would swallow the click. Pressing also must not take focus from text being edited.
+ftb.addEventListener("mousedown", (e) => {
+    if (e.target.closest("select, input, label")) return;
+    e.preventDefault();
+    // a number field in the bar commits first
+    const a = document.activeElement;
+    if (a && ftb.contains(a) && a.matches("input")) a.blur();
+    const dev = e.target.closest("[data-ftdev]");
+    if (dev) return setDevice(Number(dev.dataset.ftdev));
+    const b = e.target.closest("[data-ft]");
+    if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft]();
+});
 
 const tw = () => selected && modeFor(selected) === "tailwind";
 const styleProp = (prop, value) => cmd({ cmd: "setStyleProp", path: selected.path, prop, value });
@@ -1343,7 +1359,8 @@ const FLOAT_ACTIONS = {
         const next = { left: "center", start: "center", center: "right", right: "left", justify: "left" }[cur] || "center";
         tw() ? applyValue("textAlign", `text-${next}`) : styleProp("text-align", next);
     },
-    more() { ftMenu = !ftMenu; renderFloat(); },
+    radius(n) { tw() ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0"); },
+    more() { ftMenu = !ftMenu; renderFloat(true); },
     dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },
     up() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: -1 }); },
@@ -1351,15 +1368,8 @@ const FLOAT_ACTIONS = {
     free() { ftMenu = false; cmd({ cmd: "freePosition", path: selected.path, on: !selected.geom.abs }); },
     group() { ftMenu = false; send({ cmd: "group" }); },
     ungroup() { ftMenu = false; send({ cmd: "ungroup" }); },
-    props() { ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(); },
+    props() { ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(true); },
 };
-
-ftb.addEventListener("click", (e) => {
-    const dev = e.target.closest("[data-ftdev]");
-    if (dev) return setDevice(Number(dev.dataset.ftdev));
-    const b = e.target.closest("[data-ft]");
-    if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft]();
-});
 
 ftb.addEventListener("change", (e) => {
     const t = e.target;
@@ -1368,7 +1378,7 @@ ftb.addEventListener("change", (e) => {
     if (!selected) return;
     if (t.dataset.ftsel === "family") return tw() ? applyValue("fontFamily", `font-${t.value}`) : styleProp("font-family", FAMILY_STACKS[t.value]);
     if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? (tw() ? applyValue("fontSize", `${n}px`) : styleProp("font-size", `${n}px`)) : renderFloat(); }
-    if (t.dataset.ftin === "radius") { const n = Math.max(0, Number(t.value) || 0); return tw() ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0"); }
+    if (t.dataset.ftin === "radius") return FLOAT_ACTIONS.radius(Math.max(0, Number(t.value) || 0));
     if (t.dataset.ftcol === "text") return tw() ? applyColor("textColor", t.value) : styleProp("color", t.value);
     if (t.dataset.ftcol === "fill") return tw() ? applyColor("bgColor", t.value) : styleProp("background-color", t.value);
 });

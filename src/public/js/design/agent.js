@@ -97,8 +97,14 @@ export function agentMain() {
     // ── Overlay drawing ─────────────────────────────────────────────────────────────────────
     const CORNERS = [["nw", 0, 0], ["ne", 1, 0], ["se", 1, 1], ["sw", 0, 1]];
     const HCURSOR = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
-    const ROTATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#fff" stroke-width="4.2"><path d="M5 15C6.5 8 17.5 8 19 15"/><path d="M2.5 12.5 5 15.5 8 13"/><path d="M16 13 19 15.5 21.5 12.5"/></g><g stroke="#111" stroke-width="1.8"><path d="M5 15C6.5 8 17.5 8 19 15"/><path d="M2.5 12.5 5 15.5 8 13"/><path d="M16 13 19 15.5 21.5 12.5"/></g></svg>';
-    const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_SVG)}") 12 12, crosshair`;
+    // The rotate cursor is an arc that wraps around the corner it belongs to, drawn for the bottom-right corner and
+    // turned a quarter for each of the others, plus however far the element itself is already rotated.
+    const ARC = '<path d="M19 6A13 13 0 0 1 6 19"/><path d="M15.5 9.5 19 5.5 22.5 9.5"/><path d="M9.5 15.5 5.5 19 9.5 22.5"/>';
+    const CORNER_TURN = { se: 0, sw: 90, nw: 180, ne: 270 };
+    const rotateCursor = (deg) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(${Math.round(deg)} 12 12)"><g stroke="#fff" stroke-width="4.2">${ARC}</g><g stroke="#111" stroke-width="1.8">${ARC}</g></g></svg>`;
+        return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, crosshair`;
+    };
 
     function place(box, el) {
         if (!el || !alive(el)) { box.style.display = "none"; return; }
@@ -118,31 +124,37 @@ export function agentMain() {
             });
         } else {
             // the box turns with the element: border, resize edges, corner squares and the rotate zones live inside one rotated container
-            const abs = isAbs(el);
-            const rot = abs ? rotationOf(el) : 0;
+            const rot = rotationOf(el);
             const br = pageRect(el);
-            const w = abs && el.offsetWidth ? el.offsetWidth : br.w;
-            const h = abs && el.offsetHeight ? el.offsetHeight : br.h;
-            const box = mk(`position:absolute;left:${br.x + br.w / 2 - w / 2}px;top:${br.y + br.h / 2 - h / 2}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg);transform-origin:50% 50%;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;pointer-events:none;`);
+            const w = el.offsetWidth || br.w;
+            const h = el.offsetHeight || br.h;
+            const ccs = getComputedStyle(el);
+            const rounding = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map((c) => ccs[`border${c}Radius`] || "0").join(" ");
+            const box = mk(`position:absolute;left:${br.x + br.w / 2 - w / 2}px;top:${br.y + br.h / 2 - h / 2}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg);transform-origin:50% 50%;border:${px(1.5)}px solid ${BLUE};border-radius:${rounding};box-sizing:border-box;pointer-events:none;`);
             selLayer.appendChild(box);
             const s = px(9);
             const e = px(10);
             const bw = px(1.5);
             const add = (css, name, cursor) => { const hnd = mk(`position:absolute;${css}pointer-events:auto;cursor:${cursor};`); hnd.dataset.h = name; box.appendChild(hnd); };
             // rotating: the area just outside each corner (under the corner squares)
-            if (abs) {
-                const z = px(24);
-                CORNERS.forEach(([name, fx, fy]) => add(`left:${fx ? w - bw - s / 2 : -bw - z + s / 2}px;top:${fy ? h - bw - s / 2 : -bw - z + s / 2}px;width:${z}px;height:${z}px;`, `rot-${name}`, ROTATE_CURSOR));
+            const z = px(24);
+            CORNERS.forEach(([name, fx, fy]) => add(`left:${fx ? w - bw - s / 2 : -bw - z + s / 2}px;top:${fy ? h - bw - s / 2 : -bw - z + s / 2}px;width:${z}px;height:${z}px;`, `rot-${name}`, rotateCursor(CORNER_TURN[name] + rot)));
+            // corner radius: a dot just inside each corner, further in the rounder the corner is
+            if (Math.min(w, h) >= 40) {
+                const radius = parseFloat(ccs.borderTopLeftRadius) || 0;
+                const inset = Math.min(radius + px(11), Math.min(w, h) / 2);
+                const dot = px(8);
+                CORNERS.forEach(([name, fx, fy]) => add(`left:${(fx ? w - inset : inset) - bw - dot / 2}px;top:${(fy ? h - inset : inset) - bw - dot / 2}px;width:${dot}px;height:${dot}px;border-radius:50%;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, `rad-${name}`, "default"));
             }
             // resizing: the whole length of each edge, then a square on each corner
             const edgeW = Math.max(0, w - s), edgeH = Math.max(0, h - s);
-            (abs ? ["n", "e", "s", "w"] : ["e", "s"]).forEach((name) => {
+            ["n", "e", "s", "w"].forEach((name) => {
                 const horizontal = name === "n" || name === "s";
                 add(horizontal
                     ? `left:${s / 2 - bw}px;top:${(name === "n" ? 0 : h) - bw - e / 2}px;width:${edgeW}px;height:${e}px;`
                     : `left:${(name === "w" ? 0 : w) - bw - e / 2}px;top:${s / 2 - bw}px;width:${e}px;height:${edgeH}px;`, name, HCURSOR[name]);
             });
-            (abs ? CORNERS : [["se", 1, 1]]).forEach(([name, fx, fy]) => add(`left:${w * fx - bw - s / 2}px;top:${h * fy - bw - s / 2}px;width:${s}px;height:${s}px;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, name, HCURSOR[name]));
+            CORNERS.forEach(([name, fx, fy]) => add(`left:${w * fx - bw - s / 2}px;top:${h * fy - bw - s / 2}px;width:${s}px;height:${s}px;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, name, HCURSOR[name]));
         }
         place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
         // the size label only appears while dragging; otherwise it would sit behind the editor's floating toolbar
@@ -380,7 +392,13 @@ export function agentMain() {
         w = Math.max(1, w); h = Math.max(1, h);
         setPx(g.el, "width", w);
         setPx(g.el, "height", h);
-        if (!g.abs) return;
+        if (!g.abs) {
+            if (g.rot === 0) {
+                if (hd.includes("w")) setPx(g.el, "marginLeft", g.ml - (w - g.g.w));
+                if (hd.includes("n")) setPx(g.el, "marginTop", g.mt - (h - g.g.h));
+            }
+            return;
+        }
         // keep the opposite edge or corner where it was (or the center, with Alt)
         const ax = hd.includes("w") ? 1 : hd.includes("e") ? -1 : 0;
         const ay = hd.includes("n") ? 1 : hd.includes("s") ? -1 : 0;
@@ -390,6 +408,18 @@ export function agentMain() {
         const cy = e.altKey ? g.c.y : g.c.y + a0.y - a1.y;
         setPx(g.el, "left", cx - w / 2 - g.o.x);
         setPx(g.el, "top", cy - h / 2 - g.o.y);
+    }
+
+    // Drag a corner dot toward the middle: every corner gets the same radius, previewed inline until the editor applies it as a class or style.
+    function radiusGesture(g, e) {
+        const th = -g.rot * Math.PI / 180;
+        const px0 = e.clientX + window.scrollX - g.c.x, py0 = e.clientY + window.scrollY - g.c.y;
+        const lx = px0 * Math.cos(th) - py0 * Math.sin(th) + g.w / 2;
+        const ly = px0 * Math.sin(th) + py0 * Math.cos(th) + g.h / 2;
+        const east = g.corner.includes("e"), south = g.corner.includes("s");
+        const inset = ((east ? g.w - lx : lx) + (south ? g.h - ly : ly)) / 2;
+        g.r = Math.max(0, Math.min(Math.round(inset - px(11)), Math.floor(Math.min(g.w, g.h) / 2)));
+        g.el.style.borderRadius = `${g.r}px`;
     }
 
     function rotateGesture(g, e) {
@@ -423,13 +453,17 @@ export function agentMain() {
         if (hd) {
             const el = primary();
             const g = geomOf(el);
-            if (hd.startsWith("rot")) {
+            if (hd.startsWith("rad")) {
+                const br = pageRect(el);
+                gesture = { type: "radius", el, corner: hd.slice(4), c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, rot: g.rot, w: el.offsetWidth || br.w, h: el.offsetHeight || br.h, prev: el.style.borderRadius, r: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, sx: e.clientX, sy: e.clientY, moved: false };
+            } else if (hd.startsWith("rot")) {
                 const r = pageRect(el);
                 const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
                 gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
             } else {
                 const br = pageRect(el);
-                gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
+                const cs0 = getComputedStyle(el);
+                gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
             }
             return;
         }
@@ -465,6 +499,7 @@ export function agentMain() {
         else if (g.type === "reorder") reorderGesture(g, e);
         else if (g.type === "resize") { resizeGesture(g, e); redraw(); }
         else if (g.type === "rotate") { rotateGesture(g, e); redraw(); }
+        else if (g.type === "radius") { radiusGesture(g, e); redraw(); }
         else if (g.type === "marquee") marqueeSelect(g, e);
         else if (g.type === "pan") { post({ type: "pan", dx: e.clientX - g.sx, dy: e.clientY - g.sy }); g.sx = e.clientX; g.sy = e.clientY; }
     }, true);
@@ -477,6 +512,13 @@ export function agentMain() {
         root.style.cursor = CURSOR[tool] || "default";
         if (!g) return;
         if (g.notified) post({ type: "gesture", on: false });
+        if (g.type === "radius") {
+            if (!g.moved) return;
+            if (g.prev) g.el.style.borderRadius = g.prev; else g.el.style.removeProperty("border-radius");
+            if (!g.el.getAttribute("style")) g.el.removeAttribute("style");
+            redraw();
+            return post({ type: "radius", path: pathOf(g.el), value: g.r });
+        }
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") { if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits); return; }
         if (g.type === "reorder" && g.moved && g.target) {
@@ -488,9 +530,10 @@ export function agentMain() {
         else post({ type: "selected", info: describe(primary()) });
     }, true);
 
+    const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
     document.addEventListener("dblclick", (e) => {
         e.preventDefault();
-        const el = targetOf(e);
+        const el = hitAt(e.clientX, e.clientY);
         if (el === document.body || tool !== "move") return;
         setSelection([el]);
         startEdit(el, false);
