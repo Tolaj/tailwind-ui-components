@@ -120,7 +120,7 @@ function updateChrome() {
     pl.classList.toggle("hidden", !data.project);
     pl.classList.toggle("inline-flex", Boolean(data.project));
     $("projSep").classList.toggle("hidden", !data.project);
-    if (data.project) { pl.textContent = data.project.name; pl.href = `/projects/${data.project.id}`; }
+    if (data.project) { pl.textContent = `Project: ${data.project.name}`; pl.href = `/projects/${data.project.id}`; }
     const empty = model.markup.trim() === "";
     $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
     $("startCard").classList.toggle("flex", empty && mode === "edit");
@@ -207,6 +207,7 @@ function syncZoomSel() {
     if (!custom) { custom = new Option("", "custom"); sel.add(custom); }
     custom.textContent = `${Math.round(view.z * 100)}%`;
     sel.value = "custom";
+    placePills(); // the zoom label changes the right group's width
 }
 
 function zoomAt(factor, cx, cy) {
@@ -248,9 +249,21 @@ function layout() {
         // the live iframe never changes parent (that would reload it); it just sits over the active frame
         if (key === curKey) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
     });
-    $("pillR").style.top = canvas.clientWidth < 820 ? "60px" : "";
+    placePills();
     applyView();
     renderFloat();
+}
+
+/** The two tool groups share the top row; when the canvas is too narrow for both side by side, the right one drops under the left. */
+function placePills() {
+    const left = $("pillL"), right = $("pillR");
+    right.style.top = "";
+    left.style.maxWidth = "none";
+    left.classList.remove("tight");
+    const natural = left.offsetWidth; // the left group at its full width
+    left.style.maxWidth = "calc(100% - 24px)"; // beyond that the design name shrinks...
+    if (canvas.clientWidth < natural - 100) left.classList.add("tight"); // ...and finally disappears
+    if (canvas.clientWidth < natural + right.offsetWidth + 12 * 3) right.style.top = "60px";
 }
 
 function handleWheel({ dx, dy, zoomKey, cx, cy }) {
@@ -696,6 +709,17 @@ async function save() {
 }
 $("saveBtn").addEventListener("click", save);
 
+// The save button carries the save status itself ("Save", "Saving…", "Saved", "Retry"); the full message is its tooltip.
+const SAVE_LABELS = [[/^saving/i, "Saving…"], [/failed/i, "Retry"], [/^saved/i, "Saved"]];
+function syncSaveButton() {
+    const text = $("saveState").textContent.trim();
+    const hit = SAVE_LABELS.find(([re]) => re.test(text));
+    $("saveBtn").textContent = hit ? hit[1] : "Save";
+    $("saveBtn").title = text || "Save (Ctrl/Cmd+S)";
+}
+new MutationObserver(syncSaveButton).observe($("saveState"), { childList: true, characterData: true, subtree: true });
+$("detailsBtn").addEventListener("click", () => $("designsMenu").classList.add("hidden"));
+
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 const TOOL_KEYS = { v: "move", h: "hand", f: "frame", r: "rect", o: "ellipse", t: "text", i: "image", b: "button" };
 
@@ -1134,6 +1158,7 @@ function renderDesigns() {
     };
     $("designsCount").textContent = String(list.length);
     $("designsName").textContent = data.title || "Untitled design";
+    placePills();
     $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
 }
 $("designs").addEventListener("click", (e) => {
