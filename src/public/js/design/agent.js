@@ -37,14 +37,16 @@ export function agentMain() {
     const primary = () => sels[sels.length - 1] || null;
     const px = (n) => n / zoom;
 
-    const DRAW = new Set(["frame", "rect", "ellipse", "text", "image", "button"]);
-    const CURSOR = { move: "default", hand: "grab", frame: "crosshair", rect: "crosshair", ellipse: "crosshair", text: "text", image: "crosshair", button: "crosshair" };
+    const DRAW = new Set(["frame", "rect", "ellipse", "line", "arrow", "text", "image", "button"]);
+    const CURSOR = { move: "default", hand: "grab", frame: "crosshair", rect: "crosshair", ellipse: "crosshair", line: "crosshair", arrow: "crosshair", text: "text", image: "crosshair", button: "crosshair" };
     const CONTAINERS = new Set(["div", "section", "main", "header", "footer", "aside", "nav", "article", "form", "ul", "ol", "li", "figure", "body"]);
     const PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" fill="#e5e5e5"/><circle cx="92" cy="58" r="12" fill="#bdbdbd"/><path d="M60 128l36-44 26 30 20-22 38 36z" fill="#bdbdbd"/></svg>');
     const TEMPLATES = {
         frame: { tag: "div", cls: "absolute bg-white border border-neutral-300", w: 320, h: 240 },
         rect: { tag: "div", cls: "absolute bg-neutral-300 rounded-md", w: 160, h: 100 },
         ellipse: { tag: "div", cls: "absolute bg-neutral-300 rounded-full", w: 120, h: 120 },
+        line: { tag: "div", cls: "absolute bg-neutral-900 text-neutral-900", w: 160, h: 2 },
+        arrow: { tag: "div", cls: "absolute bg-neutral-900 text-neutral-900", w: 160, h: 2, html: '<i class="pointer-events-none" style="position:absolute;right:0;top:50%;transform:translateY(-50%);border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:9px solid currentColor"></i>' },
         text: { tag: "p", cls: "absolute text-base text-neutral-900 whitespace-nowrap", text: "Text", auto: true },
         image: { tag: "img", cls: "absolute object-cover rounded-md bg-neutral-200", w: 240, h: 160, attrs: { src: PLACEHOLDER, alt: "Image" } },
         button: { tag: "button", cls: "absolute rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white whitespace-nowrap", text: "Button", auto: true },
@@ -234,6 +236,7 @@ export function agentMain() {
         el.className = t.cls;
         if (t.attrs) Object.keys(t.attrs).forEach((k) => el.setAttribute(k, t.attrs[k]));
         if (t.text) el.textContent = t.text;
+        if (t.html) el.innerHTML = t.html;
         ensurePositioned(container);
         container.appendChild(el);
         el.style.position = "absolute";
@@ -252,6 +255,18 @@ export function agentMain() {
         const y0 = Math.min(g.sy, e.clientY) + window.scrollY - o.y;
         const w = Math.abs(e.clientX - g.sx), h = Math.abs(e.clientY - g.sy);
         const t = TEMPLATES[g.kind];
+        if (g.kind === "line" || g.kind === "arrow") {
+            // a line runs from where the drag began to where it ended: a box of that length, centred on the midpoint and turned to the angle
+            const dx = dragged ? e.clientX - g.sx : t.w, dy = dragged ? e.clientY - g.sy : 0;
+            const len = Math.max(8, Math.hypot(dx, dy));
+            const mx = g.sx + dx / 2 + window.scrollX - o.x, my = g.sy + dy / 2 + window.scrollY - o.y;
+            const line = createAt(g.kind, g.container, mx - len / 2, my - 1, len, 2);
+            const deg = Math.round(Math.atan2(dy, dx) * 1800 / Math.PI) / 10;
+            if (deg) line.style.transform = `rotate(${deg}deg)`;
+            setSelection([line]);
+            setTool("move");
+            return changed();
+        }
         const el = dragged && !(g.kind === "text" || g.kind === "button")
             ? createAt(g.kind, g.container, x0, y0, w, h)
             : createAt(g.kind, g.container, x0, y0);

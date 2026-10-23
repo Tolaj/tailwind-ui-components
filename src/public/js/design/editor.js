@@ -382,8 +382,8 @@ function revealLayer(force) {
     const key = selected ? pathKey(selected.path) : null;
     if (!key && key !== "") { revealedKey = null; return; }
     if (!force && key === revealedKey) return;
-    const pane = leftOpen ? $("leftBody") : $("layersPane");
-    if (!leftOpen && (pane.classList.contains("hidden") || $("panel").classList.contains("hidden"))) return;
+    if (!leftOpen) return;
+    const pane = $("leftBody");
     const row = $("layers").querySelector(".layer-row.is-selected");
     if (!row) return;
     revealedKey = key;
@@ -403,26 +403,8 @@ function renderLayers() {
             if (opened) revealedKey = null;
         }
     }
-    // With the left panel open, Pages are their own section above, so Layers is just the current page's element tree.
-    if (leftOpen) {
-        $("layers").innerHTML = tree ? layerNode(tree, 0) : '<div class="px-2 py-2 text-[11px] text-neutral-500">Loading…</div>';
-        revealLayer();
-        return;
-    }
-    // The top level is the frames themselves. The live frame shows its element tree only while it, or something in it, is selected.
-    const showTree = Boolean(tree) && (frameSel === curKey || Boolean(selected));
-    const list = [...docs.values()];
-    const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
-    const frameRow = (d, depth) => {
-        const active = d.key === curKey;
-        const title = (active ? data.title : d.meta.title) || "Untitled page";
-        const on = active && frameSel === curKey;
-        return `<div class="layer-row cursor-pointer gap-1 px-1 ${on ? "is-selected" : ""}" style="padding-left:${depth * 12 + 4}px" data-frame="${d.key}">
-            <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center text-neutral-500">${chevron(active && showTree)}</span>
-            ${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}
-            <span class="truncate font-medium text-neutral-800">${esc(title)}</span></div>` + (active && showTree ? layerNode(tree, depth + 1) : "");
-    };
-    $("layers").innerHTML = tops.map((d) => frameRow(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => frameRow(c, 1)).join("")).join("");
+    // Pages are their own section above, so Layers is just the current page's element tree.
+    $("layers").innerHTML = tree ? layerNode(tree, 0) : '<div class="px-2 py-2 text-[11px] text-neutral-500">Loading…</div>';
     revealLayer();
 }
 
@@ -800,7 +782,7 @@ new MutationObserver(syncSaveButton).observe($("saveState"), { childList: true, 
 $("detailsBtn").addEventListener("click", () => $("designsMenu").classList.add("hidden"));
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
-const TOOL_KEYS = { v: "move", h: "hand", f: "frame", r: "rect", o: "ellipse", t: "text", i: "image", b: "button" };
+const TOOL_KEYS = { v: "move", h: "hand", f: "frame", r: "rect", o: "ellipse", l: "line", t: "text", i: "image", b: "button" };
 
 function handleKey({ key, meta, shift }) {
     if (meta && key === "z") return step(shift ? 1 : -1);
@@ -808,6 +790,7 @@ function handleKey({ key, meta, shift }) {
     if (meta && key === "s") return save();
     if (key === "!") { viewTouched = true; return fitTo([...docs.keys()]); }
     if (key === "@") { viewTouched = true; return fitTo([curKey]); }
+    if (!meta && key === "l" && shift) return setTool("arrow");
     if (!meta && TOOL_KEYS[key]) return setTool(TOOL_KEYS[key]);
     if (!selected) return;
     if (meta && key === "d") return send({ cmd: "duplicateSel" });
@@ -835,26 +818,56 @@ const ICONS = {
     frame: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v18M17 3v18M3 7h18M3 17h18"/>',
     rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
     ellipse: '<circle cx="12" cy="12" r="8"/>',
+    line: '<path stroke-linecap="round" d="M5 19 19 5"/>',
+    arrow: '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M9 6h9v9"/>',
     text: '<path stroke-linecap="round" stroke-linejoin="round" d="M5 6V4h14v2M12 4v16m-3 0h6"/>',
     image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 16l-5-5-8 8"/>',
     button: '<rect x="3" y="8" width="18" height="8" rx="4"/><path stroke-linecap="round" d="M9 12h6"/>',
 };
-const TOOLS = [["move", "Move", "V"], ["hand", "Hand (or hold Space)", "H"], ["frame", "Frame", "F"], ["rect", "Rectangle", "R"], ["ellipse", "Ellipse", "O"], ["text", "Text", "T"], ["image", "Image", "I"], ["button", "Button", "B"]];
+const TOOLS = [["move", "Move", "V"], ["hand", "Hand (or hold Space)", "H"], ["frame", "Frame", "F"], ["shape"], ["text", "Text", "T"]]; // Image and Button live in the + (insert a block) menu; their I and B keys still draw them
+// Rectangle, Oval, Arrow and Line share one button: it draws the shape you used last, the chevron picks another
+const SHAPES = [["rect", "Rectangle", "R"], ["ellipse", "Oval", "O"], ["arrow", "Arrow", "⇧L"], ["line", "Line", "L"]];
+let shape = "rect";
 let tool = "move";
 let spaceDown = false;
 
-$("toolbar").innerHTML = TOOLS.map(([id, label, key], i) =>
-    `${i === 2 ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : ""}<button type="button" data-tool="${id}" title="${label} (${key})" class="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100"><svg class="h-[18px] w-[18px]" fill="${id === "move" ? "currentColor" : "none"}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">${ICONS[id]}</svg></button>`).join("");
-$("toolbar").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); });
-
-function setTool(t, fromAgent) {
-    tool = t;
+const toolIcon = (id) => `<svg class="h-[18px] w-[18px]" fill="${id === "move" ? "currentColor" : "none"}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">${ICONS[id]}</svg>`;
+const CHEVRON = '<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+function renderTools() {
+    const open = !$("shapeMenu")?.classList.contains("hidden");
+    const sh = SHAPES.find(([id]) => id === shape);
+    $("toolbar").innerHTML = TOOLS.map(([id, label, key], i) => {
+        const sep = i === 2 ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : "";
+        if (id === "shape") {
+            return `<div class="relative flex items-center"><button type="button" data-tool="${shape}" data-shapebtn title="${sh[1]} (${sh[2]})" class="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100">${toolIcon(shape)}</button><button type="button" id="shapeMore" title="More shapes" class="flex h-8 w-5 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100">${CHEVRON}</button>
+                <div id="shapeMenu" class="pop absolute left-0 top-10 z-50 ${open ? "" : "hidden"} w-48 p-1">${SHAPES.map(([sid, sl, sk], j) => `${j === 2 ? '<div class="my-1 h-px bg-neutral-100"></div>' : ""}<button type="button" data-shape="${sid}" class="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] hover:bg-neutral-100">${toolIcon(sid)}<span>${sl}</span><span class="ml-auto text-neutral-400">${sk}</span></button>`).join("")}</div></div>`;
+        }
+        return `${sep}<button type="button" data-tool="${id}" title="${label} (${key})" class="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100">${toolIcon(id)}</button>`;
+    }).join("");
+    paintTools();
+}
+function paintTools() {
     $("toolbar").querySelectorAll("[data-tool]").forEach((b) => {
-        const on = b.dataset.tool === t;
+        const on = b.dataset.tool === tool;
         b.classList.toggle("bg-[#0d99ff]", on);
         b.classList.toggle("text-white", on);
         b.classList.toggle("text-neutral-600", !on);
     });
+}
+$("toolbar").addEventListener("click", (e) => {
+    if (e.target.closest("#shapeMore")) { $("shapeMenu").classList.toggle("hidden"); return; }
+    const pick = e.target.closest("[data-shape]");
+    if (pick) { $("shapeMenu").classList.add("hidden"); setTool(pick.dataset.shape); return; }
+    const b = e.target.closest("[data-tool]");
+    if (b) setTool(b.dataset.tool);
+});
+document.addEventListener("pointerdown", (e) => { const m = $("shapeMenu"); if (m && !m.classList.contains("hidden") && !e.target.closest("#shapeMenu, #shapeMore")) m.classList.add("hidden"); }, true);
+
+renderTools();
+
+function setTool(t, fromAgent) {
+    tool = t;
+    if (SHAPES.some(([id]) => id === t) && shape !== t) { shape = t; renderTools(); } else paintTools();
     updateShield();
     if (!fromAgent) send({ cmd: "tool", tool: t });
 }
@@ -1740,24 +1753,19 @@ $("designsBtn").addEventListener("click", toggleDesignsMenu);
 $("navMoreBtn").addEventListener("click", toggleDesignsMenu);
 $("designsMenu").addEventListener("click", (e) => e.stopPropagation());
 
-// The Layers can live in the right panel (a tab) or, when you open it, in a panel on the left. Never both at once.
+// Layers live in the left panel, opened from the toggle in the tools.
+ui.closeInTabs = true; // the right panel has no header of its own: its close button lives in the Design / Classes / AI row
 let leftOpen = false;
 function setLeft(open) {
     leftOpen = open;
     $("leftPanel").classList.toggle("hidden", !open);
     $("leftPanel").classList.toggle("flex", open);
     $("leftBtn").classList.toggle("on", open);
-    (open ? $("layersHost") : $("layersPane")).appendChild($("layers"));
     // Back, the toggle and the page menu move into the panel's header while it is open, and back to the floating tools when it closes
     if (open) $("leftHead").appendChild($("navGroup")); else $("pillL").insertBefore($("navGroup"), $("navSep"));
     $("navSep").classList.toggle("hidden", open);
     renderPagesList();
     renderLayers();
-    document.querySelector('#panelTabs [data-ptab="layers"]').classList.toggle("hidden", open);
-    $("panelHead").classList.toggle("hidden", open); // with one tab left, the "Properties" label is only noise
-    ui.closeInTabs = open; // so the close button moves into the Design / Classes / AI row
-    renderInspector();
-    if (open && panelTab === "layers") setPanelTab("props");
     pref("wc:left", open ? "1" : "0");
     if (open) revealLayer(true);
     scheduleLayout();
@@ -1771,7 +1779,6 @@ function setPanelTab(t) {
     panelTab = t;
     document.querySelectorAll("#panelTabs .ptab").forEach((b) => b.classList.toggle("is-on", b.dataset.ptab === t));
     $("inspector").classList.toggle("hidden", t !== "props");
-    $("layersPane").classList.toggle("hidden", t !== "layers");
     revealLayer(true);
 }
 function setPanel(open) {
