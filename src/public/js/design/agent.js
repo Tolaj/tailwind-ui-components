@@ -161,6 +161,142 @@ export function agentMain() {
         cssProps.forEach((p) => { o[p] = cs.getPropertyValue(p); });
         return o;
     };
+    // ── Where each property's value comes from ──────────────────────────────────────────────
+    // A Tailwind class on this element, its inline style, the design's own CSS (<style>/<link> marked data-wc-design by the editor),
+    // inherited, or nothing. The winner is found by switching each kind of stylesheet off for an instant and seeing whether the
+    // value changes (synchronous: nothing repaints); which rule it is comes from walking the stylesheets.
+    const LOGICAL = {
+        "padding-left": ["padding-inline-start"], "padding-right": ["padding-inline-end"], "padding-top": ["padding-block-start"], "padding-bottom": ["padding-block-end"],
+        "margin-left": ["margin-inline-start"], "margin-right": ["margin-inline-end"], "margin-top": ["margin-block-start"], "margin-bottom": ["margin-block-end"],
+        width: ["inline-size"], height: ["block-size"], "min-width": ["min-inline-size"], "max-width": ["max-inline-size"], "min-height": ["min-block-size"], "max-height": ["max-block-size"],
+        left: ["inset-inline-start"], right: ["inset-inline-end"], top: ["inset-block-start"], bottom: ["inset-block-end"],
+    };
+    // Tailwind v4 writes shorthands with var() (padding-inline: calc(var(--spacing) * 4)), which leave the longhands empty in the rule
+    const shorthandsOf = (p) => {
+        const m = p.match(/^(padding|margin)-(left|right|top|bottom)$/);
+        if (m) return [`${m[1]}-${/left|right/.test(m[2]) ? "inline" : "block"}`, m[1]];
+        if (/^(left|right|top|bottom)$/.test(p)) return [/left|right/.test(p) ? "inset-inline" : "inset-block", "inset"];
+        if (/^border-(top|bottom)-(left|right)-radius$/.test(p)) return ["border-radius"];
+        const b = p.match(/^border-(top|right|bottom|left)-(width|style|color)$/);
+        if (b) return [`border-${b[2]}`, `border-${b[1]}`, `border-${/left|right/.test(b[1]) ? "inline" : "block"}-${b[2]}`, "border"];
+        return { "background-color": ["background"], "row-gap": ["gap"], "column-gap": ["gap"], "font-size": ["font"], "font-weight": ["font"], "line-height": ["font"], "flex-direction": ["flex-flow"], "flex-wrap": ["flex-flow"], "text-decoration-line": ["text-decoration"] }[p] || [];
+    };
+    const unesc = (s) => s.replace(/\\(.)/g, "$1");
+    const classNamesIn = (sel) => [...sel.matchAll(/\.((?:\\.|[\w-])+)/g)].map((m) => unesc(m[1]));
+    function sheetsByKind() {
+        const owners = [...document.querySelectorAll("style, link[rel=stylesheet]")].filter((n) => !n.hasAttribute("data-wc-agent-style") && !n.hasAttribute("data-wc-editor"));
+        const design = owners.filter((n) => n.hasAttribute("data-wc-design"));
+        const tw = owners.filter((n) => !n.hasAttribute("data-wc-design") && n.tagName === "STYLE" && n.type !== "text/tailwindcss");
+        // classes the design defines itself in <style type="text/tailwindcss"> (.btn { @apply ... }): compiled into Tailwind's sheet, but the design's
+        const custom = new Set(design.filter((n) => n.type === "text/tailwindcss").flatMap((n) => [...n.textContent.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1])));
+        return { design: design.map((n) => n.sheet).filter(Boolean), tw: tw.map((n) => n.sheet).filter(Boolean), custom };
+    }
+    function sourcesOf(el, props) {
+        if (!el || el === document.body || !props.length) return {};
+        const { design, tw, custom } = sheetsByKind();
+        const rulesOf = (sheet) => {
+            const out = [];
+            const walk = (list) => {
+                for (const r of list) {
+                    if (r.media && r.cssRules && !(r instanceof CSSStyleRule)) { if (matchMedia(r.media.mediaText).matches) walk(r.cssRules); continue; }
+                    if (r instanceof CSSStyleRule) {
+                        let hit = false;
+                        try { hit = el.matches(r.selectorText); } catch (err) { /* a selector this browser can't match */ }
+                        if (hit) out.push(r);
+                        if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+                        continue;
+                    }
+                    if (r.cssRules) walk(r.cssRules); // @layer, @supports
+                }
+            };
+            try { walk(sheet.cssRules); } catch (err) { out.cross = true; } // a linked sheet from another site can't be read
+            return out;
+        };
+        const twRules = tw.flatMap(rulesOf);
+        const designLists = design.map(rulesOf);
+        const designRules = designLists.flat();
+        const designUnreadable = designLists.some((l) => l.cross);
+        const toks = [...el.classList].filter((t) => !custom.has(t)).map((t) => ({ t, sel: "." + CSS.escape(t) }));
+        const tokenOf = (r) => { const s = r.selectorText; const hit = toks.find(({ sel }) => s === sel || (s.startsWith(sel) && /^[:[]/.test(s.slice(sel.length)))); return hit ? hit.t : null; };
+        const declares = (r, p) => [p, ...(LOGICAL[p] || []), ...shorthandsOf(p)].some((q) => r.style.getPropertyValue(q) !== "");
+        // of the rules that set a property, the likely winner: one naming a class of this element beats a reset like `*` or `h1`; then the later one
+        const best = (rules) => { const own = rules.filter((r) => classNamesIn(r.selectorText).some((n) => el.classList.contains(n))); const l = own.length ? own : rules; return l[l.length - 1]; };
+
+        const read = () => { const cs = getComputedStyle(el); const o = {}; props.forEach((p) => { o[p] = cs.getPropertyValue(p); }); return o; };
+        const base = read();
+        const without = (sheets) => { sheets.forEach((s) => { s.disabled = true; }); const v = read(); sheets.forEach((s) => { s.disabled = false; }); return v; };
+        const noTw = tw.length ? without(tw) : base, noDesign = design.length ? without(design) : base;
+
+        const res = {};
+        props.forEach((p) => {
+            const inline = el.style.getPropertyValue(p);
+            const ownTw = twRules.filter((r) => declares(r, p));
+            const twTok = ownTw.map(tokenOf).filter(Boolean);
+            const ownDesign = designRules.filter((r) => declares(r, p));
+            const twWins = base[p] !== noTw[p], designWins = base[p] !== noDesign[p];
+            let s;
+            if (twWins && twTok.length) s = { source: "tailwind", token: twTok[twTok.length - 1] };
+            else if (twWins && ownTw.length) {
+                const sel = best(ownTw).selectorText;
+                const names = classNamesIn(sel);
+                const mine = names.find((n) => custom.has(n) && el.classList.contains(n));
+                const parent = names.find((n) => !el.classList.contains(n) && el.parentElement && el.parentElement.closest("." + CSS.escape(n)));
+                s = mine ? { source: "design", selector: sel } : parent ? { source: "parent", token: parent } : { source: "default" }; // the last: Tailwind's reset
+            } else if (designWins && ownDesign.length) s = { source: "design", selector: best(ownDesign).selectorText };
+            else if (designWins && designUnreadable) s = { source: "design", selector: "a linked stylesheet" };
+            else if (inline) s = { source: "inline" };
+            else if (twTok.length || ownDesign.length) s = { source: "tie", token: twTok[twTok.length - 1] || null }; // two sources set the same value
+            else if (twWins || designWins) s = { source: "inherited" };
+            else s = { source: "default" };
+            res[p] = s;
+        });
+        return res;
+    }
+
+    // a brand-new class takes Tailwind about a frame to build; a hidden frame has no animation frames, so a timer stands in
+    const settle = () => new Promise((r) => { let done = false; const fin = () => { if (!done) { done = true; r(); } }; requestAnimationFrame(() => requestAnimationFrame(fin)); setTimeout(fin, 150); });
+    /** The CSS value a Tailwind class gives a property, measured on a hidden twin next to the element (used when the class itself can't win). */
+    async function valueOfClass(el, token, prop) {
+        if (!token || !el.parentElement) return null;
+        const twin = document.createElement(el.tagName);
+        twin.className = token;
+        twin.style.cssText = "visibility:hidden;pointer-events:none;position:absolute;";
+        el.after(twin);
+        await settle();
+        const v = getComputedStyle(twin).getPropertyValue(prop);
+        twin.remove();
+        return v || null;
+    }
+    const tidyStyle = (el) => { if (!el.getAttribute("style")) el.removeAttribute("style"); };
+    /**
+     * A property edit from the panel, written where it belongs and checked: "tw" sets the new class string and keeps it only if that
+     * class is now what gives the property its value (something stronger, like the design's CSS or a md: class, makes it fall back);
+     * "css" writes the inline style, made !important when the design's own CSS would still win.
+     */
+    async function setProp(el, m) {
+        const prop = m.prop;
+        let css = m.css;
+        if (m.route === "tw") {
+            const prevClass = el.getAttribute("class"), prevStyle = el.getAttribute("style");
+            if (m.classes) el.setAttribute("class", m.classes); else el.removeAttribute("class");
+            el.style.removeProperty(prop);
+            tidyStyle(el);
+            if (!m.token) return; // a class was removed: nothing to check
+            await settle();
+            const s = sourcesOf(el, [prop])[prop] || {};
+            const lost = s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== m.token);
+            if (!lost) return;
+            if (prevClass === null) el.removeAttribute("class"); else el.setAttribute("class", prevClass);
+            if (prevStyle === null) el.removeAttribute("style"); else el.setAttribute("style", prevStyle);
+            if (!css) css = await valueOfClass(el, m.token.replace(/^(?:[^[\]:]*(?:\[[^\]]*\])?[^[\]:]*:)+/, ""), prop); // without its md: / hover: prefix
+            if (!css) return;
+        }
+        if (!css && m.route === "css" && m.token) css = await valueOfClass(el, m.token, prop); // a Tailwind value typed on a CSS row
+        if (css === null || css === undefined || css === "") { el.style.removeProperty(prop); tidyStyle(el); return; }
+        el.style.setProperty(prop, css);
+        if ((sourcesOf(el, [prop])[prop] || {}).source === "design") el.style.setProperty(prop, css, "important");
+    }
+
     const describe = (el) => {
         if (!el) return null;
         const attrs = {};
@@ -178,6 +314,7 @@ export function agentMain() {
             geom: geomOf(el),
             rect: el === document.body ? null : pageRect(el),
             computed: computedOf(el),
+            sources: sourcesOf(el, cssProps),
             added: made.has(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
@@ -997,6 +1134,11 @@ export function agentMain() {
         if (m.cmd === "ungroup") { ungroup(); return; }
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
+        if (m.cmd === "setProp") {
+            const el = elAt(m.path);
+            if (el) setProp(el, m).then(() => { changed(); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });
+            return;
+        }
         if (mutate[m.cmd]) {
             const el = elAt(m.path);
             if (!el) return;

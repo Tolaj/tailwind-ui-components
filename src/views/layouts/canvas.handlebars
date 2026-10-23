@@ -227,6 +227,15 @@
         .primary { height: 28px; border-radius: 5px; background: #111; color: #fff; font-weight: 600; }
         .primary:hover { background: #0a84e0; }
         .fi.is-set { border-left: 2px solid #111; }
+        /* where a property's value comes from: a Tailwind class, CSS (style attribute or the design's stylesheet), or a class on a parent */
+        .stag { flex: none; font: 600 9px/1 system-ui, sans-serif; letter-spacing: .02em; padding: 3px 4px; border-radius: 3px; white-space: nowrap; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
+        .stag.tw { background: #e0f2fe; color: #0369a1; }
+        .stag.css { background: #fef3c7; color: #92400e; }
+        .stag.up { background: #f3f4f6; color: #6b7280; font-weight: 500; }
+        .bmi.tw { color: #0369a1; font-weight: 600; }
+        .bmi.css { color: #92400e; font-weight: 600; }
+        .legend { margin: 6px 10px 2px; font-size: 10.5px; line-height: 1.6; color: #8c8c8c; }
+        .legend .stag { display: inline-block; vertical-align: 1px; }
         .rst { width: 18px; height: 18px; flex: none; border-radius: 4px; color: #8c8c8c; line-height: 1; }
         .rst:hover { background: #fde8e8; color: #d92d20; }
         .cinp { width: 24px; height: 24px; flex: none; padding: 0; border: 1px solid #e0e0e0; border-radius: 4px; background: none; cursor: pointer; }

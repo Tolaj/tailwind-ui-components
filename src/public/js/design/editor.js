@@ -2,8 +2,9 @@ import { parseComponentSource, buildPreviewDocument } from "../playground/compon
 import { computeLayout } from "../shared/board-layout.js";
 import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
-import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
-import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor } from "./inspector.js";
+import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "./class-groups.js";
+import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor, srcOf } from "./inspector.js";
+import { groupOf, twValue, twShown, variantOf } from "./prop-tailwind.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
 import { selectionHtml } from "./selection-overlay.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
@@ -69,7 +70,9 @@ function editDocument() {
     const head = ['<meta charset="utf-8">', '<meta name="viewport" content="width=device-width, initial-scale=1">'];
     if (!parsed.hasTailwindScript) head.push('<script src="https://cdn.tailwindcss.com"><\/script>');
     else head.push(...parsed.scripts.filter(isTailwindScript).map(scriptTag));
-    head.push(...parsed.links, ...parsed.styles.map(styleTag), "<style>html,body{margin:0}</style>");
+    // the design's own stylesheets are marked, so the panel can tell their rules from the ones Tailwind generates (agent.js sourcesOf)
+    const mark = (tag) => tag.replace(/^<(style|link)\b/i, "<$1 data-wc-design");
+    head.push(...parsed.links.map(mark), ...parsed.styles.map(styleTag).map(mark), "<style data-wc-editor>html,body{margin:0}</style>");
     const attrs = Object.entries(parsed.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
     return `<!DOCTYPE html><html><head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
 }
@@ -588,6 +591,39 @@ function applyColor(key, name, op) {
     applyValue(key, base ? base + (o && o !== "100" ? `/${o}` : "") : "");
 }
 
+/**
+ * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
+ * variant), an inline style or the design's own CSS gets an inline style. A property nothing sets yet becomes a Tailwind class,
+ * unless the element is styled only by its design's CSS. The frame checks the result and falls back to CSS when a class can't win.
+ */
+function setProp(prop, raw) {
+    if (!selected) return;
+    const s = selected, src = srcOf(s, prop), v = String(raw ?? "").trim();
+    const key = groupOf(prop);
+    const onTw = src.source === "tailwind";
+    const vp = onTw ? variantOf(src.token) : variant();
+    const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, ...m });
+    if (v === "") {
+        if (onTw && key) { const next = setGroup(s.classes, key, "", vp); if (next !== null) return send({ route: "tw", classes: next }); }
+        if (src.source === "inline") return send({ route: "css", css: null });
+        return renderInspector();
+    }
+    // "500" means 500px, except on a row showing a Tailwind value (64 from w-64), where a bare number is Tailwind's scale
+    const scale = onTw && twShown(prop, src.token) !== null;
+    const candidate = scale && /^-?\d*\.?\d+$/.test(v) ? v : normalizeValue(prop, v);
+    const css = CSS.supports(prop, candidate) ? candidate : null;
+    const tv = key ? twValue(prop, v, scale) : null;
+    let token = null;
+    if (tv !== null) { const built = GROUPS[key].build(tv); if (GROUPS[key].re.test(built)) token = built; }
+    const toTw = onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
+    if (toTw && token) {
+        const next = setGroup(s.classes, key, tv, vp);
+        if (next !== null) return send({ route: "tw", classes: next, token: vp + token, css });
+    }
+    if (css === null && !token) return renderInspector(); // neither valid CSS nor a Tailwind value: put the old value back
+    send({ route: "css", css, token }); // a Tailwind value on a CSS row (red-500): the frame measures what it means
+}
+
 function setDevice(w) {
     // a preset is a whole size: its width, with the height following the content (a hand-set height belongs to Custom)
     setFrameSize({ w, h: null });
@@ -603,12 +639,10 @@ insp.addEventListener("click", (e) => {
     if (pw) return setDevice(Number(pw.dataset.pgw));
     const pa = t.closest("[data-pgact]");
     if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : $("detailsBtn").click();
-    const sm = t.closest("[data-stylemode]");
-    if (sm) { ui.styleMode = sm.dataset.stylemode; return renderInspector(); }
-    const rst = t.closest("[data-cssreset]");
-    if (rst && selected) return cmd({ cmd: "setStyleProp", path: selected.path, prop: rst.dataset.cssreset, value: null });
-    const cseg = t.closest("[data-cssseg]");
-    if (cseg && selected) return cmd({ cmd: "setStyleProp", path: selected.path, prop: cseg.dataset.cssseg, value: cseg.dataset.cssv });
+    const rst = t.closest("[data-propreset]");
+    if (rst && selected) return setProp(rst.dataset.propreset, "");
+    const pseg = t.closest("[data-propseg]");
+    if (pseg && selected) return setProp(pseg.dataset.propseg, pseg.dataset.v);
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
     const sec = t.closest("[data-sec]");
@@ -651,8 +685,8 @@ insp.addEventListener("change", (e) => {
         return renderInspector();
     }
     if (!selected) return;
-    if (t.dataset.csscolor) return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.csscolor, value: t.value });
-    if (t.dataset.css !== undefined) { const v = t.value.trim(); return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.css, value: v === "" ? null : normalizeValue(t.dataset.css, v) }); }
+    if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value);
+    if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) { const n = Number(t.value); if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector(); return cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n }); }
     if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
     if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());

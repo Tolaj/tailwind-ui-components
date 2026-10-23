@@ -1,5 +1,6 @@
 import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, BREAKPOINTS, STATES, BREAKPOINT_WIDTH, GROUPS, getGroup, setGroup, parseToken } from "./class-groups.js";
-import { CSS_SECTIONS, rgbToHex, parseInline } from "./css-props.js";
+import { CSS_SECTIONS, rgbToHex } from "./css-props.js";
+import { twShown, variantOf } from "./prop-tailwind.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -76,7 +77,7 @@ export function mountDatalists() {
 }
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-export const ui = { closeInTabs: false, styleMode: "auto", docTailwind: true, tab: "design", bp: "", st: "", open: new Set(["geom", "css-layout", "css-size", "css-spacing", "css-type", "css-fill", "css-border", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
+export const ui = { closeInTabs: false, docTailwind: true, tab: "design", bp: "", st: "", open: new Set(["geom", "css-layout", "css-size", "css-spacing", "css-type", "css-fill", "css-border", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
 export const variant = () => `${ui.bp ? ui.bp + ":" : ""}${ui.st ? ui.st + ":" : ""}`;
 
 export const val = (sel, k) => { const r = getGroup(sel.classes, k, variant()); return r ? r.value : ""; };
@@ -116,48 +117,17 @@ const box = (sel) => {
         <div class="bmr">${i("mb", "-")}</div></div>`;
 };
 
-const SECTIONS = [
-    ["layout", "Layout", ["display", "position", "overflow", "flexDir", "justify", "items", "gap", "gridCols", "z"], (s) =>
-        select(s, "display", "Display") + select(s, "position", "Position") + two(select(s, "overflowX", "X"), select(s, "overflowY", "Y")).replace(/class="row"/g, 'class="row compact"') +
-        two(combo(s, "z", "Z", true), select(s, "visibility", "Vis").replace('class="row"', 'class="row compact"')) +
-        `<p class="sub">Flex</p>` +
-        seg(s, "flexDir", "Direction", [["flex-row", "Row"], ["flex-col", "Column"], ["flex-row-reverse", "Row ←", "row-reverse"], ["flex-col-reverse", "Col ↑", "col-reverse"]]) +
-        select(s, "flexWrap", "Wrap") + select(s, "justify", "Justify") + select(s, "items", "Align") + select(s, "content", "Content") +
-        two(combo(s, "gap", "Gap", true), combo(s, "gapX", "X", true)) + two(combo(s, "gapY", "Y", true), "<span></span>") +
-        `<p class="sub">Grid</p>` + two(combo(s, "gridCols", "Cols", true), combo(s, "gridRows", "Rows", true)) +
-        `<p class="sub">As a child</p>` + select(s, "self", "Align self") + select(s, "flexNum", "Flex") +
-        two(combo(s, "colSpan", "Col span", true), combo(s, "rowSpan", "Row span", true)) + two(combo(s, "order", "Order", true), seg(s, "grow", "Grow", [["grow", "Grow"], ["grow-0", "No grow"]]))],
-    ["size", "Size", ["w", "h", "minW", "maxW", "minH", "maxH", "aspect"], (s) =>
-        two(combo(s, "w", "W", true), combo(s, "h", "H", true)) + two(combo(s, "minW", "Min W", true), combo(s, "maxW", "Max W", true)) + two(combo(s, "minH", "Min H", true), combo(s, "maxH", "Max H", true)) +
-        (s.tag === "img" || s.tag === "video" ? select(s, "objectFit", "Object fit") : "")],
-    ["spacing", "Spacing", ["p", "px", "py", "m", "mx", "my", "pt", "pr", "pb", "pl", "mt", "mr", "mb", "ml", "spaceX", "spaceY"], (s) =>
-        box(s) + two(combo(s, "p", "Pad", true), combo(s, "m", "Mar", true)) + two(combo(s, "px", "Pad X", true), combo(s, "mx", "Mar X", true)) + two(combo(s, "py", "Pad Y", true), combo(s, "my", "Mar Y", true)) +
-        two(combo(s, "spaceX", "Space X", true), combo(s, "spaceY", "Space Y", true))],
-    ["position", "Position offsets", ["inset", "top", "right", "bottom", "left"], (s) =>
-        two(combo(s, "inset", "Inset", true), combo(s, "top", "Top", true)) + two(combo(s, "left", "Left", true), combo(s, "right", "Right", true)) + two(combo(s, "bottom", "Bottom", true), "<span></span>")],
-    ["typography", "Typography", ["fontFamily", "fontSize", "fontWeight", "textColor", "leading", "tracking", "textAlign"], (s) =>
-        select(s, "fontFamily", "Family") + select(s, "fontWeight", "Weight") + two(combo(s, "fontSize", "Size", true), combo(s, "leading", "Line", true)) + two(combo(s, "tracking", "Track", true), combo(s, "lineClamp", "Clamp", true)) +
-        seg(s, "textAlign", "Align", [["text-left", "Left"], ["text-center", "Center"], ["text-right", "Right"], ["text-justify", "Just."]]) +
-        seg(s, "textDecoration", "Decor", [["underline", "U", "underline"], ["line-through", "S", "line-through"], ["no-underline", "None"]]) +
-        seg(s, "fontStyle", "Style", [["italic", "Italic"], ["not-italic", "Normal"]]) + select(s, "textTransform", "Case") + select(s, "textOverflow", "Overflow") + select(s, "whitespace", "Wrap") +
-        colorRow(s, "textColor", "Color")],
-    ["fill", "Fill", ["bgColor", "bgImage", "gradFrom", "gradTo", "bgSize"], (s) =>
-        colorRow(s, "bgColor", "Color") + `<p class="sub">Gradient</p>` + select(s, "bgImage", "Direction") + colorRow(s, "gradFrom", "From") + colorRow(s, "gradVia", "Via") + colorRow(s, "gradTo", "To") +
-        `<p class="sub">Image</p>` + select(s, "bgSize", "Size") + select(s, "bgPosition", "Position") + select(s, "bgRepeat", "Repeat") +
-        (s.tag === "svg" || s.tag === "path" ? colorRow(s, "fill", "SVG fill") + colorRow(s, "stroke", "SVG stroke") : "")],
-    ["border", "Border", ["borderWidth", "borderT", "borderColor", "radius", "radiusTL", "ring"], (s) =>
-        two(combo(s, "borderWidth", "All", true), select(s, "borderStyle", "Style").replace('class="row"', 'class="row compact"')) +
-        four(combo(s, "borderT", "T", true), combo(s, "borderR", "R", true), combo(s, "borderB", "B", true), combo(s, "borderL", "L", true)) + colorRow(s, "borderColor", "Color") +
-        `<p class="sub">Radius</p>` + combo(s, "radius", "All", false) + four(combo(s, "radiusTL", "TL", true), combo(s, "radiusTR", "TR", true), combo(s, "radiusBR", "BR", true), combo(s, "radiusBL", "BL", true)) +
-        `<p class="sub">Ring</p>` + two(combo(s, "ring", "Width", true), "<span></span>") + colorRow(s, "ringColor", "Color")],
-    ["effects", "Effects", ["shadow", "opacity", "blur", "backdropBlur", "rotate", "scale", "mixBlend"], (s) =>
-        select(s, "shadow", "Shadow") + colorRow(s, "shadowColor", "Shadow color") + two(combo(s, "opacity", "Opacity", true), combo(s, "brightness", "Bright", true)) +
-        select(s, "blur", "Blur") + select(s, "backdropBlur", "Backdrop") + select(s, "grayscale", "Grayscale") + select(s, "mixBlend", "Blend") +
-        `<p class="sub">Transform</p>` + two(combo(s, "rotate", "Rotate", true), combo(s, "scale", "Scale", true)) + two(combo(s, "translateX", "Move X", true), combo(s, "translateY", "Move Y", true))],
-    ["motion", "Motion and interaction", ["transition", "duration", "ease", "cursor"], (s) =>
-        select(s, "transition", "Transition") + two(combo(s, "duration", "Time", true), combo(s, "delay", "Delay", true)) + select(s, "ease", "Easing") +
-        select(s, "cursor", "Cursor") + select(s, "pointerEvents", "Pointer") + select(s, "userSelect", "Select")],
-];
+// Tailwind-only controls with no single CSS property of their own (a gradient, a ring, space between children...). Everything
+// that is one CSS property lives in the property rows below, which edit wherever the value comes from.
+const EXTRA_KEYS = ["bgImage", "gradFrom", "gradVia", "gradTo", "ring", "ringColor", "spaceX", "spaceY", "gridRows", "colSpan", "rowSpan", "order", "self", "flexNum", "grow", "lineClamp", "rotate", "scale", "translateX", "translateY", "transition", "duration", "delay", "ease", "blur", "backdropBlur", "brightness", "grayscale", "userSelect"];
+const extrasBody = (s) =>
+    `<p class="sub first">Gradient</p>` + select(s, "bgImage", "Direction") + colorRow(s, "gradFrom", "From") + colorRow(s, "gradVia", "Via") + colorRow(s, "gradTo", "To") +
+    `<p class="sub">Ring</p>` + two(combo(s, "ring", "Width", true), "<span></span>") + colorRow(s, "ringColor", "Color") +
+    `<p class="sub">Children and grid</p>` + two(combo(s, "spaceX", "Space X", true), combo(s, "spaceY", "Space Y", true)) + two(combo(s, "gridRows", "Rows", true), combo(s, "order", "Order", true)) +
+    two(combo(s, "colSpan", "Col span", true), combo(s, "rowSpan", "Row span", true)) + select(s, "self", "Align self") + select(s, "flexNum", "Flex") + seg(s, "grow", "Grow", [["grow", "Grow"], ["grow-0", "No grow"]]) + combo(s, "lineClamp", "Line clamp", false) +
+    `<p class="sub">Transform</p>` + two(combo(s, "rotate", "Rotate", true), combo(s, "scale", "Scale", true)) + two(combo(s, "translateX", "Move X", true), combo(s, "translateY", "Move Y", true)) +
+    `<p class="sub">Motion and filters</p>` + select(s, "transition", "Transition") + two(combo(s, "duration", "Time", true), combo(s, "delay", "Delay", true)) + select(s, "ease", "Easing") +
+    select(s, "blur", "Blur") + select(s, "backdropBlur", "Backdrop") + two(combo(s, "brightness", "Bright", true), "<span></span>") + select(s, "grayscale", "Grayscale") + select(s, "userSelect", "Select");
 
 const section = (s, id, title, keys, body) => {
     const open = ui.open.has(id);
@@ -170,7 +140,7 @@ const crumbs = (s) => s.crumbs.map((c, i) => `<button type="button" data-crumb="
 
 const actions = (s) => (s.tag === "body" ? "" : `<div class="acts"><button type="button" data-do="up" title="Move earlier">Up</button><button type="button" data-do="down" title="Move later">Down</button><button type="button" data-do="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button type="button" data-do="remove" class="danger" title="Delete">Delete</button></div>`);
 
-const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">Editing <code>${variant()}</code> classes</p>` : ""}`;
+const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">New Tailwind classes get <code>${variant()}</code></p>` : ""}`;
 
 const contentFields = (s) => {
     const fields = [];
@@ -194,63 +164,77 @@ function geomBody(s) {
 }
 
 
-// ── CSS mode: reads computed styles, writes inline styles (works whatever styled the element) ──
+// ── Property rows: each shows where its value comes from and is edited there (editor.js setProp) ──
 const tokensOf = (s) => String(s.classes || "").split(/\s+/).filter(Boolean);
 const isUtility = (tok) => { const base = parseToken(tok).base; return Object.keys(GROUPS).some((k) => GROUPS[k].re.test(base)); };
 
-/** Auto picks Tailwind for Tailwind-styled elements and CSS for elements styled by the design's own CSS. */
+/** Whether a property nothing sets yet is written as a Tailwind class or as CSS: Tailwind, except on elements styled only by their design's own CSS. */
 export function modeFor(s) {
-    if (ui.styleMode !== "auto") return ui.styleMode;
-    if (s.added) return "tailwind"; // made in the editor: always Tailwind. CSS is for elements the editor starts editing in an existing design
+    if (s.added) return "tailwind";
     const toks = tokensOf(s);
     if (toks.length) return toks.some(isUtility) ? "tailwind" : "css";
     return ui.docTailwind ? "tailwind" : "css";
 }
 
-const cssField = (s, c, inline) => {
-    const set = inline[c.p] !== undefined;
+export const srcOf = (s, p) => ((s && s.sources) || {})[p] || { source: "default" };
+const bare = (v) => String(v || "").replace(/:$/, "");
+function srcTag(src) {
+    if (src.source === "tailwind" || (src.source === "tie" && src.token)) return `<span class="stag tw" title="Tailwind class ${esc(src.token)}">TW${variantOf(src.token) ? ` ${esc(bare(variantOf(src.token)))}` : ""}</span>`;
+    if (src.source === "inline") return '<span class="stag css" title="This element\'s style attribute">CSS</span>';
+    if (src.source === "design") return `<span class="stag css" title="The design's CSS: ${esc(src.selector)}. Edits are written as an inline style that overrides it.">CSS</span>`;
+    if (src.source === "parent") return `<span class="stag up" title="Set by ${esc(src.token)} on a parent element">${esc(src.token)}</span>`;
+    return "";
+}
+const ownsValue = (src) => src.source === "tailwind" || src.source === "inline";
+/** What a row shows: the class's own value on a Tailwind row (64, 1/2, red-500), the computed value otherwise. */
+const shownOf = (s, p, src) => (src.source === "tailwind" && twShown(p, src.token)) || (s.computed || {})[p] || "";
+
+function propRow(s, c) {
+    const src = srcOf(s, c.p);
+    const shown = shownOf(s, c.p, src);
     const comp = (s.computed || {})[c.p] ?? "";
-    const shown = set ? inline[c.p] : comp;
-    const cls = set ? "is-set" : "";
     let control;
     if (c.t === "select") {
-        const opts = c.o.includes(shown) || !shown ? c.o : [shown, ...c.o];
-        control = `<select class="fi ${cls}" data-css="${c.p}">${opts.map((o) => `<option value="${esc(o)}" ${o === shown ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+        const opts = c.o.includes(comp) || !comp ? c.o : [comp, ...c.o];
+        control = `<select class="fi" data-prop="${c.p}">${opts.map((o) => `<option value="${esc(o)}" ${o === comp ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
     } else if (c.t === "seg") {
-        control = `<div class="seg2">${c.o.map((o) => `<button type="button" data-cssseg="${c.p}" data-cssv="${o}" class="${shown === o || (o === "left" && shown === "start") ? "on" : ""}">${o[0].toUpperCase() + o.slice(1)}</button>`).join("")}</div>`;
+        control = `<div class="seg2">${c.o.map((o) => `<button type="button" data-propseg="${c.p}" data-v="${o}" class="${comp === o || (o === "left" && comp === "start") ? "on" : ""}">${o[0].toUpperCase() + o.slice(1)}</button>`).join("")}</div>`;
     } else if (c.t === "color") {
-        control = `<input type="color" class="cinp" data-csscolor="${c.p}" value="${rgbToHex(shown) || "#000000"}" title="Pick a color"><input class="fi ${cls}" data-css="${c.p}" value="${esc(shown)}" autocomplete="off">`;
+        control = `<input type="color" class="cinp" data-propcolor="${c.p}" value="${rgbToHex(comp) || "#000000"}" title="Pick a color"><input class="fi" data-prop="${c.p}" list="dl-colors" value="${esc(shown)}" autocomplete="off">`;
     } else {
-        control = `<input class="fi ${cls}" data-css="${c.p}" value="${esc(shown)}" ${c.list ? `list="${c.list}"` : ""} autocomplete="off">`;
+        control = `<input class="fi" data-prop="${c.p}" value="${esc(shown)}" ${c.list ? `list="${c.list}"` : ""} autocomplete="off">`;
     }
-    return `<div class="row" title="${c.p}"><span class="lbl">${c.l}</span><div class="flex min-w-0 flex-1 items-center gap-1">${control}${set ? `<button type="button" data-cssreset="${c.p}" class="rst" title="Remove my inline value">×</button>` : ""}</div></div>`;
-};
+    const reset = ownsValue(src) ? `<button type="button" data-propreset="${c.p}" class="rst" title="${src.source === "tailwind" ? `Remove ${esc(src.token)}` : "Remove the inline value"}">×</button>` : "";
+    return `<div class="row" title="${c.p}"><span class="lbl">${c.l}</span><div class="flex min-w-0 flex-1 items-center gap-1">${control}${srcTag(src)}${reset}</div></div>`;
+}
 
-const cssBox = (s, inline) => {
-    const i = (p, ph) => `<input class="bmi" data-css="${p}" value="${esc((inline[p] !== undefined ? inline[p] : (s.computed || {})[p] ?? "").replace(/px$/, ""))}" placeholder="${ph}" title="${p}" autocomplete="off">`;
+function propBox(s) {
+    const i = (p, ph) => {
+        const src = srcOf(s, p);
+        const kind = src.source === "tailwind" ? "tw" : src.source === "inline" || src.source === "design" ? "css" : "";
+        const why = src.source === "tailwind" ? `Tailwind: ${src.token}` : src.source === "inline" ? "CSS: style attribute" : src.source === "design" ? `CSS: ${src.selector}` : src.source === "parent" ? `from ${src.token} on a parent` : "not set";
+        return `<input class="bmi ${kind}" data-prop="${p}" value="${esc(String(shownOf(s, p, src)).replace(/px$/, ""))}" placeholder="${ph}" title="${p} (${esc(why)})" autocomplete="off">`;
+    };
     return `<div class="bm"><span class="bml">margin</span><div class="bmr">${i("margin-top", "-")}</div>
         <div class="bmr mid">${i("margin-left", "-")}<div class="bp"><span class="bml">padding</span><div class="bmr">${i("padding-top", "-")}</div><div class="bmr mid">${i("padding-left", "-")}<div class="bc">${esc(s.tag)}</div>${i("padding-right", "-")}</div><div class="bmr">${i("padding-bottom", "-")}</div></div>${i("margin-right", "-")}</div>
         <div class="bmr">${i("margin-bottom", "-")}</div></div>`;
-};
+}
 
-function cssSections(s) {
-    const inline = parseInline(s.style);
+function propSections(s) {
     return CSS_SECTIONS.map(([id, title, controls]) => {
-        const keys = controls === "box" ? [] : controls.map((c) => c.p);
-        const hasSet = controls === "box" ? Object.keys(inline).some((k) => /^(margin|padding)/.test(k)) : keys.some((k) => inline[k] !== undefined);
+        const props = controls === "box" ? ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"] : controls.map((c) => c.p);
+        const hasSet = props.some((p) => ownsValue(srcOf(s, p)));
         const open = ui.open.has(id);
-        const body = controls === "box" ? cssBox(s, inline) : controls.map((c) => cssField(s, c, inline)).join("");
+        const body = controls === "box" ? propBox(s) : controls.map((c) => propRow(s, c)).join("");
         return `<div class="sec"><button type="button" class="sech" data-sec="${id}"><span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${hasSet ? '<i class="dot"></i>' : ""}</button>${open ? `<div class="secb">${body}</div>` : ""}</div>`;
     }).join("");
 }
 
-const modeBar = (s, mode) => `<div class="px-2 pt-2"><div class="seg2">${[["auto", "Auto"], ["tailwind", "Tailwind"], ["css", "CSS"]].map(([v, l]) => `<button type="button" data-stylemode="${v}" class="${ui.styleMode === v ? "on" : ""}">${l}</button>`).join("")}</div>
-    <p class="muted" style="padding:4px 2px 0">${mode === "css" ? "Styling with <strong>CSS</strong>. Changes are saved as inline styles, which override the design's own stylesheet." : "Styling with <strong>Tailwind</strong> classes."}${ui.styleMode === "auto" ? (s.added ? " (this element was added in the editor)" : " (picked automatically for this element)") : ""}</p></div>`;
+const legend = (s) => `<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
 function designTab(s) {
-    const mode = modeFor(s);
-    return modeBar(s, mode) + (mode === "tailwind" ? variantBar() : "") + `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
-        (mode === "css" ? cssSections(s) : SECTIONS.map(([id, title, keys, body]) => section(s, id, title, keys, body)).join(""));
+    return `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
+        propSections(s) + section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
 }
 
 function classesTab(s) {
