@@ -273,28 +273,43 @@ export function agentMain() {
      * class is now what gives the property its value (something stronger, like the design's CSS or a md: class, makes it fall back);
      * "css" writes the inline style, made !important when the design's own CSS would still win.
      */
+    let propSeq = 0;
     async function setProp(el, m) {
-        const prop = m.prop;
+        const seq = ++propSeq; // a colour picker being dragged sends edit after edit: only the latest one gets checked (and maybe undone)
+        const props = m.props || [m.prop]; // several at once for an all-sides edit (padding, border width, radius)
         let css = m.css;
+        let perProp = null; // the fallback CSS measured for each property
         if (m.route === "tw") {
             const prevClass = el.getAttribute("class"), prevStyle = el.getAttribute("style");
             if (m.classes) el.setAttribute("class", m.classes); else el.removeAttribute("class");
-            el.style.removeProperty(prop);
+            props.forEach((p) => el.style.removeProperty(p));
             tidyStyle(el);
             if (!m.token) return; // a class was removed: nothing to check
             await settle();
-            const s = sourcesOf(el, [prop])[prop] || {};
-            const lost = s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== m.token);
+            if (seq !== propSeq) return;
+            const now = sourcesOf(el, props);
+            const lost = props.some((p) => { const s = now[p] || {}; return s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== m.token); });
             if (!lost) return;
             if (prevClass === null) el.removeAttribute("class"); else el.setAttribute("class", prevClass);
             if (prevStyle === null) el.removeAttribute("style"); else el.setAttribute("style", prevStyle);
-            if (!css) css = await valueOfClass(el, m.token.replace(/^(?:[^[\]:]*(?:\[[^\]]*\])?[^[\]:]*:)+/, ""), prop); // without its md: / hover: prefix
-            if (!css) return;
+            if (!css) {
+                const base = m.token.replace(/^(?:[^[\]:]*(?:\[[^\]]*\])?[^[\]:]*:)+/, ""); // without its md: / hover: prefix
+                perProp = {};
+                for (const p of props) perProp[p] = await valueOfClass(el, base, p);
+            }
+        } else if (!css && m.token) { // a Tailwind value typed on a CSS row (red-500): measure what it means
+            perProp = {};
+            for (const p of props) perProp[p] = await valueOfClass(el, m.token, p);
         }
-        if (!css && m.route === "css" && m.token) css = await valueOfClass(el, m.token, prop); // a Tailwind value typed on a CSS row
-        if (css === null || css === undefined || css === "") { el.style.removeProperty(prop); tidyStyle(el); return; }
-        el.style.setProperty(prop, css);
-        if ((sourcesOf(el, [prop])[prop] || {}).source === "design") el.style.setProperty(prop, css, "important");
+        props.forEach((p) => {
+            const v = perProp ? perProp[p] : css;
+            if (v === null || v === undefined || v === "") { el.style.removeProperty(p); return; }
+            el.style.setProperty(p, v);
+        });
+        // the design's own CSS still wins (an !important rule): only an important inline value beats it
+        const after = sourcesOf(el, props);
+        props.forEach((p) => { const v = el.style.getPropertyValue(p); if (v && (after[p] || {}).source === "design") el.style.setProperty(p, v, "important"); });
+        tidyStyle(el);
     }
 
     const describe = (el) => {

@@ -4,7 +4,7 @@ import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor, srcOf } from "./inspector.js";
-import { groupOf, twValue, twShown, variantOf } from "./prop-tailwind.js";
+import { groupOf, twValue, twShown, variantOf, fromPx } from "./prop-tailwind.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
 import { selectionHtml } from "./selection-overlay.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
@@ -596,32 +596,60 @@ function applyColor(key, name, op) {
  * variant), an inline style or the design's own CSS gets an inline style. A property nothing sets yet becomes a Tailwind class,
  * unless the element is styled only by its design's CSS. The frame checks the result and falls back to CSS when a class can't win.
  */
-function setProp(prop, raw) {
+function setProp(prop, raw, cssOverride, key) {
     if (!selected) return;
     const s = selected, src = srcOf(s, prop), v = String(raw ?? "").trim();
-    const key = groupOf(prop);
+    const group = groupOf(prop);
     const onTw = src.source === "tailwind";
     const vp = onTw ? variantOf(src.token) : variant();
-    const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, ...m });
+    const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, ...m }, key);
     if (v === "") {
-        if (onTw && key) { const next = setGroup(s.classes, key, "", vp); if (next !== null) return send({ route: "tw", classes: next }); }
+        if (onTw && group) { const next = setGroup(s.classes, group, "", vp); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
     }
     // "500" means 500px, except on a row showing a Tailwind value (64 from w-64), where a bare number is Tailwind's scale
     const scale = onTw && twShown(prop, src.token) !== null;
     const candidate = scale && /^-?\d*\.?\d+$/.test(v) ? v : normalizeValue(prop, v);
-    const css = CSS.supports(prop, candidate) ? candidate : null;
-    const tv = key ? twValue(prop, v, scale) : null;
+    const css = cssOverride !== undefined ? cssOverride : CSS.supports(prop, candidate) ? candidate : null;
+    const tv = group ? twValue(prop, v, scale) : null;
     let token = null;
-    if (tv !== null) { const built = GROUPS[key].build(tv); if (GROUPS[key].re.test(built)) token = built; }
+    if (tv !== null) { const built = GROUPS[group].build(tv); if (GROUPS[group].re.test(built)) token = built; }
     const toTw = onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
     if (toTw && token) {
-        const next = setGroup(s.classes, key, tv, vp);
-        if (next !== null) return send({ route: "tw", classes: next, token: vp + token, css });
+        const next = setGroup(s.classes, group, tv, vp);
+        // kept here at once, so an edit sent right after this one (a line style, then a width) builds on it
+        if (next !== null) { s.classes = next; return send({ route: "tw", classes: next, token: vp + token, css }); }
     }
     if (css === null && !token) return renderInspector(); // neither valid CSS nor a Tailwind value: put the old value back
     send({ route: "css", css, token }); // a Tailwind value on a CSS row (red-500): the frame measures what it means
+}
+
+/**
+ * One value for several properties at once (all four paddings, the two sides of padding-h, every border width or corner), written
+ * like setProp: as the `group` class when they are Tailwind's or unset on a Tailwind element (clearing the per-side classes in
+ * `clear`, which would otherwise win), and as inline CSS on every one of them when any comes from CSS.
+ */
+function setProps(props, raw, group, clear = [], cssOverride, key) {
+    if (!selected) return;
+    const s = selected, srcs = props.map((p) => srcOf(s, p));
+    const v = String(raw ?? "").trim();
+    const px = /^-?\d*\.?\d+(px)?$/.test(v);
+    const n = parseFloat(v);
+    const css = cssOverride !== undefined ? cssOverride : px ? `${n}px` : CSS.supports(props[0], v) ? v : null;
+    const own = srcs.find((x) => x.source === "tailwind");
+    const vp = own ? variantOf(own.token) : variant();
+    const fromCss = srcs.some((x) => x.source === "inline" || x.source === "design");
+    const tv = group ? (px ? fromPx(group, n) : twValue(props[0], v, false) ?? v) : null;
+    let token = null;
+    if (tv !== null) { const built = GROUPS[group].build(tv); if (GROUPS[group].re.test(built)) token = built; }
+    if (!fromCss && token && (own || modeFor(s) === "tailwind")) {
+        let classes = s.classes;
+        for (const k of clear) { const next = setGroup(classes, k, "", vp); if (next !== null) classes = next; }
+        const next = setGroup(classes, group, tv, vp);
+        if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css }, key); }
+    }
+    cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token }, key);
 }
 
 function setDevice(w) {
@@ -687,7 +715,12 @@ insp.addEventListener("change", (e) => {
     if (!selected) return;
     if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value);
     if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
-    if (t.dataset.geom) { const n = Number(t.value); if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector(); return cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n }); }
+    if (t.dataset.geom) {
+        const n = Number(t.value);
+        if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector();
+        const prop = { w: "width", h: "height", x: "left", y: "top" }[t.dataset.geom];
+        return prop ? setProp(prop, `${Math.round(prop === "width" || prop === "height" ? Math.max(1, n) : n)}px`) : cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n });
+    }
     if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
     if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());
     if (t.dataset.cop !== undefined) {
@@ -1837,47 +1870,50 @@ ftb.addEventListener("mousedown", (e) => {
     if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft](b.dataset.arg, b);
 });
 
-const tw = () => selected && modeFor(selected) === "tailwind";
-const styleProp = (prop, value) => cmd({ cmd: "setStyleProp", path: selected.path, prop, value });
-const styleProps = (props, key) => cmd({ cmd: "setStyleProps", path: selected.path, props }, key);
 const SIDES4 = ["top", "right", "bottom", "left"];
 const CORNER = { tl: "top-left", tr: "top-right", bl: "bottom-left", br: "bottom-right" };
-/** A value typed into one of the bar's panels (a border width, a corner, a padding or margin side) becomes inline CSS, which always wins over classes. */
+const SIDE_KEY = { top: "T", right: "R", bottom: "B", left: "L" };
+const CORNER_KEY = { tl: "radiusTL", tr: "radiusTR", bl: "radiusBL", br: "radiusBR" };
+const allSides = (f) => SIDES4.map(f);
+/** A value typed into one of the bar's panels (a border width, a corner, a padding or margin side), written where that value lives (setProps). */
 function applyPanel(key, raw) {
-    if (key === "border-color-hex") { const h = raw.trim().replace(/^#?/, "#"); return /^#[0-9a-f]{6}$/i.test(h) ? styleProps({ "border-color": h }) : renderFloat(true); }
-    if (key === "border-color") return styleProps({ "border-color": raw });
+    const colors = allSides((d) => `border-${d}-color`);
+    if (key === "border-color-hex") { const h = raw.trim().replace(/^#?/, "#"); return /^#[0-9a-f]{6}$/i.test(h) ? setProps(colors, h, "borderColor") : renderFloat(true); }
+    if (key === "border-color") return setProps(colors, raw, "borderColor");
     const n = Number(raw);
     if (raw.trim() === "" || !Number.isFinite(n)) return renderFloat(true);
-    const v = `${Math.round(n * 10) / 10}px`; // margins may be negative
-    const nn = `${Math.max(0, Math.round(n * 10) / 10)}px`; // everything else may not
+    const v = Math.round(n * 10) / 10; // margins may be negative
+    const nn = Math.max(0, v); // everything else may not
     const c = selected.computed || {};
     const borderless = SIDES4.every((d) => !parseFloat(c[`border-${d}-width`]));
-    if (key === "bw-all") return styleProps({ "border-width": nn, ...(borderless && n > 0 ? { "border-style": "solid" } : {}) });
-    if (key.startsWith("bw-")) return styleProps({ [`border-${key.slice(3)}-width`]: nn, ...(borderless && n > 0 ? { "border-style": "solid" } : {}) });
-    if (key === "r-all") return FLOAT_ACTIONS.radius(Math.max(0, n));
-    if (key.startsWith("r-")) return styleProps({ [`border-${CORNER[key.slice(2)]}-radius`]: nn });
-    const [group, side] = key.split("-"); // padding-h, margin-top ...
-    const kind = group === "padding" ? "padding" : "margin";
+    // a border width on a box with no border style shows nothing: give it a solid one first (its own undo step)
+    const solid = () => { if (borderless && n > 0) setProps(allSides((d) => `border-${d}-style`), "solid", "borderStyle"); };
+    if (key === "bw-all") { solid(); return setProps(allSides((d) => `border-${d}-width`), nn, "borderWidth", ["borderT", "borderR", "borderB", "borderL"]); }
+    if (key.startsWith("bw-")) { solid(); const d = key.slice(3); return setProps([`border-${d}-width`], nn, `border${SIDE_KEY[d]}`); }
+    if (key === "r-all") return FLOAT_ACTIONS.radius(nn);
+    if (key.startsWith("r-")) return setProps([`border-${CORNER[key.slice(2)]}-radius`], nn, CORNER_KEY[key.slice(2)]);
+    const [kind, side] = key.split("-"); // padding-h, margin-top ...
+    const k = kind === "padding" ? "p" : "m";
     const val = kind === "padding" ? nn : v;
-    if (side === "h") return styleProps({ [`${kind}-left`]: val, [`${kind}-right`]: val });
-    if (side === "v") return styleProps({ [`${kind}-top`]: val, [`${kind}-bottom`]: val });
-    return styleProps({ [`${kind}-${side}`]: val });
+    if (side === "h") return setProps([`${kind}-left`, `${kind}-right`], val, `${k}x`, [`${k}l`, `${k}r`]);
+    if (side === "v") return setProps([`${kind}-top`, `${kind}-bottom`], val, `${k}y`, [`${k}t`, `${k}b`]);
+    return setProps([`${kind}-${side}`], val, `${k}${side[0]}`);
 }
 const FLOAT_ACTIONS = {
     bold() {
         if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "bold" });
         const on = parseInt(selected.computed["font-weight"], 10) >= 600;
-        tw() ? applyValue("fontWeight", on ? "font-normal" : "font-bold") : styleProp("font-weight", on ? "400" : "700");
+        setProp("font-weight", on ? "400" : "700");
     },
     italic() {
         if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "italic" });
         const on = selected.computed["font-style"] === "italic";
-        tw() ? applyValue("fontStyle", on ? "not-italic" : "italic") : styleProp("font-style", on ? "normal" : "italic");
+        setProp("font-style", on ? "normal" : "italic");
     },
     underline() {
         if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "underline" });
         const on = /underline/.test(selected.computed["text-decoration-line"] || "");
-        tw() ? applyValue("textDecoration", on ? "no-underline" : "underline") : styleProp("text-decoration-line", on ? "none" : "underline");
+        setProp("text-decoration-line", on ? "none" : "underline");
     },
     link() {
         const url = prompt("Link address", "https://");
@@ -1889,12 +1925,11 @@ const FLOAT_ACTIONS = {
     align() {
         const cur = selected.computed["text-align"];
         const next = { left: "center", start: "center", center: "right", right: "left", justify: "left" }[cur] || "center";
-        tw() ? applyValue("textAlign", `text-${next}`) : styleProp("text-align", next);
+        setProp("text-align", next);
     },
     radius(n) {
-        // an inline border-radius would beat a Tailwind class, so edit it where it lives
-        const inline = /border-(?:[a-z]+-)*radius/.test(selected.style || "");
-        tw() && !inline ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0");
+        // every corner: one rounded-* class, or inline radius where a corner comes from CSS
+        setProps(["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"], n, "radius", ["radiusTL", "radiusTR", "radiusBR", "radiusBL"]);
     },
     more() { ftMenu = !ftMenu; ftPop = null; renderFloat(true); },
     pop(key) { ftPop = ftPop === key ? null : key; ftMenu = false; renderFloat(true); },
@@ -1902,9 +1937,8 @@ const FLOAT_ACTIONS = {
     bstyle(kind) {
         const c = selected.computed || {};
         const none = ["top", "right", "bottom", "left"].every((d) => !parseFloat(c[`border-${d}-width`]));
-        const props = { "border-style": kind };
-        if (kind !== "none" && none) props["border-width"] = "1px"; // picking a line style on a borderless box gives it a visible border
-        styleProps(props);
+        setProps(SIDES4.map((d) => `border-${d}-style`), kind, "borderStyle");
+        if (kind !== "none" && none) setProps(SIDES4.map((d) => `border-${d}-width`), 1, "borderWidth", ["borderT", "borderR", "borderB", "borderL"]); // a line style on a borderless box: make it visible
     },
     dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },
@@ -1928,19 +1962,19 @@ ftb.addEventListener("input", (e) => {
     const label = t.closest(".swatch"), hex = ftb.querySelector('[data-ftp="border-color-hex"]');
     if (label) label.style.background = t.value;
     if (hex) hex.value = t.value.toUpperCase();
-    styleProps({ "border-color": t.value }, "border-color");
+    setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, "border-color");
 });
 ftb.addEventListener("change", (e) => {
     const t = e.target;
     if (t.dataset.ftin === "fw") return setFrameSize({ w: Number(t.value) || curWidth() });
     if (t.dataset.ftin === "fh") return setFrameSize({ h: t.value.trim() === "" ? null : Number(t.value) || null });
     if (!selected) return;
-    if (t.dataset.ftsel === "family") return tw() ? applyValue("fontFamily", `font-${t.value}`) : styleProp("font-family", FAMILY_STACKS[t.value]);
-    if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? (tw() ? applyValue("fontSize", `${n}px`) : styleProp("font-size", `${n}px`)) : renderFloat(); }
+    if (t.dataset.ftsel === "family") return setProp("font-family", t.value, FAMILY_STACKS[t.value]);
+    if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? setProp("font-size", `${n}px`) : renderFloat(); }
     if (t.dataset.ftp) return applyPanel(t.dataset.ftp, t.value);
     if (t.dataset.ftin === "radius") return FLOAT_ACTIONS.radius(Math.max(0, Number(t.value) || 0));
-    if (t.dataset.ftcol === "text") return tw() ? applyColor("textColor", t.value) : styleProp("color", t.value);
-    if (t.dataset.ftcol === "fill") return tw() ? applyColor("bgColor", t.value) : styleProp("background-color", t.value);
+    if (t.dataset.ftcol === "text") return setProp("color", t.value);
+    if (t.dataset.ftcol === "fill") return setProp("background-color", t.value);
 });
 
 document.addEventListener("click", (e) => {

@@ -1,7 +1,7 @@
 // The Properties panel works in CSS properties (width, background-color...). When an edit goes to Tailwind, this turns the
 // property and the typed value into a class group of class-groups.js and the value to build it with. Anything without a
 // clean Tailwind form (a transform, a filter, a font stack) returns null, and the edit is written as CSS instead.
-import { GROUPS, parseToken } from "./class-groups.js";
+import { GROUPS, parseToken, STEPS } from "./class-groups.js";
 
 const same = (prefix) => (v) => `${prefix}${v}`;
 const pick = (map) => (v) => map[v] || null;
@@ -43,6 +43,18 @@ const LENGTHS = {
 const COLORS = { color: "textColor", "background-color": "bgColor", "border-top-color": "borderColor" };
 const LENGTH_WORDS = /^(auto|full|screen|min|max|fit|px|none|xs|sm|md|lg|xl|[2-9]xl|base|prose|tight|snug|normal|relaxed|loose|tighter|wide|wider|widest|\d+\/\d+)$/;
 
+// groups on Tailwind's spacing scale: an exact pixel size becomes the scale step (16px -> p-4), anything else an arbitrary value
+const SCALED = new Set(["w", "h", "minW", "maxW", "minH", "maxH", "gap", "gapX", "gapY", "inset", "top", "right", "bottom", "left", "p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "spaceX", "spaceY", "translateX", "translateY"]);
+/** A pixel size as the value of a group: 16 -> "4", 1 -> "px", -88 -> "-88px", 13 -> "13px". */
+export function fromPx(key, n) {
+    const a = Math.abs(n), sign = n < 0 ? "-" : "";
+    if (SCALED.has(key)) return sign + (a === 1 ? "px" : STEPS.includes(String(a / 4)) ? String(a / 4) : `${a}px`);
+    if (key === "borderWidth") return [0, 1, 2, 4, 8].includes(a) ? String(a) : `${a}px`;
+    if (/^border[TRBL]$/.test(key)) return [0, 2, 4, 8].includes(a) ? String(a) : `${a}px`;
+    if (/^radius/.test(key)) return a === 0 ? "none" : `${a}px`;
+    return `${sign}${a}px`;
+}
+
 /** The class group a property is written with in Tailwind, or null when it has none. */
 export function groupOf(prop) {
     if (WORDS[prop]) return WORDS[prop][0];
@@ -64,7 +76,8 @@ export function twValue(prop, raw, scale) {
     if (WORDS[prop]) return WORDS[prop][1](v);
     if (LENGTHS[prop]) {
         if (LENGTH_WORDS.test(v) || /^\[.*\]$/.test(v)) return v;
-        if (/^-?\d*\.?\d+$/.test(v)) return scale || prop === "z-index" ? v : `${v}px`;
+        if (/^-?\d*\.?\d+$/.test(v)) return scale || prop === "z-index" ? v : fromPx(LENGTHS[prop], Number(v));
+        if (/^-?\d*\.?\d+px$/.test(v)) return fromPx(LENGTHS[prop], parseFloat(v));
         if (/^-?\d*\.?\d+(px|rem|em|%|vh|vw|ch)$/.test(v) || /^(calc|var|min|max|clamp)\(/.test(v)) return v; // the group wraps it as [value]
         return null;
     }
