@@ -255,8 +255,10 @@ function layout() {
         if (!en || !p) return;
         const h = heightOfDoc(d);
         Object.assign(en.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
-        // the live iframe never changes parent (that would reload it); it just sits over the active frame
-        if (key === curKey) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
+        // the live iframe never changes parent (that would reload it); it just sits over the active frame (over the page being
+        // left, while a switch is under way)
+        if (!switching) frameAt = curKey;
+        if (key === frameAt) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
     });
     placePills();
     applyView();
@@ -295,6 +297,7 @@ window.addEventListener("message", (e) => {
     if (e.source !== frame.contentWindow) return;
     // a document that was replaced (switching designs reloads the frame) can still have messages in flight
     if (m.load !== undefined && m.load !== loadSeq) return;
+    if (handingOver) return; // the page being left, still in the frame for a moment (activate)
     // Pressing inside the page doesn't take focus from a field in the bar. Let that field commit (to the element it was showing)
     // before the selection moves on, so the bar then rebuilds for the new element instead of keeping a stale field.
     // An edit reports the same element back: that must not blur a field still in use (a colour picker being dragged).
@@ -309,6 +312,18 @@ window.addEventListener("message", (e) => {
         return handleWheel({ dx: m.dx, dy: m.dy, zoomKey: m.zoom, cx: view.x + (pos.x + m.x) * view.z, cy: view.y + (pos.y + m.y) * view.z });
     }
     if (m.type === "ready") {
+        if (switching) {
+            switching = false;
+            // the frame moves over now (layout below) but shows a moment later, once Tailwind has styled the new design; the
+            // snapshot is right in the meantime
+            const key = curKey, token = switchToken;
+            setTimeout(() => {
+                if (token !== switchToken || key !== curKey) return;
+                const en = wraps.get(key);
+                if (en && en.ghost) { en.ghost.remove(); en.ghost = null; }
+                frame.style.visibility = "";
+            }, 120);
+        }
         if (!history.length) { history = [m.html]; hIndex = 0; model.markup = m.html; if (!isNew) savedMarkup = m.html; }
         tree = m.tree;
         renderLayers();
@@ -1503,7 +1518,7 @@ function setRole(key) {
     en.wrap.classList.toggle("active", active);
     en.wrap.classList.toggle("ghost", !active);
     if (active) {
-        if (en.ghost) { en.ghost.remove(); en.ghost = null; }
+        if (en.ghost && !switching) { en.ghost.remove(); en.ghost = null; } // while switching it stays until the live frame is ready
         if (en.shield) { en.shield.remove(); en.shield = null; }
     } else if (!en.shield) {
         en.shield = document.createElement("div");
@@ -1586,17 +1601,36 @@ function activate(key) {
     tree = null;
     collapsed.clear();
     const oldKey = curKey;
+    mountGhost(key); // snapshots are made as pages scroll into view: one opened from the Pages list may not have one yet
     curKey = key;
     frameSel = null;
+    // Switching pages never shows one page's design in another's place: the live frame stays over the page being left until its
+    // snapshot has painted, then loads the new design out of sight while the new page shows its own snapshot; once the new
+    // design reports ready, the frame moves over and the snapshot goes (see the "ready" message).
+    const token = ++switchToken;
+    switching = true;
+    handingOver = true;
     setRole(key);
     setRole(oldKey);
     mountGhost(oldKey, true);
     window.history.replaceState({}, "", next.isNew ? "/design/new" : `/design/${next.meta.id}`);
-    loadFrame();
+    let started = false;
+    const start = () => {
+        if (started || token !== switchToken) return;
+        started = true;
+        handingOver = false;
+        frame.style.visibility = "hidden";
+        loadFrame();
+    };
+    const left = wraps.get(oldKey);
+    if (left && left.ghost) left.ghost.addEventListener("load", () => setTimeout(start, 60), { once: true }); // a moment to paint
+    setTimeout(start, 700); // a snapshot that is slow to load doesn't hold the switch up
     renderLayers();
     updateChrome();
     layout();
 }
+let switching = false, switchToken = 0, frameAt = null; // frameAt: the page the live frame sits over
+let handingOver = false; // the old design is still in the frame, waiting for its snapshot: what it reports isn't the new page's
 
 // moving frames: drag a label, or drag a preview. A plain click on a preview opens it.
 const SNAP = 8;
