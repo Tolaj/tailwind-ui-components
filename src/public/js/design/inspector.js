@@ -1,4 +1,5 @@
-import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, BREAKPOINTS, STATES, BREAKPOINT_WIDTH, getGroup, setGroup, parseToken } from "./class-groups.js";
+import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, BREAKPOINTS, STATES, BREAKPOINT_WIDTH, GROUPS, getGroup, setGroup, parseToken } from "./class-groups.js";
+import { CSS_SECTIONS, rgbToHex, parseInline } from "./css-props.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -65,7 +66,7 @@ const CSS_PROPS = ["background", "background-image", "background-color", "border
 
 const DATALISTS = Object.entries(PRESETS).map(([k, list]) => `<datalist id="dl-${k}">${list.map((v) => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("") +
     `<datalist id="dl-colors">${[...SPECIAL_COLORS, ...HUES.flatMap((h) => SHADES.map((s) => `${h}-${s}`))].map((v) => `<option value="${v}"></option>`).join("")}</datalist>` +
-    `<datalist id="dl-cssprops">${CSS_PROPS.map((v) => `<option value="${v}"></option>`).join("")}</datalist>`;
+    `<datalist id="dl-fonts">${["system-ui", "Inter", "Arial", "Helvetica", "Georgia", "Times New Roman", "Courier New", "monospace", "sans-serif", "serif"].map((v) => `<option value="${v}"></option>`).join("")}</datalist>` + `<datalist id="dl-cssprops">${CSS_PROPS.map((v) => `<option value="${v}"></option>`).join("")}</datalist>`;
 
 export function mountDatalists() {
     const d = document.createElement("div");
@@ -75,7 +76,7 @@ export function mountDatalists() {
 }
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-export const ui = { tab: "design", bp: "", st: "", open: new Set(["geom", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
+export const ui = { styleMode: "auto", docTailwind: true, tab: "design", bp: "", st: "", open: new Set(["geom", "css-layout", "css-size", "css-spacing", "css-type", "css-fill", "css-border", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
 export const variant = () => `${ui.bp ? ui.bp + ":" : ""}${ui.st ? ui.st + ":" : ""}`;
 
 export const val = (sel, k) => { const r = getGroup(sel.classes, k, variant()); return r ? r.value : ""; };
@@ -192,8 +193,63 @@ function geomBody(s) {
         <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
 }
 
+
+// ── CSS mode: reads computed styles, writes inline styles (works whatever styled the element) ──
+const tokensOf = (s) => String(s.classes || "").split(/\s+/).filter(Boolean);
+const isUtility = (tok) => { const base = parseToken(tok).base; return Object.keys(GROUPS).some((k) => GROUPS[k].re.test(base)); };
+
+/** Auto picks Tailwind for Tailwind-styled elements and CSS for elements styled by the design's own CSS. */
+export function modeFor(s) {
+    if (ui.styleMode !== "auto") return ui.styleMode;
+    const toks = tokensOf(s);
+    if (toks.length) return toks.some(isUtility) ? "tailwind" : "css";
+    return ui.docTailwind ? "tailwind" : "css";
+}
+
+const cssField = (s, c, inline) => {
+    const set = inline[c.p] !== undefined;
+    const comp = (s.computed || {})[c.p] ?? "";
+    const shown = set ? inline[c.p] : comp;
+    const cls = set ? "is-set" : "";
+    let control;
+    if (c.t === "select") {
+        const opts = c.o.includes(shown) || !shown ? c.o : [shown, ...c.o];
+        control = `<select class="fi ${cls}" data-css="${c.p}">${opts.map((o) => `<option value="${esc(o)}" ${o === shown ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    } else if (c.t === "seg") {
+        control = `<div class="seg2">${c.o.map((o) => `<button type="button" data-cssseg="${c.p}" data-cssv="${o}" class="${shown === o || (o === "left" && shown === "start") ? "on" : ""}">${o[0].toUpperCase() + o.slice(1)}</button>`).join("")}</div>`;
+    } else if (c.t === "color") {
+        control = `<input type="color" class="cinp" data-csscolor="${c.p}" value="${rgbToHex(shown) || "#000000"}" title="Pick a color"><input class="fi ${cls}" data-css="${c.p}" value="${esc(shown)}" autocomplete="off">`;
+    } else {
+        control = `<input class="fi ${cls}" data-css="${c.p}" value="${esc(shown)}" ${c.list ? `list="${c.list}"` : ""} autocomplete="off">`;
+    }
+    return `<div class="row" title="${c.p}"><span class="lbl">${c.l}</span><div class="flex min-w-0 flex-1 items-center gap-1">${control}${set ? `<button type="button" data-cssreset="${c.p}" class="rst" title="Remove my inline value">×</button>` : ""}</div></div>`;
+};
+
+const cssBox = (s, inline) => {
+    const i = (p, ph) => `<input class="bmi" data-css="${p}" value="${esc((inline[p] !== undefined ? inline[p] : (s.computed || {})[p] ?? "").replace(/px$/, ""))}" placeholder="${ph}" title="${p}" autocomplete="off">`;
+    return `<div class="bm"><span class="bml">margin</span><div class="bmr">${i("margin-top", "-")}</div>
+        <div class="bmr mid">${i("margin-left", "-")}<div class="bp"><span class="bml">padding</span><div class="bmr">${i("padding-top", "-")}</div><div class="bmr mid">${i("padding-left", "-")}<div class="bc">${esc(s.tag)}</div>${i("padding-right", "-")}</div><div class="bmr">${i("padding-bottom", "-")}</div></div>${i("margin-right", "-")}</div>
+        <div class="bmr">${i("margin-bottom", "-")}</div></div>`;
+};
+
+function cssSections(s) {
+    const inline = parseInline(s.style);
+    return CSS_SECTIONS.map(([id, title, controls]) => {
+        const keys = controls === "box" ? [] : controls.map((c) => c.p);
+        const hasSet = controls === "box" ? Object.keys(inline).some((k) => /^(margin|padding)/.test(k)) : keys.some((k) => inline[k] !== undefined);
+        const open = ui.open.has(id);
+        const body = controls === "box" ? cssBox(s, inline) : controls.map((c) => cssField(s, c, inline)).join("");
+        return `<div class="sec"><button type="button" class="sech" data-sec="${id}"><span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${hasSet ? '<i class="dot"></i>' : ""}</button>${open ? `<div class="secb">${body}</div>` : ""}</div>`;
+    }).join("");
+}
+
+const modeBar = (s, mode) => `<div class="px-2 pt-2"><div class="seg2">${[["auto", "Auto"], ["tailwind", "Tailwind"], ["css", "CSS"]].map(([v, l]) => `<button type="button" data-stylemode="${v}" class="${ui.styleMode === v ? "on" : ""}">${l}</button>`).join("")}</div>
+    <p class="muted" style="padding:4px 2px 0">${mode === "css" ? "Styling with <strong>CSS</strong>. Changes are saved as inline styles, which override the design's own stylesheet." : "Styling with <strong>Tailwind</strong> classes."}${ui.styleMode === "auto" ? " (picked automatically for this element)" : ""}</p></div>`;
+
 function designTab(s) {
-    return variantBar() + `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) + SECTIONS.map(([id, title, keys, body]) => section(s, id, title, keys, body)).join("");
+    const mode = modeFor(s);
+    return modeBar(s, mode) + (mode === "tailwind" ? variantBar() : "") + `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
+        (mode === "css" ? cssSections(s) : SECTIONS.map(([id, title, keys, body]) => section(s, id, title, keys, body)).join(""));
 }
 
 function classesTab(s) {

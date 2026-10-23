@@ -3,6 +3,7 @@ import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists } from "./inspector.js";
+import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -85,9 +86,18 @@ function loadFrame() {
 }
 
 // ── History, dirty state, layout ─────────────────────────────────────────────
+/** Does this design use Tailwind utility classes? Decides which style panel opens by default. */
+function refreshDocFlag() {
+    const tokens = [];
+    String(model.markup).replace(/\bclass\s*=\s*"([^"]*)"|\bclass\s*=\s*'([^']*)'/g, (_, a, b) => { tokens.push(...(a ?? b).split(/\s+/).filter(Boolean)); return ""; });
+    const hit = tokens.some((t) => /^(?:flex|grid|block|hidden|inline-flex|rounded)$/.test(t) || /^-?(?:p|m|px|py|pt|pr|pb|pl|mx|my|mt|mr|mb|ml|w|h|gap)-(?:\d|px|auto|full)/.test(t) || /^(?:text|bg|border)-(?:xs|sm|base|lg|xl|\d?xl|[a-z]+-\d{2,3}|black|white)$/.test(t));
+    ui.docTailwind = Boolean(parsed.hasTailwindScript || hit);
+}
+
 const isDirty = () => (isNew ? model.markup.trim() !== "" : model.markup !== savedMarkup);
 
 function updateChrome() {
+    refreshDocFlag();
     $("undoBtn").disabled = hIndex <= 0;
     $("redoBtn").disabled = hIndex >= history.length - 1;
     $("saveBtn").disabled = !isDirty();
@@ -167,6 +177,7 @@ window.addEventListener("message", (e) => {
         updateChrome();
         layout();
         send({ cmd: "tool", tool });
+        send({ cmd: "cssProps", props: CSS_PROP_LIST });
     } else if (m.type === "height" || m.type === "preview-height") {
         frameHeight = m.height;
         layout();
@@ -287,6 +298,12 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 
 insp.addEventListener("click", (e) => {
     const t = e.target;
+    const sm = t.closest("[data-stylemode]");
+    if (sm) { ui.styleMode = sm.dataset.stylemode; return renderInspector(); }
+    const rst = t.closest("[data-cssreset]");
+    if (rst && selected) return cmd({ cmd: "setStyleProp", path: selected.path, prop: rst.dataset.cssreset, value: null });
+    const cseg = t.closest("[data-cssseg]");
+    if (cseg && selected) return cmd({ cmd: "setStyleProp", path: selected.path, prop: cseg.dataset.cssseg, value: cseg.dataset.cssv });
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
     const sec = t.closest("[data-sec]");
@@ -320,6 +337,8 @@ insp.addEventListener("click", (e) => {
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
+    if (t.dataset.csscolor) return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.csscolor, value: t.value });
+    if (t.dataset.css !== undefined) { const v = t.value.trim(); return cmd({ cmd: "setStyleProp", path: selected.path, prop: t.dataset.css, value: v === "" ? null : normalizeValue(t.dataset.css, v) }); }
     if (t.dataset.geom) { const n = Number(t.value); if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector(); return cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n }); }
     if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
     if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());

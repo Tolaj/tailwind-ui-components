@@ -27,6 +27,7 @@ export function agentMain() {
     let hov = null;
     let editing = null;
     let gesture = null;
+    let cssProps = [];
     const primary = () => sels[sels.length - 1] || null;
     const px = (n) => n / zoom;
 
@@ -144,6 +145,12 @@ export function agentMain() {
     };
 
     // ── Describing and serializing ──────────────────────────────────────────────────────────
+    const computedOf = (el) => {
+        const cs = getComputedStyle(el);
+        const o = {};
+        cssProps.forEach((p) => { o[p] = cs.getPropertyValue(p); });
+        return o;
+    };
     const describe = (el) => {
         if (!el) return null;
         const attrs = {};
@@ -159,6 +166,7 @@ export function agentMain() {
             text: el.children.length === 0 ? el.textContent : null,
             attrs, crumbs,
             geom: geomOf(el),
+            computed: computedOf(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
         };
@@ -653,6 +661,11 @@ export function agentMain() {
             if (m.rot !== undefined && m.rot !== null) { el.style.transform = Number(m.rot) % 360 === 0 ? "" : `rotate(${Number(m.rot)}deg)`; if (!el.style.transform) el.style.removeProperty("transform"); }
         },
         freePosition: (el, m) => freePosition(el, m.on),
+        setStyleProp: (el, m) => {
+            if (m.value === null || m.value === "") el.style.removeProperty(m.prop);
+            else el.style.setProperty(m.prop, m.value);
+            if (!el.getAttribute("style")) el.removeAttribute("style");
+        },
     };
 
     window.addEventListener("message", (e) => {
@@ -669,6 +682,7 @@ export function agentMain() {
         if (m.cmd === "select") { select(elAt(m.path)); return; }
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
+        if (m.cmd === "cssProps") { cssProps = m.props || []; return; }
         if (m.cmd === "view") { zoom = m.zoom || 1; redraw(); return; }
         if (m.cmd === "scrollTo") { const el = elAt(m.path); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (m.cmd === "align") { align(m.mode); return; }
