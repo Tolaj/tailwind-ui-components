@@ -471,7 +471,8 @@ function applyColor(key, name, op) {
 }
 
 function setDevice(w) {
-    setFrameSize({ w });
+    // a preset is a whole size: its width, with the height following the content (a hand-set height belongs to Custom)
+    setFrameSize({ w, h: null });
     if (mode === "preview") loadFrame();
 }
 
