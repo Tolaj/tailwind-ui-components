@@ -137,7 +137,9 @@ function updateChrome() {
 function commit(html, key) {
     model.markup = html;
     const now = Date.now();
-    if (key && key === lastKey && now - lastTime < 800 && hIndex === history.length - 1) {
+    if (html === history[hIndex]) { lastKey = key || ""; lastTime = now; return updateChrome(); } // nothing changed: no undo step
+    // the same key merges into the last step: within 800 ms, or for a "live:" key (a picker being dragged) for as long as it lasts
+    if (key && key === lastKey && (key.startsWith("live:") || now - lastTime < 800) && hIndex === history.length - 1) {
         history[hIndex] = html;
     } else {
         history = history.slice(0, hIndex + 1);
@@ -294,7 +296,9 @@ window.addEventListener("message", (e) => {
     if (m.load !== undefined && m.load !== loadSeq) return;
     // Pressing inside the page doesn't take focus from a field in the bar. Let that field commit (to the element it was showing)
     // before the selection moves on, so the bar then rebuilds for the new element instead of keeping a stale field.
-    if (m.type === "selected" || (m.type === "gesture" && m.on)) {
+    // An edit reports the same element back: that must not blur a field still in use (a colour picker being dragged).
+    const otherElement = m.type === "selected" && !(selected && m.info && pathKey(selected.path) === pathKey(m.info.path));
+    if (otherElement || (m.type === "gesture" && m.on)) {
         const a = document.activeElement;
         if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
     }
@@ -2075,14 +2079,17 @@ document.addEventListener("pointerdown", (e) => {
     const a = document.activeElement;
     if (a && ftb.contains(a) && a.matches("input, select") && !e.target.closest("#ftb")) a.blur();
 }, true);
-// the border colour follows the picker while it is dragged (one undo step per drag), not only once it closes
+// The border colour follows the picker while it is dragged, not only once it closes. Everything from opening the picker to
+// closing it is one undo step, however slowly it is dragged: a "live:" key, merged without the time limit (commit).
+let colorSession = 0;
+const colorKey = () => `live:border-color:${colorSession}`;
 ftb.addEventListener("input", (e) => {
     const t = e.target;
     if (t.dataset.ftp !== "border-color" || !selected) return;
     const label = t.closest(".swatch"), hex = ftb.querySelector('[data-ftp="border-color-hex"]');
     if (label) label.style.background = t.value;
     if (hex) hex.value = t.value.toUpperCase();
-    setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, "border-color");
+    setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, colorKey());
 });
 ftb.addEventListener("change", (e) => {
     const t = e.target;
@@ -2091,6 +2098,11 @@ ftb.addEventListener("change", (e) => {
     if (!selected) return;
     if (t.dataset.ftsel === "family") return setProp("font-family", t.value, FAMILY_STACKS[t.value]);
     if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? setProp("font-size", `${n}px`) : renderFloat(); }
+    if (t.dataset.ftp === "border-color") { // the picker closed: its last value joins the drag's undo step, and the next pick starts a new one
+        if (selected) setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, colorKey());
+        colorSession++;
+        return;
+    }
     if (t.dataset.ftp) return applyPanel(t.dataset.ftp, t.value);
     if (t.dataset.ftin === "radius") return FLOAT_ACTIONS.radius(Math.max(0, Number(t.value) || 0));
     if (t.dataset.ftcol === "text") return setProp("color", t.value);
