@@ -66,7 +66,7 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, elementsDescription, tags, isPublished, project: projectRef } = req.body;
+        const { title, category, description, htmlCode, elementsDescription, tags, isPublished, project: projectRef, designType, rootUnlocked } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
 
         if (!title || !category || !description || !htmlCode) {
@@ -86,6 +86,8 @@ export const createComponent = async (req, res) => {
             spec: buildSpec(htmlCode),
             project: project ? project._id : null,
             kind: project ? "page" : "component",
+            designType: designType === "page" || designType === "component" ? designType : null,
+            rootUnlocked: rootUnlocked === true || rootUnlocked === "true",
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
@@ -125,7 +127,9 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef, board } = req.body;
+        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef, board, designType } = req.body;
+        if (designType === "page" || designType === "component") component.designType = designType;
+        if (typeof req.body.rootUnlocked === "boolean") component.rootUnlocked = req.body.rootUnlocked;
         let codeChanged = false;
 
         if (board !== undefined) {

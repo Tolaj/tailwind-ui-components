@@ -158,33 +158,6 @@
                     class="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-3 py-1 text-[11px] text-neutral-500 shadow-[0_1px_4px_rgba(0,0,0,.12)]">
                     Click to select. Double-click text to edit it. Alt-drag to place freely. Scroll to pan, Ctrl/Cmd + scroll to zoom.</p>
 
-                {{!-- Start screen for an empty design --}}
-                <div id="startCard"
-                    class="pointer-events-none absolute inset-0 z-20 hidden items-center justify-center p-6">
-                    <div
-                        class="pointer-events-auto w-full max-w-lg rounded-xl border border-neutral-200 bg-white p-6 shadow-[0_6px_20px_rgba(0,0,0,.08)]">
-                        <h2 class="text-lg font-semibold tracking-tight text-neutral-900">Start a new page</h2>
-                        <p class="mt-1 text-sm text-neutral-500">Describe it and let AI draft it, paste code you already
-                            have, or build it from blocks.</p>
-                        <textarea id="startPrompt" rows="3" class="field mt-4"
-                            placeholder="e.g. a pricing section with three tiers and a highlighted middle plan"></textarea>
-                        <button id="startGo" type="button"
-                            class="mt-2 h-9 w-full rounded-md bg-black text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50">Generate
-                            with AI</button>
-                        <p id="startNote" class="mt-2 hidden text-xs"></p>
-                        <div class="my-4 flex items-center gap-3 text-xs text-neutral-400"><span
-                                class="h-px flex-1 bg-neutral-200"></span>or<span
-                                class="h-px flex-1 bg-neutral-200"></span></div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button id="startPaste" type="button"
-                                class="h-9 rounded-md border border-neutral-300 text-sm font-medium hover:bg-neutral-50">Paste
-                                HTML or code</button>
-                            <button id="startBlank" type="button"
-                                class="h-9 rounded-md border border-neutral-300 text-sm font-medium hover:bg-neutral-50">Start
-                                with a section</button>
-                        </div>
-                    </div>
-                </div>
             </main>
 
             {{!-- Code panel --}}

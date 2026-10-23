@@ -127,9 +127,6 @@ function updateChrome() {
     pl.classList.toggle("inline-flex", Boolean(data.project));
     $("projSep").classList.toggle("hidden", !data.project);
     if (data.project) { pl.innerHTML = `<span class="truncate">Project: ${esc(data.project.name)}</span><svg class="shrink-0 text-neutral-500" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5h5v5M9.5 2.5l-6 6"/></svg>`; pl.href = `/projects/${data.project.id}`; }
-    const empty = model.markup.trim() === "";
-    $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
-    $("startCard").classList.toggle("flex", empty && mode === "edit");
     if (!codeFocused()) syncCode();
     renderDesigns();
     refreshLabels();
@@ -171,9 +168,18 @@ const canvas = $("canvas");
 
 const MIN_H = 720;
 // a frame has its own width, and a height that follows its content unless it was set by hand
-const widthOf = (d) => (d.board && d.board.w) || DEFAULT_W;
+// ── Page or component ────────────────────────────────────────────────────────
+// A page fills a device-width frame and gets a <main> root; a component sits in a smaller frame that follows its height and
+// gets a plain <div> root. A design saved before types existed has none: it is a page if it belongs to a project, and keeps
+// the page-sized frame either way.
+const COMPONENT_W = 640, COMPONENT_MIN_H = 240;
+const typeOf = (d) => (d && d.designType) || (d && d.kind === "component" ? "component" : "page");
+// a component's root has a size of its own while it's empty, so its colours show and it can be clicked
+const ROOT_HTML = { page: '<main class="min-h-screen bg-white"></main>', component: '<div class="min-h-40 p-6"></div>' };
+const widthOf = (d) => (d.board && d.board.w) || (d.designType === "component" ? COMPONENT_W : DEFAULT_W);
 const curWidth = () => widthOf(docs.get(curKey));
-const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === curKey ? Math.max(MIN_H, frameHeight) : Math.max(MIN_H, d.height || 0));
+const minHOf = (d) => (d.designType === "component" ? COMPONENT_MIN_H : MIN_H);
+const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === curKey ? Math.max(minHOf(d), frameHeight) : Math.max(minHOf(d), d.height || 0));
 const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];
 
 function positions() {
@@ -312,6 +318,8 @@ window.addEventListener("message", (e) => {
         return handleWheel({ dx: m.dx, dy: m.dy, zoomKey: m.zoom, cx: view.x + (pos.x + m.x) * view.z, cy: view.y + (pos.y + m.y) * view.z });
     }
     if (m.type === "ready") {
+        sendRootSpec();
+        rootInfo = null; peeking = false;
         if (switching) {
             switching = false;
             // the frame moves over now (layout below) but shows a moment later, once Tailwind has styled the new design; the
@@ -341,6 +349,7 @@ window.addEventListener("message", (e) => {
         if (!viewTouched) fitTo([curKey]);
     } else if (m.type === "changed") {
         tree = m.tree;
+        rootInfo = null; // stale: the page panel asks again
         if (m.silent) model.markup = m.html;
         else commit(m.html, m.key || pendingKey);
         pendingKey = "";
@@ -384,6 +393,11 @@ window.addEventListener("message", (e) => {
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
+    } else if (m.type === "peek") {
+        peeking = false;
+        rootInfo = m.info && pathKey(m.info.path) === pathKey(rootPathOf()) ? m.info : null;
+        if (rootInfo && pendingRoot) { const p = pendingRoot; pendingRoot = null; editRoot(p.prop, p.raw, p.cssOverride, p.key); }
+        if (!selected || selected.tag === "body") renderInspector();
     } else if (m.type === "convert") {
         convertGesture(m.items || []);
     } else if (m.type === "key") {
@@ -584,7 +598,13 @@ const insp = $("inspector");
 /** The selected page's own properties, for the panel. */
 function pageInfo() {
     const d = docs.get(curKey), p = positions()[curKey] || { x: 0, y: 0 };
-    return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
+    const empty = pageIsEmpty(), path = rootPathOf();
+    if (!empty && path) askRoot();
+    const c = (rootInfo && rootInfo.computed) || {};
+    const root = empty ? { virtual: true, ...rootDefaults() }
+        : path ? (rootInfo ? { tag: rootInfo.tag, classes: rootInfo.classes, bg: c["background-color"], color: c.color, font: c["font-family"] } : { loading: true })
+        : { several: true };
+    return { type: typeOf(d), root, rootUnlocked: Boolean(d.rootUnlocked), name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
 }
 function setPageBox(patch) {
     const d = docs.get(curKey), p = positions()[curKey];
@@ -596,8 +616,10 @@ function setPageBox(patch) {
 const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg]") && $("inspector").contains(document.activeElement));
 function renderInspector() {
     ui.frameBp = frameBp();
+    ui.designType = typeOf(docs.get(curKey));
     const top = insp.scrollTop;
-    insp.innerHTML = renderInspectorHtml(selected, selected ? null : pageInfo());
+    const onEmptyBody = selected && selected.tag === "body" && pageIsEmpty(); // a click on a blank design: its (virtual) root
+    insp.innerHTML = renderInspectorHtml(onEmptyBody ? null : selected, selected && !onEmptyBody ? null : pageInfo());
     insp.scrollTop = top;
 }
 
@@ -646,14 +668,57 @@ function newVariant(classes, group) {
     return has ? frameBp() : "";
 }
 
+// ── The root ─────────────────────────────────────────────────────────────────
+// A design whose code is one top-level element has a root: the page panel edits its tag, background, text colour and font.
+// An empty design has a virtual one (the page's <main>, the component's <div>): it shows in the panel with its defaults, and
+// the first change made there writes it into the code, carrying that change (one undo step). Clearing the code brings it back.
+// A design with several top-level elements has none, and can be wrapped in one.
+let rootInfo = null, peeking = false, pendingRoot = null;
+const pageIsEmpty = () => model.markup.trim() === "";
+const rootPathOf = () => (tree && tree.children && tree.children.length === 1 ? tree.children[0].path : null);
+function askRoot() {
+    const path = rootPathOf();
+    if (!path || rootInfo || peeking) return;
+    peeking = true;
+    send({ cmd: "peek", path });
+}
+/** The virtual root, parsed: its tag and classes for this design type. */
+function rootDefaults() {
+    const m = ROOT_HTML[typeOf(docs.get(curKey))].match(/^<(\w+)(?: class="([^"]*)")?>/);
+    return { tag: m[1], classes: m[2] || "" };
+}
+/** One change to the root, from the page panel: the virtual root is written with it, a real one is edited where the value lives. */
+function editRoot(prop, raw, cssOverride, key) {
+    if (pageIsEmpty()) return createRoot(prop, raw, cssOverride, key);
+    if (rootInfo) return prop === "tag" ? cmd({ cmd: "setTag", path: rootInfo.path, tag: raw }, key) : setProp(prop, raw, cssOverride, key, rootInfo);
+    pendingRoot = { prop, raw, cssOverride, key }; // the root was only just written: applied when the frame reports it (askRoot)
+}
+function createRoot(prop, raw, cssOverride, key) {
+    let { tag, classes } = rootDefaults();
+    let style = "";
+    if (prop === "tag") tag = raw;
+    else {
+        const group = groupOf(prop);
+        const tv = group ? twValue(prop, String(raw), false) : null;
+        const next = tv !== null ? setGroup(classes, group, tv, "") : null;
+        if (next !== null) classes = next;
+        else style = `${prop}: ${cssOverride || raw}`;
+    }
+    const markup = `<${tag}${classes ? ` class="${classes}"` : ""}${style ? ` style="${esc(style)}"` : ""}></${tag}>`;
+    model.markup = markup;
+    commit(markup, key);
+    loadFrame();
+}
+
 /**
  * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
  * variant), an inline style or the design's own CSS gets an inline style. A property nothing sets yet becomes a Tailwind class,
  * unless the element is styled only by its design's CSS. The frame checks the result and falls back to CSS when a class can't win.
  */
-function setProp(prop, raw, cssOverride, key) {
-    if (!selected) return;
-    const s = selected, src = srcOf(s, prop), v = String(raw ?? "").trim();
+function setProp(prop, raw, cssOverride, key, target) {
+    const s = target || selected;
+    if (!s) return;
+    const src = srcOf(s, prop), v = String(raw ?? "").trim();
     const group = groupOf(prop);
     const onTw = src.source === "tailwind";
     const winning = onTw ? variantOf(src.token) : "";
@@ -801,6 +866,12 @@ insp.addEventListener("click", (e) => {
     if (t.closest("[data-closepanel]")) return setPanel(false);
     const pw = t.closest("[data-pgw]");
     if (pw) return setDevice(Number(pw.dataset.pgw));
+    const pt = t.closest("[data-pgtype]");
+    if (pt) return setDesignType(pt.dataset.pgtype);
+    const rl = t.closest("[data-rootlock]");
+    if (rl) return setRootLock(rl.dataset.rootlock === "lock");
+    const ra = t.closest("[data-rootact]");
+    if (ra) return ra.dataset.rootact === "select" ? send({ cmd: "select", path: rootPathOf() }) : send({ cmd: "wrapRoot" });
     const pa = t.closest("[data-pgact]");
     if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : $("detailsBtn").click();
     const arr = t.closest("[data-arrange]");
@@ -857,7 +928,11 @@ insp.addEventListener("change", (e) => {
         setPageBox({ [k]: k === "w" ? clampSize(n, 8000) : k === "h" ? clampSize(n, 20000) : Math.round(n) });
         return renderInspector();
     }
+    if (t.dataset.roottag !== undefined) return editRoot("tag", t.value);
+    if (t.dataset.rootfont !== undefined) return editRoot("font-family", t.value, FAMILY_STACKS[t.value]);
+    if (t.dataset.rootcolor) { editRoot(t.dataset.rootcolor, t.value, undefined, liveKey(`r-${t.dataset.rootcolor}`)); return pickerClosed(t); }
     if (!selected) return;
+    if (t.dataset.tag !== undefined && selected) return cmd({ cmd: "setTag", path: selected.path, tag: t.value });
     if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
     if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) {
@@ -892,8 +967,9 @@ insp.addEventListener("change", (e) => {
 });
 
 insp.addEventListener("input", (e) => {
-    if (!selected) return;
     const t = e.target;
+    if (t.dataset.rootcolor) return editRoot(t.dataset.rootcolor, t.value, undefined, liveKey(`r-${t.dataset.rootcolor}`));
+    if (!selected) return;
     if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`));
     if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`));
     if (t.dataset.field === "text") cmd({ cmd: "setText", path: selected.path, text: t.value }, "text");
@@ -996,7 +1072,7 @@ async function persist(d) {
             method: "POST", headers: JSON_HEADERS,
             body: JSON.stringify({
                 ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
-                tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
+                tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "", designType: d.designType || "", rootUnlocked: Boolean(d.rootUnlocked),
             }),
         });
         const json = await res.json();
@@ -1278,64 +1354,59 @@ $("addMenu").addEventListener("click", (e) => {
     const html = BLOCKS[Number(b.dataset.block)][1];
     if (model.markup.trim() === "" || !selected) {
         if (model.markup.trim() === "") { addToEmpty(html); return; }
-        return cmd({ cmd: "insert", path: [], html, position: "inside" });
+        const only = tree && tree.children && tree.children.length === 1 ? tree.children[0] : null; // the root, if there is one
+        return cmd({ cmd: "insert", path: only && CONTAINERS.has(only.tag) ? only.path : [], html, position: "inside" });
     }
     cmd({ cmd: "insert", path: selected.path, html, position: CONTAINERS.has(selected.tag) ? "inside" : "after" });
 });
+/** The first thing added to an empty page from the design tools comes inside the page's root (a page's <main>, a component's <div>). */
 function addToEmpty(html) {
-    model.markup = html;
-    commit(html);
+    const root = ROOT_HTML[typeOf(docs.get(curKey))];
+    const markup = root.replace(/(<\/\w+>)$/, `${html}$1`);
+    model.markup = markup;
+    commit(markup);
     loadFrame();
 }
 
-// ── Start screen: AI draft, paste, or a section ──────────────────────────────
-$("startBlank").addEventListener("click", () => addToEmpty(BLOCKS[0][1]));
-$("startPaste").addEventListener("click", () => setCodePanel(true));
-
-async function streamAI(body, onText) {
-    const res = await fetch("/api/ai/generate-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "AI request failed");
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "", out = "";
-    for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-        for (const part of parts) {
-            if (!part.startsWith("data:")) continue;
-            let ev; try { ev = JSON.parse(part.slice(5)); } catch { continue; }
-            if (ev.type === "delta") { out += ev.text; onText && onText(out); }
-            if (ev.type === "error") throw new Error(ev.message);
-        }
+/** Page or component, for the active design. A saved design keeps it straight away (like a rename); a new one sends it on its first save. */
+async function setDesignType(type) {
+    const d = docs.get(curKey);
+    if (!d || typeOf(d) === type && d.designType) return;
+    const prev = d.designType;
+    d.designType = type;
+    data.designType = type;
+    sendRootSpec();
+    updateChrome();
+    layout();
+    renderInspector();
+    if (d.isNew || !d.meta.id) return;
+    try {
+        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ designType: type }) });
+        if (!(await res.json()).success) throw new Error();
+    } catch {
+        d.designType = prev; data.designType = prev; sendRootSpec(); updateChrome(); layout(); renderInspector();
+        alert("Could not change the design type");
     }
-    return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
+}
+/** The frame's agent makes the root itself when a shape is drawn or an image dropped on an empty page: tell it which one. */
+const sendRootSpec = () => { const d = docs.get(curKey); send({ cmd: "rootSpec", html: ROOT_HTML[typeOf(d)], type: typeOf(d), unlocked: Boolean(d && d.rootUnlocked) }); };
+/** Lock or unlock the root. Locked (the default) it follows the rules for its type; unlocked it is edited like any element. Saved at once for a saved design. */
+async function setRootLock(locked) {
+    const d = docs.get(curKey);
+    if (!d || Boolean(d.rootUnlocked) === !locked) return;
+    d.rootUnlocked = !locked;
+    sendRootSpec();
+    if (!selected) renderInspector();
+    if (d.isNew || !d.meta.id) return;
+    try {
+        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ rootUnlocked: !locked }) });
+        if (!(await res.json()).success) throw new Error();
+    } catch {
+        d.rootUnlocked = locked; sendRootSpec();
+        alert("Could not change the lock");
+    }
 }
 
-$("startGo").addEventListener("click", async () => {
-    const prompt = $("startPrompt").value.trim();
-    const note = $("startNote");
-    const say = (msg, bad) => { note.textContent = msg; note.className = `mt-2 text-xs ${bad ? "text-red-700" : "text-neutral-500"}`; };
-    if (!prompt) return say("Describe what you want first.", true);
-    $("startGo").disabled = true;
-    say("Drafting...");
-    try {
-        const html = await streamAI({ prompt, useLibrary: true });
-        if (!html.startsWith("<")) throw new Error("The AI didn't return HTML. Try rephrasing.");
-        parsed = parseComponentSource(html);
-        commit(parsed.markup);
-        loadFrame();
-        if (!data.title) { data.title = prompt.slice(0, 60); updateChrome(); }
-        $("startPrompt").value = "";
-        say("");
-    } catch (err) {
-        say(err.message, true);
-    } finally {
-        $("startGo").disabled = false;
-    }
-});
 
 // ── Details dialog: name, category, tags, visibility ─────────────────────────
 const dlg = $("detailsDlg");
@@ -1431,11 +1502,11 @@ let curKey = data.id || "draft-0";
 let draftCount = 0;
 let planeProject = data.project || null;
 
-docs.set(curKey, { key: curKey, meta: takeMeta(), kind: data.kind || (data.project ? "page" : "component"), parent: data.parent || null, board: data.board || null, parsed, markup: model.markup, history, hIndex, isNew, savedMarkup, height: 0, loaded: true });
+docs.set(curKey, { key: curKey, meta: takeMeta(), kind: data.kind || (data.project ? "page" : "component"), designType: data.designType || null, rootUnlocked: Boolean(data.rootUnlocked), parent: data.parent || null, board: data.board || null, parsed, markup: model.markup, history, hIndex, isNew, savedMarkup, height: 0, loaded: true });
 (data.plane || []).forEach((it) => {
     if (it.id === curKey) return;
     docs.set(it.id, {
-        key: it.id, kind: it.kind, parent: it.parent, board: it.board, source: it.htmlCode, loaded: false, isNew: false, height: 0,
+        key: it.id, kind: it.kind, designType: it.designType || null, rootUnlocked: Boolean(it.rootUnlocked), parent: it.parent, board: it.board, source: it.htmlCode, loaded: false, isNew: false, height: 0,
         meta: { id: it.id, title: it.title, version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
     });
 });
@@ -2113,7 +2184,7 @@ const FLOAT_ACTIONS = {
     del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },
     up() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: -1 }); },
     down() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: 1 }); },
-    free() { ftMenu = false; cmd({ cmd: "freePosition", path: selected.path, on: !selected.geom.abs }); },
+    free() { ftMenu = false; if (selected.root) return; cmd({ cmd: "freePosition", path: selected.path, on: !selected.geom.abs }); },
     group() { ftMenu = false; send({ cmd: "group" }); },
     ungroup() { ftMenu = false; send({ cmd: "ungroup" }); },
     props() { ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(true); },
@@ -2131,7 +2202,7 @@ document.addEventListener("pointerdown", (e) => {
 // field in the bar or the panel opens it and feeds that field as if it were being dragged: "input" while picking, "change" once
 // it closes, so live updates and one undo step per pick work exactly as before. The field is found again each time, since the
 // bar or panel may have been rebuilt meanwhile.
-const COLOR_FIELDS = ["ftcol", "ftp", "propcolor", "ccustom"];
+const COLOR_FIELDS = ["ftcol", "ftp", "propcolor", "ccustom", "rootcolor"];
 function fieldSelector(t) {
     const k = COLOR_FIELDS.find((d) => t.dataset[d] !== undefined);
     return k ? `${ftb.contains(t) ? "#ftb" : "#inspector"} input[type="color"][data-${k}="${CSS.escape(t.dataset[k])}"]` : null;
@@ -2144,14 +2215,19 @@ function selectionRect() {
 }
 document.addEventListener("click", (e) => {
     const t = e.target.closest && e.target.closest('input[type="color"]');
-    if (!t || !(ftb.contains(t) || insp.contains(t)) || !selected) return;
+    if (!t || !(ftb.contains(t) || insp.contains(t)) || !(selected || t.dataset.rootcolor !== undefined)) return;
     const sel = fieldSelector(t);
     if (!sel) return;
     e.preventDefault(); // not the browser's picker
     const opener = t.closest("label") || t;
     if (colorPickerOpener() === opener) return closeColorPicker(); // the same swatch again: done
     const feed = (type, hex) => { const f = document.querySelector(sel); if (f) { f.value = hex; f.dispatchEvent(new Event(type, { bubbles: true })); } };
-    openColorPicker({ value: t.value, near: selectionRect(), bounds: canvas.getBoundingClientRect(), opener, onInput: (hex) => feed("input", hex), onClose: (hex) => feed("change", hex) });
+    // from the Properties panel: just left of the panel, level with the swatch; from the floating bar: beside the selection
+    const fromPanel = insp.contains(t);
+    const p = insp.getBoundingClientRect(), o = opener.getBoundingClientRect();
+    const near = fromPanel ? { left: p.left, right: p.right, top: o.top, bottom: o.bottom } : selectionRect();
+    const bounds = fromPanel ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight } : canvas.getBoundingClientRect();
+    openColorPicker({ value: t.value, near, bounds, opener, onInput: (hex) => feed("input", hex), onClose: (hex) => feed("change", hex) });
 }, true);
 
 const FT_COLOR = { text: "color", fill: "background-color" };

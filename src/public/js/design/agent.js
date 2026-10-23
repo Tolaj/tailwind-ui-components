@@ -147,9 +147,10 @@ export function agentMain() {
             else label = sels.length > 1 ? `${sels.length} selected` : `${g.w} × ${g.h}`;
         }
         const bbox = el && el !== document.body && alive(el) ? pageRect(el) : null;
-        const data = JSON.stringify({ items, handles, label, bbox, at });
-        if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
-        place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
+        const root = sels.length === 1 ? rootLock(el) : "";
+        const data = JSON.stringify({ items, handles, label, bbox, at, root });
+        if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at, root }); }
+        place(hoverBox, tool === "move" && hov && hov !== document.body && !sels.includes(hov) ? hov : null); // not the page itself
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -409,6 +410,8 @@ export function agentMain() {
             computed: computedOf(el),
             sources: sourcesOf(el, cssProps),
             flexItem: flexItemOf(el),
+            root: rootLock(el),
+            isRoot: isRootEl(el),
             arrange: arrangeOf(el),
             added: made.has(el),
             count: sels.length,
@@ -458,7 +461,26 @@ export function agentMain() {
         if (!t || overlay.contains(t) || t === root) return document.body;
         return t;
     };
+    // The root a page or component gets when its first content comes from the design tools (a shape drawn, an image dropped):
+    // the editor says which (a page's <main>, a component's <div>). Pasted or typed code never gets one.
+    let rootSpec = "", designType = "page", rootUnlocked = false;
+    /** The root: the one top-level element. It never moves; a page's root is also sized by the frame, not by hand. */
+    const isRootEl = (el) => Boolean(el && el.parentElement === document.body && !overlay.contains(el)
+        && Array.prototype.filter.call(document.body.children, (c) => !overlay.contains(c) && !c.hasAttribute("data-wc-agent") && !["SCRIPT", "STYLE"].includes(c.tagName)).length === 1);
+    const rootLock = (el) => (isRootEl(el) && !rootUnlocked ? (designType === "page" ? "page" : "component") : "");
+    const pageEmpty = () => !Array.prototype.some.call(document.body.children, (c) => !overlay.contains(c) && !c.hasAttribute("data-wc-agent") && !["SCRIPT", "STYLE"].includes(c.tagName));
+    function ensureRoot() {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = rootSpec;
+        const r = tpl.content.firstElementChild;
+        if (!r) return document.body;
+        document.body.insertBefore(r, document.body.firstChild);
+        markMade(r);
+        return r;
+    }
+    /** Where a new element goes: the container under the point, or on an empty page, a new root. */
     const containerAt = (x, y) => {
+        if (rootSpec && pageEmpty()) return ensureRoot();
         let t = document.elementFromPoint(x, y);
         if (!t || overlay.contains(t) || t === root) return document.body;
         while (t && t !== document.body && !CONTAINERS.has(t.tagName.toLowerCase())) t = t.parentElement;
@@ -678,6 +700,7 @@ export function agentMain() {
 
     // ── Gestures ────────────────────────────────────────────────────────────────────────────
     function startMove(e, items) {
+        if (items.some(isRootEl)) { gesture = null; return; } // the root stays where it is
         const abs = items.filter(isAbs);
         // Alt-drag on an element in the page flow places it freely: it turns absolute (where it is) on the first movement, so an
         // Alt-click alone changes nothing
@@ -887,6 +910,8 @@ export function agentMain() {
     function beginHandle(hd, e) {
         const el = primary();
         if (!el || el === document.body) return;
+        const lock = rootLock(el);
+        if (lock === "page" || (lock && hd.startsWith("rot"))) return; // a page's root follows the frame; no root turns
         const g = geomOf(el);
         const br = pageRect(el);
         if (hd.startsWith("rad")) {
@@ -1229,6 +1254,17 @@ export function agentMain() {
     // ── Commands from the editor ────────────────────────────────────────────────────────────
     const mutate = {
         setClasses: (el, m) => { m.value ? el.setAttribute("class", m.value) : el.removeAttribute("class"); },
+        /** Another tag for the element (div -> section, main -> div...): attributes and children move over unchanged. */
+        setTag: (el, m) => {
+            const tag = String(m.tag || "").toLowerCase();
+            if (!/^[a-z][a-z0-9]*$/.test(tag) || el === document.body || el.tagName.toLowerCase() === tag) return;
+            const next = document.createElement(tag);
+            Array.prototype.forEach.call(el.attributes, (a) => next.setAttribute(a.name, a.value));
+            while (el.firstChild) next.appendChild(el.firstChild);
+            el.replaceWith(next);
+            if (made.has(el)) made.add(next);
+            sels = sels.map((x) => (x === el ? next : x));
+        },
         setText: (el, m) => { if (el.children.length === 0) el.textContent = m.text; },
         setAttr: (el, m) => { m.value === null ? el.removeAttribute(m.name) : el.setAttribute(m.name, m.value); },
         remove: (el) => { const p = el.parentElement; el.remove(); sels = p && p !== root ? [p] : []; },
@@ -1309,10 +1345,28 @@ export function agentMain() {
         if (m.cmd === "ungroup") { ungroup(); return; }
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
+        if (m.cmd === "rootSpec") {
+            rootSpec = m.html || ""; designType = m.type || "page"; rootUnlocked = Boolean(m.unlocked);
+            redraw();
+            if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); // the panel shows the new lock
+            return;
+        }
+        // the root's details for the page panel, without selecting it
+        if (m.cmd === "peek") { const el = elAt(m.path); post({ type: "peek", path: m.path, info: el ? describe(el) : null }); return; }
+        // several top-level elements: put them all inside a new root (the page's <main> or the component's <div>)
+        if (m.cmd === "wrapRoot") {
+            const kids = Array.prototype.filter.call(document.body.children, (c) => !overlay.contains(c) && !c.hasAttribute("data-wc-agent") && !["SCRIPT", "STYLE"].includes(c.tagName));
+            if (kids.length < 2 || !rootSpec) return;
+            const r = ensureRoot();
+            kids.forEach((k) => r.appendChild(k));
+            setSelection([], true);
+            changed();
+            return;
+        }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
         if (m.cmd === "freePosition") {
             const el = elAt(m.path);
-            if (!el) return;
+            if (!el || (m.on && isRootEl(el))) return;
             if (!m.on) { freePosition(el, false); changed(); return; }
             if (isAbs(el)) return;
             const pre = sourcesOf(el, FREE_PROPS);
