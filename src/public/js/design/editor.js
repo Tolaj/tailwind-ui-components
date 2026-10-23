@@ -142,7 +142,17 @@ function layout() {
     $("frameLabel").textContent = `${{ 1280: "Desktop", 768: "Tablet", 390: "Mobile" }[device] || "Custom"}  ·  ${device}  ·  ${Math.round(scale * 100)}%`;
     wrap.style.width = `${device * scale}px`;
     wrap.style.height = `${h * scale}px`;
+    currentScale = scale;
+    send({ cmd: "view", zoom: scale });
+    const sel = $("zoomSel");
+    if (zoom !== "fit" && ![...sel.options].some((o) => o.value === String(zoom) && o.value !== "custom")) {
+        let custom = [...sel.options].find((o) => o.value === "custom");
+        if (!custom) { custom = new Option("", "custom"); sel.add(custom); }
+        custom.textContent = `${Math.round(scale * 100)}%`;
+        sel.value = "custom";
+    }
 }
+let currentScale = 1;
 
 // ── Messages from the frame ──────────────────────────────────────────────────
 const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-live]") && $("inspector").contains(document.activeElement));
@@ -156,17 +166,22 @@ window.addEventListener("message", (e) => {
         renderLayers();
         updateChrome();
         layout();
+        send({ cmd: "tool", tool });
     } else if (m.type === "height" || m.type === "preview-height") {
         frameHeight = m.height;
         layout();
     } else if (m.type === "changed") {
         tree = m.tree;
         if (m.silent) model.markup = m.html;
-        else commit(m.html, pendingKey);
+        else commit(m.html, m.key || pendingKey);
         pendingKey = "";
         if (m.info) selected = m.info;
         renderLayers();
         if (!inspectorEditing()) renderInspector();
+    } else if (m.type === "tool") {
+        setTool(m.tool, true);
+    } else if (m.type === "space") {
+        setSpace(m.down);
     } else if (m.type === "selected") {
         selected = m.info;
         renderLayers();
@@ -286,8 +301,14 @@ insp.addEventListener("click", (e) => {
     if (crumb) return send({ cmd: "select", path: parsePath(crumb.dataset.crumb) });
     const rm = t.closest("[data-rm]");
     if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
+    const free = t.closest("[data-free]");
+    if (free && selected) return cmd({ cmd: "freePosition", path: selected.path, on: free.dataset.free === "on" });
+    const al = t.closest("[data-align]");
+    if (al) return send({ cmd: "align", mode: al.dataset.align });
     const d = t.closest("[data-do]");
     if (!d || !selected) return;
+    if (d.dataset.do === "group") return send({ cmd: "group" });
+    if (d.dataset.do === "ungroup") return send({ cmd: "ungroup" });
     const path = selected.path;
     if (d.dataset.do === "up") cmd({ cmd: "move", path, dir: -1 });
     if (d.dataset.do === "down") cmd({ cmd: "move", path, dir: 1 });
@@ -299,6 +320,7 @@ insp.addEventListener("click", (e) => {
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
+    if (t.dataset.geom) { const n = Number(t.value); if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector(); return cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n }); }
     if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
     if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());
     if (t.dataset.cop !== undefined) {
@@ -402,9 +424,10 @@ $("modeSeg").addEventListener("click", (e) => {
     $("inspector").style.opacity = $("layers").style.opacity = mode === "edit" ? "" : "0.4";
     $("inspector").style.pointerEvents = $("layers").style.pointerEvents = mode === "edit" ? "" : "none";
     $("canvasHint").textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Drag layers to reorder." : "Preview: running with its JavaScript. Switch back to Edit to change it.";
+    updateShield();
     loadFrame();
 });
-$("zoomSel").addEventListener("change", (e) => { zoom = e.target.value; layout(); });
+$("zoomSel").addEventListener("change", (e) => { if (e.target.value === "custom") return; zoom = e.target.value; layout(); });
 $("undoBtn").addEventListener("click", () => step(-1));
 $("redoBtn").addEventListener("click", () => step(1));
 window.addEventListener("resize", layout);
@@ -440,23 +463,86 @@ async function save() {
 $("saveBtn").addEventListener("click", save);
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
+const TOOL_KEYS = { v: "move", h: "hand", f: "frame", r: "rect", o: "ellipse", t: "text", i: "image", b: "button" };
+
 function handleKey({ key, meta, shift }) {
     if (meta && key === "z") return step(shift ? 1 : -1);
     if (meta && key === "y") return step(1);
     if (meta && key === "s") return save();
-    if (!selected || selected.tag === "body") return;
-    if (meta && key === "d") return cmd({ cmd: "duplicate", path: selected.path });
-    if (key === "delete" || key === "backspace") return cmd({ cmd: "remove", path: selected.path });
+    if (!meta && TOOL_KEYS[key]) return setTool(TOOL_KEYS[key]);
+    if (!selected) return;
+    if (meta && key === "d") return send({ cmd: "duplicateSel" });
+    if (meta && key === "g") return send({ cmd: shift ? "ungroup" : "group" });
+    if (selected.tag === "body") return;
+    if (key === "delete" || key === "backspace") return send({ cmd: "deleteSel" });
 }
 document.addEventListener("keydown", (e) => {
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
     const meta = e.metaKey || e.ctrlKey;
     const key = e.key.toLowerCase();
-    if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s"].includes(key))) {
+    if (e.code === "Space") { e.preventDefault(); setSpace(true); return; }
+    if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (!meta && !e.altKey && TOOL_KEYS[key])) {
         e.preventDefault();
         handleKey({ key, meta, shift: e.shiftKey });
     }
 });
+document.addEventListener("keyup", (e) => { if (e.code === "Space") setSpace(false); });
+
+// ── Design tools: palette, panning, zoom ─────────────────────────────────────
+const ICONS = {
+    move: '<path d="M5 3l14 8-6 2-2 6z"/>',
+    hand: '<path stroke-linecap="round" stroke-linejoin="round" d="M10 4v8m0-8a1.5 1.5 0 013 0v7m0-5.5a1.5 1.5 0 013 0V13m0-4.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-1a6 6 0 01-5-2.7L5 14a1.5 1.5 0 012.5-1.7L10 15"/>',
+    frame: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v18M17 3v18M3 7h18M3 17h18"/>',
+    rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+    ellipse: '<circle cx="12" cy="12" r="8"/>',
+    text: '<path stroke-linecap="round" stroke-linejoin="round" d="M5 6V4h14v2M12 4v16m-3 0h6"/>',
+    image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 16l-5-5-8 8"/>',
+    button: '<rect x="3" y="8" width="18" height="8" rx="4"/><path stroke-linecap="round" d="M9 12h6"/>',
+};
+const TOOLS = [["move", "Move", "V"], ["hand", "Hand (or hold Space)", "H"], ["frame", "Frame", "F"], ["rect", "Rectangle", "R"], ["ellipse", "Ellipse", "O"], ["text", "Text", "T"], ["image", "Image", "I"], ["button", "Button", "B"]];
+let tool = "move";
+let spaceDown = false;
+
+$("toolbar").innerHTML = TOOLS.map(([id, label, key], i) =>
+    `${i === 2 ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : ""}<button type="button" data-tool="${id}" title="${label} (${key})" class="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100"><svg class="h-[18px] w-[18px]" fill="${id === "move" ? "currentColor" : "none"}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">${ICONS[id]}</svg></button>`).join("");
+$("toolbar").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); });
+
+function setTool(t, fromAgent) {
+    tool = t;
+    $("toolbar").querySelectorAll("[data-tool]").forEach((b) => {
+        const on = b.dataset.tool === t;
+        b.classList.toggle("bg-[#0d99ff]", on);
+        b.classList.toggle("text-white", on);
+        b.classList.toggle("text-neutral-600", !on);
+    });
+    updateShield();
+    if (!fromAgent) send({ cmd: "tool", tool: t });
+}
+function setSpace(down) { spaceDown = down; updateShield(); }
+function updateShield() { $("toolbar").classList.toggle("hidden", mode !== "edit"); $("panShield").classList.toggle("hidden", !(mode === "edit" && (tool === "hand" || spaceDown))); }
+
+// the shield catches drags over the canvas so panning uses real pointer coordinates
+let pan = null;
+$("panShield").addEventListener("pointerdown", (e) => { pan = { x: e.clientX, y: e.clientY, l: $("canvas").scrollLeft, t: $("canvas").scrollTop }; $("panShield").setPointerCapture(e.pointerId); $("panShield").style.cursor = "grabbing"; });
+$("panShield").addEventListener("pointermove", (e) => { if (!pan) return; $("canvas").scrollLeft = pan.l - (e.clientX - pan.x); $("canvas").scrollTop = pan.t - (e.clientY - pan.y); });
+$("panShield").addEventListener("pointerup", () => { pan = null; $("panShield").style.cursor = "grab"; });
+
+// Ctrl/Cmd + scroll zooms around the pointer; plain scroll scrolls the canvas
+$("canvas").addEventListener("wheel", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const canvas = $("canvas");
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const s0 = currentScale;
+    const s1 = Math.min(4, Math.max(0.1, s0 * Math.exp(-e.deltaY * 0.01)));
+    const cx = (canvas.scrollLeft + mx) / s0, cy = (canvas.scrollTop + my) / s0;
+    zoom = String(s1);
+    layout();
+    canvas.scrollLeft = cx * s1 - mx;
+    canvas.scrollTop = cy * s1 - my;
+}, { passive: false });
+
 window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 
 

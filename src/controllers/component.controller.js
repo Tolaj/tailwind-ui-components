@@ -1,5 +1,5 @@
 import Component from "../models/component.model.js";
-import { exportComponent, FORMATS } from "../utils/exporters.js";
+import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
 import { buildSpec, specToMarkdown, enrichSpecWithAI } from "../services/spec.service.js";
 import { resolveProject } from "../services/project.service.js";
 

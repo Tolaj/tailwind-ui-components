@@ -45,6 +45,9 @@
         </aside>
 
         <section class="relative flex min-w-0 flex-1 flex-col">
+            {{!-- Design tools --}}
+            <div id="toolbar" class="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-neutral-200 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,.12)]"></div>
+            <div id="panShield" class="absolute inset-0 z-20 hidden" style="cursor:grab"></div>
             <main id="canvas" class="relative min-h-0 flex-1 overflow-auto bg-neutral-100 p-6">
                 <div id="frameLabel" class="mx-auto mb-1.5 truncate text-[11px] text-neutral-500"></div>
                 <div id="frameWrap" class="mx-auto">

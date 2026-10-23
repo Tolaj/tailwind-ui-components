@@ -3,7 +3,7 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Component from "../models/component.model.js";
-import { exportComponent, FORMATS } from "../utils/exporters.js";
+import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
 import { searchLibrary } from "../services/library.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
 import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";

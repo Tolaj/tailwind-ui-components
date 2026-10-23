@@ -275,6 +275,29 @@
                     <li>Your component's own CSS and scripts are kept exactly as they were. Only the markup you edit changes.</li>
                 </ul>
 
+                <h3 class="mt-8 text-lg font-semibold text-gray-900">Free design tools</h3>
+                <p class="mt-2 text-sm">The floating palette at the top of the canvas works like Figma. Pick a tool (or press its key) and drag on the canvas to draw. Everything you draw is real HTML, positioned with <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">position: absolute</code>, so the <strong>Code</strong> panel always shows exactly what you have designed.</p>
+                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th class="px-4 py-2.5">Tool</th><th class="px-4 py-2.5">Key</th><th class="px-4 py-2.5">What it does</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Move</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">V</kbd></td><td class="px-4 py-2.5">Select, drag, resize, rotate. Drag on empty space to select several things.</td></tr>
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Hand</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">H</kbd> or hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Space</kbd></td><td class="px-4 py-2.5">Pan around the canvas.</td></tr>
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Frame</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">F</kbd></td><td class="px-4 py-2.5">A container box. Draw things inside it and they belong to it.</td></tr>
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Rectangle, Ellipse</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">R</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">O</kbd></td><td class="px-4 py-2.5">Drag to draw a shape. Change color, corners and shadow in the inspector.</td></tr>
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Text</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">T</kbd></td><td class="px-4 py-2.5">Click and type. Double-click any text later to edit it.</td></tr>
+                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Image, Button</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">I</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">B</kbd></td><td class="px-4 py-2.5">Draw a placeholder image or a button. You can also drop an image file straight onto the canvas.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul class="mt-4 list-disc space-y-1.5 pl-5 text-sm">
+                    <li><strong>Move and resize:</strong> drag a shape, or its handles. Smart red guides snap to other shapes and to the edges and center of what contains it (hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Alt</kbd> to turn snapping off). <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift</kbd> keeps the proportions or the straight line. The round handle above a shape rotates it (Shift snaps to 15 degrees).</li>
+                    <li><strong>Arrow keys</strong> nudge by 1 px, with Shift by 10 px. Exact X, Y, width, height and rotation are in <strong>Position and size</strong> in the inspector.</li>
+                    <li><strong>Several things at once:</strong> Shift-click or drag a box around them. Then <strong>Align</strong> (left, center, right, top, middle, bottom), <strong>space them evenly</strong>, or <strong>Group</strong> them (<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+G</kbd>; Ungroup is <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+Shift+G</kbd>).</li>
+                    <li><strong>Free position</strong> turns any existing element (a heading from AI, for example) into one you can drag anywhere. Without it, elements stay in the page's normal flow and dragging reorders them.</li>
+                    <li><strong>Zoom and pan:</strong> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd</kbd> + scroll zooms around the pointer. <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+D</kbd> duplicates, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Delete</kbd> removes, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Esc</kbd> goes back to Move.</li>
+                </ul>
+
                 <h3 class="mt-8 text-lg font-semibold text-gray-900">Saving</h3>
                 <p class="mt-2 text-sm">For a new component, <strong>Save</strong> asks for the details: <strong>Title</strong> and <strong>Description</strong> (what a person or an AI reads to decide if it fits), <strong>Category</strong>, <strong>Tags</strong> (comma separated, used for search and by AI) and <strong>Visibility</strong> (<em>Public</em> shows it in the gallery too, <em>Private</em> keeps it in your library; see <a href="#visibility" class="font-medium underline">Public or private</a>). After that, <strong>Save</strong> makes a new version each time. Click the title at the top to change the details later.</p>
             </section>

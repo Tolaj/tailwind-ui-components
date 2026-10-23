@@ -75,7 +75,7 @@ export function mountDatalists() {
 }
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-export const ui = { tab: "design", bp: "", st: "", open: new Set(["layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
+export const ui = { tab: "design", bp: "", st: "", open: new Set(["geom", "layout", "size", "spacing", "typography", "fill", "border"]), palette: null };
 export const variant = () => `${ui.bp ? ui.bp + ":" : ""}${ui.st ? ui.st + ":" : ""}`;
 
 export const val = (sel, k) => { const r = getGroup(sel.classes, k, variant()); return r ? r.value : ""; };
@@ -181,8 +181,19 @@ const contentFields = (s) => {
     return text || rows ? `<div class="sec"><div class="secb nopad"><p class="sub first">Content</p>${text}${rows}</div></div>` : "";
 };
 
+function geomBody(s) {
+    const g = s.geom || {};
+    const abs = Boolean(g.abs);
+    const cell = (k, label, v, enabled) => `<label class="cell ${enabled ? "" : "opacity-50"}"><span class="clbl">${label}</span><input class="fi" data-geom="${k}" value="${esc(v ?? "")}" ${enabled ? "" : "disabled"} autocomplete="off"></label>`;
+    const alignBtn = (m, l, t) => `<button type="button" data-align="${m}" title="${t}" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
+    return `${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#0d99ff] bg-[#e5f4ff] text-[#0b6fc2]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
+        ${abs ? `<div class="flex gap-1">${alignBtn("left", "Left", "Align left")}${alignBtn("hcenter", "Center", "Align horizontal centers")}${alignBtn("right", "Right", "Align right")}${alignBtn("top", "Top", "Align top")}${alignBtn("vcenter", "Middle", "Align vertical centers")}${alignBtn("bottom", "Bottom", "Align bottom")}</div>` : ""}
+        ${(s.count || 1) > 2 ? `<div class="flex gap-1">${alignBtn("distribute-h", "Space horizontally", "Distribute horizontally")}${alignBtn("distribute-v", "Space vertically", "Distribute vertically")}</div>` : ""}
+        <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
+}
+
 function designTab(s) {
-    return variantBar() + `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + contentFields(s) + SECTIONS.map(([id, title, keys, body]) => section(s, id, title, keys, body)).join("");
+    return variantBar() + `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) + SECTIONS.map(([id, title, keys, body]) => section(s, id, title, keys, body)).join("");
 }
 
 function classesTab(s) {

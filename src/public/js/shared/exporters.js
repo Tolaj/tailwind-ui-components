@@ -1,3 +1,5 @@
+import { parseDocument } from "./split-sections.js";
+
 const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
 
 const ATTR_MAP = {
@@ -105,7 +107,41 @@ export function toSvelte(code) {
     return parts.join("\n\n") + "\n";
 }
 
-export const FORMATS = ["html", "react", "vue", "svelte"];
+const TAILWIND_CDN = '<script src="https://cdn.tailwindcss.com"></script>';
+const escHtml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mentionsTailwind = (list) => list.some((tag) => /\bsrc\s*=\s*["'][^"']*tailwind/i.test(tag));
+
+/**
+ * The component as a complete, openable .html file (doctype, head, Tailwind, its own CSS and JS),
+ * like the file Claude Design exports. Full documents are kept as they are, only adding Tailwind if missing.
+ */
+export function toStandaloneHtml(code, { title = "Page" } = {}) {
+    const src = String(code || "");
+    if (/<html[\s>]/i.test(src)) {
+        if (/<script\b[^>]*\bsrc\s*=\s*["'][^"']*tailwind/i.test(src)) return src;
+        if (/<\/head>/i.test(src)) return src.replace(/<\/head>/i, `${TAILWIND_CDN}\n</head>`);
+        return src.replace(/<html[^>]*>/i, (m) => `${m}<head>${TAILWIND_CDN}</head>`);
+    }
+    const d = parseDocument(src);
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHtml(title)}</title>
+${mentionsTailwind(d.scripts) ? "" : TAILWIND_CDN}
+${d.links.join("\n")}
+${d.styles.join("\n")}
+</head>
+<body>
+${d.body}
+${d.scripts.join("\n")}
+</body>
+</html>
+`;
+}
+
+export const FORMATS = ["html", "standalone", "react", "vue", "svelte"];
 
 export function exportComponent(code, format = "html", name = "Component") {
     const safeName = String(name).replace(/[^a-zA-Z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : "")).replace(/^[^a-zA-Z]+/, "") || "Component";
@@ -114,6 +150,7 @@ export function exportComponent(code, format = "html", name = "Component") {
         case "react": return toReact(code, cap);
         case "vue": return toVue(code);
         case "svelte": return toSvelte(code);
+        case "standalone": return toStandaloneHtml(code, { title: name });
         default: return code;
     }
 }
