@@ -114,10 +114,15 @@ export function agentMain() {
         const br = pageRect(el);
         const w = el.offsetWidth || br.w, h = el.offsetHeight || br.h;
         const cs = getComputedStyle(el);
+        // each corner's horizontal and vertical radius in pixels (a percentage is of the width / height)
+        const corners = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map((c) => {
+            const t = String(cs[`border${c}Radius`] || "0").split(/\s+/);
+            const px = (v, ref) => (String(v).endsWith("%") ? (parseFloat(v) * ref) / 100 : parseFloat(v) || 0);
+            return [px(t[0], w), px(t[1] === undefined ? t[0] : t[1], h)];
+        });
         return {
             x: br.x + br.w / 2 - w / 2, y: br.y + br.h / 2 - h / 2, w, h, rot: rotationOf(el),
-            radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map((c) => cs[`border${c}Radius`] || "0").join(" "),
-            r0: parseFloat(cs.borderTopLeftRadius) || 0,
+            rh: corners.map((c) => c[0]), rv: corners.map((c) => c[1]), r0: corners[0][0],
         };
     };
     function redraw() {

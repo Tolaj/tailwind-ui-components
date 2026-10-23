@@ -52,11 +52,12 @@
             <main id="canvas" class="relative min-h-0 flex-1 overflow-hidden" style="touch-action:none">
                 <div id="plane" class="absolute left-0 top-0" style="transform-origin:0 0">
                     <div id="frames"></div>
-                    <iframe id="frame" title="Design canvas" sandbox="allow-scripts" class="block bg-white" style="border:0;position:absolute;left:0;top:0"></iframe>
+                    <iframe id="frame" aria-label="Design canvas" sandbox="allow-scripts" class="block bg-white" style="border:0;position:absolute;left:0;top:0"></iframe>
                     <div id="pgrid" class="pointer-events-none absolute hidden"></div>
-                    <div id="sel" class="pointer-events-none absolute left-0 top-0"></div>
-                    <div id="fsel" class="pointer-events-none absolute hidden"></div>
                 </div>
+                {{!-- Selection and frame handles are drawn in screen pixels, above the zoomed plane, so they look the same at any zoom --}}
+                <div id="sel" class="pointer-events-none absolute inset-0 z-[15] overflow-hidden"></div>
+                <div id="fsel" class="pointer-events-none absolute inset-0 z-[16] overflow-hidden"></div>
                 <div id="marquee" class="pointer-events-none absolute z-20" style="display:none;border:1px solid #0d99ff;background:rgba(13,153,255,.1)"></div>
                 <div id="panShield" class="absolute inset-0 z-20 hidden" style="cursor:grab"></div>
                 <div id="ftb" class="pill absolute z-30 hidden items-center gap-0.5 p-1"></div>

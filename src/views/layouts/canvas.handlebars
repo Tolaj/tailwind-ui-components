@@ -67,16 +67,18 @@
         #ftb .swatch input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
         #ftb .lbl2 { font-size: 11px; color: #8c8c8c; padding: 0 2px 0 6px; }
         /* the selected element: drawn above the frame so its edge never clips it; sizes use --iz to stay constant on screen */
-        #sel .sbox { position: absolute; box-sizing: border-box; pointer-events: none; transform-origin: 50% 50%; box-shadow: inset 0 0 0 calc(1.5px * var(--iz, 1)) #0d99ff; }
+        #sel .sout, #fsel .sout { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+        #sel .sbox { position: absolute; box-sizing: border-box; pointer-events: none; transform-origin: 50% 50%; }
         #sel .sh { position: absolute; pointer-events: auto; }
         /* rings are drawn with box-shadow, not border: browsers round a thin border up to a full pixel, which at high zoom turns the handle solid blue */
-        #sel .sc { width: calc(9px * var(--iz, 1)); height: calc(9px * var(--iz, 1)); background: #fff; box-shadow: inset 0 0 0 calc(1.5px * var(--iz, 1)) #0d99ff; }
-        #sel .sd { width: calc(8px * var(--iz, 1)); height: calc(8px * var(--iz, 1)); border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 calc(1.5px * var(--iz, 1)) #0d99ff; }
-        #sel .slabel.pt { transform: scale(var(--iz, 1)); transform-origin: 0 0; }
-        #sel .slabel { position: absolute; transform: translateX(-50%) scale(var(--iz, 1)); transform-origin: 50% 0; background: #0d99ff; color: #fff; font: 500 11px/1 Inter, system-ui, sans-serif; padding: 4px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+        #sel .sc { width: 9px; height: 9px; background: #fff; box-shadow: inset 0 0 0 1.5px #0d99ff; }
+        #sel .sd { width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 1.5px #0d99ff; }
+        #sel .slabel.pt { transform: none; }
+        #sel .slabel { position: absolute; transform: translateX(-50%); background: #0d99ff; color: #fff; font: 500 11px/1 Inter, system-ui, sans-serif; padding: 4px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
         /* the selected frame: handles scale with the zoom so they keep their size */
         #fsel .fh { position: absolute; pointer-events: auto; }
-        #fsel .fc { width: calc(9px * var(--iz, 1)); height: calc(9px * var(--iz, 1)); background: #fff; box-shadow: inset 0 0 0 calc(1.5px * var(--iz, 1)) #0d99ff; }
+        #fsel .fbox { position: absolute; box-sizing: border-box; pointer-events: none; }
+        #fsel .fc { width: 9px; height: 9px; background: #fff; box-shadow: inset 0 0 0 1.5px #0d99ff; }
 
         /* inspector */
         #inspector { font-size: 11px; }

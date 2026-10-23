@@ -183,7 +183,8 @@ function applyView() {
     canvas.style.backgroundSize = `${dot}px ${dot}px`;
     canvas.style.backgroundPosition = `${Math.round(view.x)}px ${Math.round(view.y)}px`;
     updatePixelGrid();
-    if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); renderSel(); }
+    if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); }
+    renderFrameSel(); // the selection is in screen pixels, so it is redrawn on every pan and zoom
     syncZoomSel();
     placeFloat();
 }
@@ -1505,9 +1506,10 @@ function placeFloat() {
     ftb.style.top = `${Math.round(top)}px`;
 }
 
+// the frame's handles, in screen pixels like the element selection (a handle must be 9px at any zoom)
 const FRAME_HANDLES = [
-    ["n", "left:0;top:calc(-5px * var(--iz));width:100%;height:calc(10px * var(--iz));cursor:ns-resize;"], ["s", "left:0;bottom:calc(-5px * var(--iz));width:100%;height:calc(10px * var(--iz));cursor:ns-resize;"],
-    ["w", "top:0;left:calc(-5px * var(--iz));height:100%;width:calc(10px * var(--iz));cursor:ew-resize;"], ["e", "top:0;right:calc(-5px * var(--iz));height:100%;width:calc(10px * var(--iz));cursor:ew-resize;"],
+    ["n", "left:0;top:0;width:100%;height:10px;transform:translateY(-50%);cursor:ns-resize;"], ["s", "left:0;top:100%;width:100%;height:10px;transform:translateY(-50%);cursor:ns-resize;"],
+    ["w", "left:0;top:0;height:100%;width:10px;transform:translateX(-50%);cursor:ew-resize;"], ["e", "left:100%;top:0;height:100%;width:10px;transform:translateX(-50%);cursor:ew-resize;"],
 ];
 const FRAME_CORNERS = [["nw", "left:0;top:0;cursor:nwse-resize;"], ["ne", "left:100%;top:0;cursor:nesw-resize;"], ["se", "left:100%;top:100%;cursor:nwse-resize;"], ["sw", "left:0;top:100%;cursor:nesw-resize;"]];
 
@@ -1516,13 +1518,14 @@ function renderFrameSel() {
     // a frame's name is blue only while the frame, or something inside it, is selected
     wraps.forEach((en, key) => en.wrap.classList.toggle("sel", key === curKey && (frameSel === curKey || Boolean(selected && selected.tag !== "body"))));
     const el = $("fsel");
-    if (frameSel !== curKey || mode !== "edit") return el.classList.add("hidden");
     const d = docs.get(curKey);
     const p = positions()[curKey];
-    if (!p) return el.classList.add("hidden");
-    Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${heightOfDoc(d)}px`, outline: "calc(1.5px * var(--iz, 1)) solid #0d99ff" });
-    if (!el.firstChild) el.innerHTML = FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("");
-    el.classList.remove("hidden");
+    if (frameSel !== curKey || mode !== "edit" || !p) { el.innerHTML = ""; return; }
+    const z = view.z;
+    const box = `left:${Math.round((view.x + p.x * z) * 100) / 100}px;top:${Math.round((view.y + p.y * z) * 100) / 100}px;width:${Math.round(widthOf(d) * z * 100) / 100}px;height:${Math.round(heightOfDoc(d) * z * 100) / 100}px;`;
+    const fx = view.x + p.x * z, fy = view.y + p.y * z;
+    const outline = `<svg class="sout"><rect x="${fx - 0.75}" y="${fy - 0.75}" width="${widthOf(d) * z + 1.5}" height="${heightOfDoc(d) * z + 1.5}" fill="none" stroke="#0d99ff" stroke-width="1.5"/></svg>`;
+    el.innerHTML = outline + `<div class="fbox" style="${box}">` + FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("") + "</div>";
 }
 
 /** The selection box and its handles, above the frame (see selection-overlay.js). */
@@ -1531,9 +1534,7 @@ function renderSel() {
     const el = $("sel");
     const p = positions()[curKey];
     if (mode !== "edit" || frameSel === curKey || !selData || !p) { el.innerHTML = ""; return; }
-    el.style.left = `${p.x}px`;
-    el.style.top = `${p.y}px`;
-    el.innerHTML = selectionHtml(selData, view.z);
+    el.innerHTML = selectionHtml(selData, { zoom: view.z, ox: view.x + p.x * view.z, oy: view.y + p.y * view.z });
 }
 
 function renderFloat(force) {
