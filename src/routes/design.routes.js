@@ -17,7 +17,9 @@ const safeJson = (obj) => JSON.stringify(obj).replace(/</g, "\\u003c").replace(/
 
 const projectList = async (userId) => (await Project.find({ owner: userId }).select("name").sort("name").lean()).map((p) => ({ id: String(p._id), name: p.name }));
 
-const boardOf = (c) => (c.board && Number.isFinite(c.board.x) && Number.isFinite(c.board.y) ? { x: c.board.x, y: c.board.y } : null);
+const boardOf = (c) => (c.board && Number.isFinite(c.board.x) && Number.isFinite(c.board.y)
+    ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) }
+    : null);
 
 const renderEditor = (res, data, title) =>
     res.render("main/design", {

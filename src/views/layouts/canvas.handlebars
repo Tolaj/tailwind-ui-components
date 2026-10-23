@@ -43,6 +43,27 @@
         .fwrap.dragging { z-index: 50; cursor: grabbing; }
         .fwrap.dragging .frame { box-shadow: 0 8px 30px rgba(0,0,0,.25); cursor: grabbing; }
 
+        /* floating controls */
+        .pill { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.10); }
+        .pop { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+        .tbtn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: #404040; }
+        .tbtn:hover { background: #f0f0f0; }
+        .tbtn.on { background: #daebff; color: #0b6fc2; }
+        .ptab { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #777; }
+        .ptab.is-on { background: #f0f0f0; color: #000; }
+        #ftb .tbtn { width: 28px; height: 28px; }
+        #ftb select, #ftb input[type=number] { height: 28px; border: 0; background: transparent; border-radius: 8px; font-size: 13px; color: #222; }
+        #ftb select:hover, #ftb input[type=number]:hover { background: #f0f0f0; }
+        #ftb input[type=number] { width: 52px; text-align: center; -moz-appearance: textfield; }
+        #ftb input[type=number]::-webkit-inner-spin-button, #ftb input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        #ftb .sep { width: 1px; height: 20px; background: #e5e5e5; margin: 0 2px; }
+        #ftb .swatch { position: relative; width: 24px; height: 24px; border-radius: 7px; border: 1px solid rgba(0,0,0,.2); overflow: hidden; margin: 0 2px; }
+        #ftb .swatch input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
+        #ftb .lbl2 { font-size: 11px; color: #8c8c8c; padding: 0 2px 0 6px; }
+        /* the selected frame: handles scale with the zoom so they keep their size */
+        #fsel .fh { position: absolute; pointer-events: auto; }
+        #fsel .fc { width: calc(9px * var(--iz, 1)); height: calc(9px * var(--iz, 1)); background: #fff; border: calc(1.5px * var(--iz, 1)) solid #0d99ff; box-sizing: border-box; }
+
         /* inspector */
         #inspector { font-size: 11px; }
         .itabs { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; background: #fff; z-index: 5; }

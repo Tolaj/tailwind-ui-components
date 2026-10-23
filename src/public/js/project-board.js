@@ -21,10 +21,11 @@ const wraps = new Map();
 const byId = (id) => items.find((i) => i.id === id);
 const pages = () => items.filter((i) => i.kind !== "section" || !items.some((p) => p.id === i.parent));
 const sectionsOf = (id) => items.filter((i) => i.kind === "section" && i.parent === id);
-const heightOf = (it) => heights[it.id] || (it.kind === "section" ? SEC_H : PAGE_H);
+const widthOf = (it) => (it.board && it.board.w) || FRAME_W;
+const heightOf = (it) => (it.board && it.board.h) || heights[it.id] || (it.kind === "section" ? SEC_H : PAGE_H);
 
 function computeLayout() {
-    Object.assign(pos, layoutItems(items, { frameW: FRAME_W, heightOf }));
+    Object.assign(pos, layoutItems(items, { frameW: FRAME_W, heightOf, widthOf }));
 }
 
 // ── View (pan and zoom) ──────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ function fitTo(list, maxZ = 1) {
     list.forEach((it) => {
         const p = pos[it.id];
         x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y - 30);
-        x1 = Math.max(x1, p.x + FRAME_W); y1 = Math.max(y1, p.y + heightOf(it));
+        x1 = Math.max(x1, p.x + widthOf(it)); y1 = Math.max(y1, p.y + heightOf(it));
     });
     const W = board.clientWidth, H = board.clientHeight;
     const z = Math.min(maxZ, Math.max(MIN_Z, Math.min((W - 120) / (x1 - x0), (H - 120) / (y1 - y0))));
@@ -95,8 +96,8 @@ function mount(id) {
     f.setAttribute("sandbox", "allow-scripts");
     f.setAttribute("tabindex", "-1");
     f.title = it.title;
-    f.style.cssText = `position:absolute;left:0;top:0;width:${FRAME_W}px;height:100%;border:0;pointer-events:none;background:#fff;`;
-    f.srcdoc = buildPreviewDocument(parseComponentSource(it.htmlCode), { width: FRAME_W });
+    f.style.cssText = `position:absolute;left:0;top:0;width:${widthOf(it)}px;height:100%;border:0;pointer-events:none;background:#fff;`;
+    f.srcdoc = buildPreviewDocument(parseComponentSource(it.htmlCode), { width: widthOf(it) });
     entry.frame.appendChild(f);
     entry.iframe = f;
 }
@@ -125,7 +126,7 @@ function placeFrames() {
         const entry = wraps.get(it.id);
         if (!entry) return;
         const p = pos[it.id];
-        Object.assign(entry.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${FRAME_W}px`, height: `${heightOf(it)}px` });
+        Object.assign(entry.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(it)}px`, height: `${heightOf(it)}px` });
     });
 }
 
@@ -192,7 +193,7 @@ board.addEventListener("pointerup", () => {
     if (!g) return;
     if (g.type === "frame") {
         g.wrap.classList.remove("dragging");
-        if (g.moved) { byId(g.id).board = { ...pos[g.id] }; queueSave(g.id); }
+        if (g.moved) { byId(g.id).board = { ...byId(g.id).board, ...pos[g.id] }; queueSave(g.id); }
         else select(g.id);
     } else if (!g.moved && !g.onFrame) {
         select(null);

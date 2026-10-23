@@ -95,8 +95,10 @@ export function agentMain() {
     const alive = (el) => el && document.body.contains(el);
 
     // ── Overlay drawing ─────────────────────────────────────────────────────────────────────
-    const HANDLES = [["nw", 0, 0], ["n", 0.5, 0], ["ne", 1, 0], ["e", 1, 0.5], ["se", 1, 1], ["s", 0.5, 1], ["sw", 0, 1], ["w", 0, 0.5]];
+    const CORNERS = [["nw", 0, 0], ["ne", 1, 0], ["se", 1, 1], ["sw", 0, 1]];
     const HCURSOR = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
+    const ROTATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#fff" stroke-width="4.2"><path d="M5 15C6.5 8 17.5 8 19 15"/><path d="M2.5 12.5 5 15.5 8 13"/><path d="M16 13 19 15.5 21.5 12.5"/></g><g stroke="#111" stroke-width="1.8"><path d="M5 15C6.5 8 17.5 8 19 15"/><path d="M2.5 12.5 5 15.5 8 13"/><path d="M16 13 19 15.5 21.5 12.5"/></g></svg>';
+    const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_SVG)}") 12 12, crosshair`;
 
     function place(box, el) {
         if (!el || !alive(el)) { box.style.display = "none"; return; }
@@ -107,29 +109,44 @@ export function agentMain() {
     function redraw() {
         sels = sels.filter(alive);
         selLayer.innerHTML = "";
-        sels.forEach((el) => {
-            const r = pageRect(el);
-            selLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;`));
-        });
         const el = primary();
-        if (el && sels.length === 1 && el !== document.body && tool === "move" && !editing) {
-            const r = pageRect(el);
-            const s = px(8);
-            const abs = isAbs(el);
-            HANDLES.forEach(([name, fx, fy]) => {
-                if (!abs && !["e", "s", "se"].includes(name)) return;
-                const h = mk(`position:absolute;left:${r.x + r.w * fx - s / 2}px;top:${r.y + r.h * fy - s / 2}px;width:${s}px;height:${s}px;background:#fff;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;pointer-events:auto;cursor:${HCURSOR[name]};`);
-                h.dataset.h = name;
-                selLayer.appendChild(h);
+        const showHandles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing);
+        if (!showHandles) {
+            sels.forEach((e) => {
+                const r = pageRect(e);
+                selLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;`));
             });
+        } else {
+            // the box turns with the element: border, resize edges, corner squares and the rotate zones live inside one rotated container
+            const abs = isAbs(el);
+            const rot = abs ? rotationOf(el) : 0;
+            const br = pageRect(el);
+            const w = abs && el.offsetWidth ? el.offsetWidth : br.w;
+            const h = abs && el.offsetHeight ? el.offsetHeight : br.h;
+            const box = mk(`position:absolute;left:${br.x + br.w / 2 - w / 2}px;top:${br.y + br.h / 2 - h / 2}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg);transform-origin:50% 50%;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;pointer-events:none;`);
+            selLayer.appendChild(box);
+            const s = px(9);
+            const e = px(10);
+            const bw = px(1.5);
+            const add = (css, name, cursor) => { const hnd = mk(`position:absolute;${css}pointer-events:auto;cursor:${cursor};`); hnd.dataset.h = name; box.appendChild(hnd); };
+            // rotating: the area just outside each corner (under the corner squares)
             if (abs) {
-                const rh = mk(`position:absolute;left:${r.x + r.w / 2 - s / 2}px;top:${r.y - px(26) - s / 2}px;width:${s}px;height:${s}px;border-radius:50%;background:#fff;border:${px(1.5)}px solid ${BLUE};box-sizing:border-box;pointer-events:auto;cursor:crosshair;`);
-                rh.dataset.h = "rotate";
-                selLayer.appendChild(rh);
+                const z = px(24);
+                CORNERS.forEach(([name, fx, fy]) => add(`left:${fx ? w - bw - s / 2 : -bw - z + s / 2}px;top:${fy ? h - bw - s / 2 : -bw - z + s / 2}px;width:${z}px;height:${z}px;`, `rot-${name}`, ROTATE_CURSOR));
             }
+            // resizing: the whole length of each edge, then a square on each corner
+            const edgeW = Math.max(0, w - s), edgeH = Math.max(0, h - s);
+            (abs ? ["n", "e", "s", "w"] : ["e", "s"]).forEach((name) => {
+                const horizontal = name === "n" || name === "s";
+                add(horizontal
+                    ? `left:${s / 2 - bw}px;top:${(name === "n" ? 0 : h) - bw - e / 2}px;width:${edgeW}px;height:${e}px;`
+                    : `left:${(name === "w" ? 0 : w) - bw - e / 2}px;top:${s / 2 - bw}px;width:${e}px;height:${edgeH}px;`, name, HCURSOR[name]);
+            });
+            (abs ? CORNERS : [["se", 1, 1]]).forEach(([name, fx, fy]) => add(`left:${w * fx - bw - s / 2}px;top:${h * fy - bw - s / 2}px;width:${s}px;height:${s}px;background:#fff;border:${bw}px solid ${BLUE};box-sizing:border-box;`, name, HCURSOR[name]));
         }
         place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
-        if (el && alive(el) && el !== document.body) {
+        // the size label only appears while dragging; otherwise it would sit behind the editor's floating toolbar
+        if (el && alive(el) && el !== document.body && gesture && gesture.moved) {
             const r = pageRect(el);
             const g = geomOf(el);
             tagLabel.textContent = sels.length > 1 ? `${sels.length} selected` : `${el.tagName.toLowerCase()}  ${g.w} × ${g.h}`;
@@ -166,6 +183,7 @@ export function agentMain() {
             text: el.children.length === 0 ? el.textContent : null,
             attrs, crumbs,
             geom: geomOf(el),
+            rect: el === document.body ? null : pageRect(el),
             computed: computedOf(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
@@ -263,12 +281,16 @@ export function agentMain() {
         el.focus();
         if (selectAll) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
         redraw();
+        postEditing();
     }
+    const fmtState = () => ({ bold: document.queryCommandState("bold"), italic: document.queryCommandState("italic"), underline: document.queryCommandState("underline") });
+    function postEditing() { post({ type: "editing", on: Boolean(editing), rect: editing ? pageRect(editing) : null, fmt: editing ? fmtState() : null }); }
     function finishEdit() {
         if (!editing) return;
         const el = editing;
         editing = null;
         el.removeAttribute("contenteditable");
+        postEditing();
         changed();
     }
 
@@ -341,22 +363,33 @@ export function agentMain() {
     }
 
     function resizeGesture(g, e) {
-        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
-        let { x, y, w, h } = g.g;
+        // work in the element's own axes, so a rotated element resizes along its own edges
+        const th = g.rot * Math.PI / 180, cos = Math.cos(th), sin = Math.sin(th);
+        const sdx = e.clientX - g.sx, sdy = e.clientY - g.sy;
+        const dx = sdx * cos + sdy * sin, dy = -sdx * sin + sdy * cos;
         const hd = g.h;
+        let w = g.g.w, h = g.g.h;
         if (hd.includes("e")) w = g.g.w + dx;
         if (hd.includes("s")) h = g.g.h + dy;
-        if (hd.includes("w")) { w = g.g.w - dx; x = g.g.x + dx; }
-        if (hd.includes("n")) { h = g.g.h - dy; y = g.g.y + dy; }
+        if (hd.includes("w")) w = g.g.w - dx;
+        if (hd.includes("n")) h = g.g.h - dy;
         if (e.shiftKey && g.g.w && g.g.h) {
             const r = g.g.w / g.g.h;
-            if (hd.length === 2 || hd === "e" || hd === "w") { const nh = w / r; if (hd.includes("n")) y = g.g.y + g.g.h - nh; h = nh; } else w = h * r;
+            if (hd.length === 2 || hd === "e" || hd === "w") h = w / r; else w = h * r;
         }
-        if (e.altKey) { x = g.g.x - (w - g.g.w) / 2; y = g.g.y - (h - g.g.h) / 2; }
         w = Math.max(1, w); h = Math.max(1, h);
-        if (g.abs) { setPx(g.el, "left", x); setPx(g.el, "top", y); }
         setPx(g.el, "width", w);
         setPx(g.el, "height", h);
+        if (!g.abs) return;
+        // keep the opposite edge or corner where it was (or the center, with Alt)
+        const ax = hd.includes("w") ? 1 : hd.includes("e") ? -1 : 0;
+        const ay = hd.includes("n") ? 1 : hd.includes("s") ? -1 : 0;
+        const rot = (x, y) => ({ x: x * cos - y * sin, y: x * sin + y * cos });
+        const a0 = rot(ax * g.g.w / 2, ay * g.g.h / 2), a1 = rot(ax * w / 2, ay * h / 2);
+        const cx = e.altKey ? g.c.x : g.c.x + a0.x - a1.x;
+        const cy = e.altKey ? g.c.y : g.c.y + a0.y - a1.y;
+        setPx(g.el, "left", cx - w / 2 - g.o.x);
+        setPx(g.el, "top", cy - h / 2 - g.o.y);
     }
 
     function rotateGesture(g, e) {
@@ -390,12 +423,13 @@ export function agentMain() {
         if (hd) {
             const el = primary();
             const g = geomOf(el);
-            if (hd === "rotate") {
+            if (hd.startsWith("rot")) {
                 const r = pageRect(el);
                 const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
                 gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
             } else {
-                gesture = { type: "resize", el, h: hd, g, abs: g.abs, sx: e.clientX, sy: e.clientY, moved: false };
+                const br = pageRect(el);
+                gesture = { type: "resize", el, h: hd, g, abs: g.abs, rot: g.rot, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
             }
             return;
         }
@@ -423,6 +457,7 @@ export function agentMain() {
         }
         if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 3 && g.type !== "rotate") return;
         g.moved = true;
+        if (!g.notified) { g.notified = true; post({ type: "gesture", on: true }); }
         if (g.type === "draw") {
             const x0 = Math.min(g.sx, e.clientX) + window.scrollX, y0 = Math.min(g.sy, e.clientY) + window.scrollY;
             Object.assign(draftBox.style, { display: "block", left: `${x0}px`, top: `${y0}px`, width: `${Math.abs(e.clientX - g.sx)}px`, height: `${Math.abs(e.clientY - g.sy)}px` });
@@ -441,6 +476,7 @@ export function agentMain() {
         marqueeBox.style.display = "none";
         root.style.cursor = CURSOR[tool] || "default";
         if (!g) return;
+        if (g.notified) post({ type: "gesture", on: false });
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") { if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits); return; }
         if (g.type === "reorder" && g.moved && g.target) {
@@ -459,6 +495,7 @@ export function agentMain() {
         setSelection([el]);
         startEdit(el, false);
     }, true);
+    document.addEventListener("selectionchange", () => { if (editing) postEditing(); });
     document.addEventListener("focusout", (e) => { if (editing && e.target === editing) finishEdit(); }, true);
     document.addEventListener("submit", (e) => e.preventDefault(), true);
     document.addEventListener("click", (e) => { if (!(editing && editing.contains(e.target))) { e.preventDefault(); e.stopPropagation(); } }, true);
@@ -603,7 +640,13 @@ export function agentMain() {
 
     document.addEventListener("keyup", (e) => { if (e.code === "Space" && !editing) post({ type: "space", down: false }); }, true);
 
-    new MutationObserver(() => redraw()).observe(document.head, { childList: true, subtree: true, characterData: true });
+    // Tailwind writes its styles a moment after an element appears, so the numbers the editor shows can be stale
+    let infoTimer = null;
+    new MutationObserver(() => {
+        redraw();
+        clearTimeout(infoTimer);
+        infoTimer = setTimeout(() => { if (primary() && alive(primary()) && !gesture) post({ type: "info", info: describe(primary()) }); }, 150);
+    }).observe(document.head, { childList: true, subtree: true, characterData: true });
     window.addEventListener("scroll", redraw, { passive: true });
     window.addEventListener("resize", redraw);
     new ResizeObserver(() => { redraw(); post({ type: "height", height: Math.ceil(root.getBoundingClientRect().height) }); }).observe(root);
@@ -687,9 +730,14 @@ export function agentMain() {
             return;
         }
         if (m.cmd === "select") { select(elAt(m.path)); return; }
+        if (m.cmd === "deselect") { editing = null; setSelection([], true); return; }
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
         if (m.cmd === "cssProps") { cssProps = m.props || []; return; }
+        if (m.cmd === "exec") {
+            if (editing && m.name) { editing.focus(); document.execCommand(m.name, false, m.arg || null); postEditing(); }
+            return;
+        }
         if (m.cmd === "view") { zoom = m.zoom || 1; redraw(); return; }
         if (m.cmd === "scrollTo") { const el = elAt(m.path); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (m.cmd === "align") { align(m.mode); return; }

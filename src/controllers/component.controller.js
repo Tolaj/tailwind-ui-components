@@ -129,7 +129,9 @@ export const updateComponent = async (req, res) => {
         let codeChanged = false;
 
         if (board !== undefined) {
-            component.board = board && Number.isFinite(board.x) && Number.isFinite(board.y) ? { x: Math.round(board.x), y: Math.round(board.y) } : null;
+            component.board = board && Number.isFinite(board.x) && Number.isFinite(board.y)
+                ? { x: Math.round(board.x), y: Math.round(board.y), ...(Number.isFinite(board.w) ? { w: Math.round(board.w) } : {}), ...(Number.isFinite(board.h) ? { h: Math.round(board.h) } : {}) }
+                : null;
         }
 
         if (projectRef !== undefined) {

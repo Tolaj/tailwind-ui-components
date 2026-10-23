@@ -10,54 +10,53 @@
             <span id="versionBadge" class="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] text-neutral-600"></span>
             <svg class="h-3.5 w-3.5 shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
         </button>
-
-        <div class="relative">
-            <button id="addBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs font-medium hover:bg-neutral-50">+ Add</button>
-            <div id="addMenu" class="absolute left-0 top-9 z-30 hidden w-48 rounded-lg border border-neutral-200 bg-white p-1 shadow-[0_6px_20px_rgba(0,0,0,.12)]"></div>
-        </div>
-        <button id="codeBtn" type="button" class="h-7 rounded-md border border-neutral-200 px-2.5 text-xs font-medium hover:bg-neutral-50" title="View and edit the HTML">Code</button>
-
         <div class="ml-auto flex items-center gap-2">
-            <div class="flex items-center gap-0.5">
-                <button id="undoBtn" type="button" title="Undo (Ctrl/Cmd+Z)" class="h-8 w-8 rounded-md text-neutral-600 hover:bg-neutral-100 disabled:opacity-30"><svg class="mx-auto h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"/></svg></button>
-                <button id="redoBtn" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" class="h-8 w-8 rounded-md text-neutral-600 hover:bg-neutral-100 disabled:opacity-30"><svg class="mx-auto h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"/></svg></button>
-            </div>
-            <div class="h-5 w-px bg-neutral-200"></div>
-            <div id="deviceSeg" class="seg flex overflow-hidden rounded-md border border-neutral-300">
-                <button type="button" data-device="1280" class="is-on px-2.5 py-1 text-xs font-medium">Desktop</button>
-                <button type="button" data-device="768" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium">Tablet</button>
-                <button type="button" data-device="390" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium">Mobile</button>
-            </div>
-            <select id="zoomSel" class="h-7 rounded-md border border-neutral-200 bg-white px-1 text-xs" title="Zoom (Shift+1 fit all, Shift+2 fit this design)"><option value="fit">Fit all</option><option value="frame">Fit this design</option><option value="2">200%</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="0.25">25%</option></select>
-            <div id="modeSeg" class="seg flex overflow-hidden rounded-md border border-neutral-300">
-                <button type="button" data-mode="edit" class="is-on px-2.5 py-1 text-xs font-medium">Edit</button>
-                <button type="button" data-mode="preview" class="border-l border-neutral-300 px-2.5 py-1 text-xs font-medium" title="Run it with its JavaScript">Preview</button>
-            </div>
             <span id="saveState" class="min-w-[70px] text-right text-xs text-neutral-500"></span>
             <button id="saveBtn" type="button" class="h-7 rounded-md bg-[#0d99ff] px-4 text-xs font-semibold text-white hover:bg-[#0a84e0] disabled:opacity-40">Save</button>
         </div>
     </header>
 
     <div class="flex min-h-0 flex-1">
-        <aside class="flex w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
-            <div class="flex items-center justify-between border-b border-neutral-200 py-1.5 pl-3 pr-1.5">
-                <span class="text-[11px] font-semibold">Designs</span>
-                <button id="newDesignBtn" type="button" title="Add another design to this canvas" class="flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100">+ New</button>
-            </div>
-            <div id="designs" class="max-h-52 shrink-0 overflow-auto border-b border-neutral-200 p-1 text-[12px]"></div>
-            <div class="border-b border-neutral-200 px-3 py-2.5 text-[11px] font-semibold">Layers</div>
-            <div id="layers" class="min-h-0 flex-1 overflow-auto p-1 text-[12px]"></div>
-        </aside>
-
         <section class="relative flex min-w-0 flex-1 flex-col">
-            {{!-- Design tools --}}
-            <div id="toolbar" class="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-neutral-200 bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,.12)]"></div>
+            {{!-- Floating controls: designs and tools on the left, view controls on the right --}}
+            <div class="pill absolute left-3 top-3 z-30 flex items-center gap-0.5 p-1">
+                <div class="relative">
+                    <button id="designsBtn" type="button" class="flex h-8 max-w-[220px] items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100" title="Designs on this canvas">
+                        <span id="designsCount" class="rounded-full bg-neutral-100 px-1.5 text-[11px] text-neutral-600">1</span>
+                        <span id="designsName" class="truncate">Design</span>
+                        <svg class="h-3.5 w-3.5 shrink-0 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div id="designsMenu" class="pop absolute left-0 top-10 z-40 hidden w-64 p-1">
+                        <div id="designs" class="max-h-72 overflow-auto text-[12px]"></div>
+                        <button id="newDesignBtn" type="button" class="mt-1 flex h-8 w-full items-center gap-2 rounded-lg border-t border-neutral-100 px-2 text-left text-[12px] font-medium text-neutral-700 hover:bg-neutral-100">+ New design on this canvas</button>
+                    </div>
+                </div>
+                <span class="mx-0.5 h-5 w-px bg-neutral-200"></span>
+                <div id="toolbar" class="flex items-center gap-0.5"></div>
+                <span class="mx-0.5 h-5 w-px bg-neutral-200"></span>
+                <div class="relative">
+                    <button id="addBtn" type="button" title="Insert a block" class="tbtn"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><path d="M12 5v14M5 12h14"/></svg></button>
+                    <div id="addMenu" class="pop absolute left-0 top-10 z-40 hidden w-48 p-1"></div>
+                </div>
+            </div>
+            <div id="pillR" class="pill absolute right-3 top-3 z-30 flex items-center gap-0.5 p-1">
+                <button id="undoBtn" type="button" title="Undo (Ctrl/Cmd+Z)" class="tbtn disabled:opacity-30"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><path d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"/></svg></button>
+                <button id="redoBtn" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" class="tbtn disabled:opacity-30"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><path d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"/></svg></button>
+                <span class="mx-0.5 h-5 w-px bg-neutral-200"></span>
+                <button id="codeBtn" type="button" title="View and edit the HTML" class="tbtn"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></button>
+                <button id="playBtn" type="button" title="Preview: run it with its JavaScript" class="tbtn"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><path d="M7 5v14l12-7z"/></svg></button>
+                <button id="panelBtn" type="button" title="Properties and layers" class="tbtn"><svg class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/></svg></button>
+                <select id="zoomSel" class="h-8 rounded-lg border-0 bg-transparent pl-1 pr-0 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100 focus:outline-none" title="Zoom (Shift+1 fit all, Shift+2 fit this design)"><option value="fit">Fit all</option><option value="frame">Fit this design</option><option value="2">200%</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="0.25">25%</option></select>
+            </div>
+
             <main id="canvas" class="relative min-h-0 flex-1 overflow-hidden" style="touch-action:none">
                 <div id="plane" class="absolute left-0 top-0" style="transform-origin:0 0">
                     <div id="frames"></div>
                     <iframe id="frame" title="Design canvas" sandbox="allow-scripts" class="block bg-white" style="border:0;position:absolute;left:0;top:0"></iframe>
+                    <div id="fsel" class="pointer-events-none absolute hidden"></div>
                 </div>
                 <div id="panShield" class="absolute inset-0 z-20 hidden" style="cursor:grab"></div>
+                <div id="ftb" class="pill absolute z-30 hidden items-center gap-0.5 p-1"></div>
                 <p id="canvasHint" class="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-3 py-1 text-[11px] text-neutral-500 shadow-[0_1px_4px_rgba(0,0,0,.12)]">Click to select. Double-click text to edit it. Scroll to pan, Ctrl/Cmd + scroll to zoom.</p>
 
                 {{!-- Start screen for an empty design --}}
@@ -87,8 +86,19 @@
             </div>
         </section>
 
-        <aside class="flex w-[288px] shrink-0 flex-col border-l border-neutral-200 bg-white">
+        {{!-- Closed until you ask for it; the floating toolbar covers everyday edits --}}
+        <aside id="panel" class="hidden w-[288px] shrink-0 flex-col border-l border-neutral-200 bg-white">
+            <div class="flex items-center gap-1 border-b border-neutral-200 px-2 py-1.5">
+                <div id="panelTabs" class="flex gap-0.5">
+                    <button type="button" data-ptab="props" class="ptab is-on">Properties</button>
+                    <button type="button" data-ptab="layers" class="ptab">Layers</button>
+                </div>
+                <button id="panelClose" type="button" title="Close" class="ml-auto flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
             <div id="inspector" class="min-h-0 flex-1 overflow-auto"></div>
+            <div id="layersPane" class="hidden min-h-0 flex-1 overflow-auto p-1"><div id="layers" class="text-[12px]"></div></div>
         </aside>
     </div>
 </div>

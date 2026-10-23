@@ -30,7 +30,7 @@ projectPages.get("/:id", async (req, res) => {
             project: { id: String(project._id), name: project.name, description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
-                version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y } : null, updatedAt: c.updatedAt,
+                version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
             })),
         };
         res.render("main/project", {
@@ -44,6 +44,16 @@ projectPages.get("/:id", async (req, res) => {
 
 // ── API ──────────────────────────────────────────────────────────────────────
 export const projectApi = express.Router();
+
+// frame size: whole pixels, kept sane. A number sets it, null clears it (back to automatic), anything else keeps the old value.
+const sizeOf = (p, old) => {
+    const out = {};
+    [["w", 8000], ["h", 20000]].forEach(([k, max]) => {
+        const v = Number.isFinite(p[k]) ? p[k] : p[k] === null ? null : old[k];
+        if (Number.isFinite(v)) out[k] = Math.min(max, Math.max(120, Math.round(v)));
+    });
+    return out;
+};
 
 const clean = (b) => ({ name: String(b.name || "").trim().slice(0, 80), description: String(b.description || "").trim().slice(0, 300) });
 
@@ -84,14 +94,16 @@ projectApi.post("/:id/layout", async (req, res) => {
     const owned = await Project.exists({ _id: req.params.id, owner: req.session.user.id });
     if (!owned) return res.status(404).json({ success: false, message: "Not found" });
     const positions = Array.isArray(req.body && req.body.positions) ? req.body.positions.slice(0, 500) : [];
-    const ops = positions
-        .filter((p) => mongoose.isValidObjectId(p.id))
-        .map((p) => ({
-            updateOne: {
-                filter: { _id: p.id, createdBy: req.session.user.id, project: req.params.id },
-                update: { board: Number.isFinite(p.x) && Number.isFinite(p.y) ? { x: Math.round(p.x), y: Math.round(p.y) } : null },
-            },
-        }));
+    const valid = positions.filter((p) => mongoose.isValidObjectId(p.id));
+    const current = new Map((await Component.find({ _id: { $in: valid.map((p) => p.id) }, createdBy: req.session.user.id, project: req.params.id }).select("board").lean()).map((c) => [String(c._id), c.board]));
+    const ops = valid.filter((p) => current.has(String(p.id))).map((p) => {
+        // a position keeps the frame's saved size unless a new size comes with it; null resets to automatic layout
+        const old = current.get(String(p.id)) || {};
+        const board = Number.isFinite(p.x) && Number.isFinite(p.y)
+            ? { x: Math.round(p.x), y: Math.round(p.y), ...sizeOf(p, old) }
+            : null;
+        return { updateOne: { filter: { _id: p.id }, update: { board } } };
+    });
     if (ops.length) await Component.bulkWrite(ops);
     res.json({ success: true });
 });

@@ -3,7 +3,8 @@ import { computeLayout } from "../shared/board-layout.js";
 import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, setGroup } from "./class-groups.js";
-import { ui, variant, val, renderInspectorHtml, mountDatalists } from "./inspector.js";
+import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor } from "./inspector.js";
+import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS } from "./float-toolbar.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 
 const $ = (id) => document.getElementById(id);
@@ -41,7 +42,7 @@ const isTailwindScript = (s) => s.src && /tailwindcss/i.test(s.src);
 
 // ── State ────────────────────────────────────────────────────────────────────
 let mode = "edit";
-let device = 1280;
+const DEFAULT_W = 1280;
 let frameHeight = 600;
 let selected = null;
 let tree = null;
@@ -85,8 +86,12 @@ const assemble = () => assembleDoc(parsed, model.markup);
 function loadFrame() {
     loadSeq++;
     selected = null;
+    editingInfo = null;
+    gestureOn = false;
+    ftMenu = false;
     renderInspector();
-    frame.srcdoc = mode === "edit" ? editDocument() : buildPreviewDocument(parseComponentSource(assemble()), { width: device });
+    renderFloat();
+    frame.srcdoc = mode === "edit" ? editDocument() : buildPreviewDocument(parseComponentSource(assemble()), { width: curWidth() });
 }
 
 // ── History, dirty state, layout ─────────────────────────────────────────────
@@ -153,11 +158,14 @@ let sentZoom = 0;
 const canvas = $("canvas");
 
 const MIN_H = 720;
-const heightOfDoc = (d) => (d.key === curKey ? Math.max(MIN_H, frameHeight) : Math.max(MIN_H, d.height || 0));
+// a frame has its own width, and a height that follows its content unless it was set by hand
+const widthOf = (d) => (d.board && d.board.w) || DEFAULT_W;
+const curWidth = () => widthOf(docs.get(curKey));
+const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === curKey ? Math.max(MIN_H, frameHeight) : Math.max(MIN_H, d.height || 0));
 const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];
 
 function positions() {
-    return computeLayout([...docs.values()].map((d) => ({ id: d.key, kind: d.kind, parent: d.parent, board: d.board })), { frameW: device, heightOf: (it) => heightOfDoc(docs.get(it.id)) });
+    return computeLayout([...docs.values()].map((d) => ({ id: d.key, kind: d.kind, parent: d.parent, board: d.board })), { frameW: DEFAULT_W, widthOf: (it) => widthOf(docs.get(it.id)), heightOf: (it) => heightOfDoc(docs.get(it.id)) });
 }
 
 function applyView() {
@@ -167,6 +175,7 @@ function applyView() {
     canvas.style.backgroundPosition = `${view.x}px ${view.y}px`;
     if (sentZoom !== view.z) { sentZoom = view.z; send({ cmd: "view", zoom: view.z }); }
     syncZoomSel();
+    placeFloat();
 }
 
 function syncZoomSel() {
@@ -196,7 +205,7 @@ function fitTo(keys, maxZ = 1) {
     list.forEach((k) => {
         const p = pos[k];
         x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y - 30);
-        x1 = Math.max(x1, p.x + device); y1 = Math.max(y1, p.y + heightOfDoc(docs.get(k)));
+        x1 = Math.max(x1, p.x + widthOf(docs.get(k))); y1 = Math.max(y1, p.y + heightOfDoc(docs.get(k)));
     });
     const [W, H] = canvasSize();
     const z = Math.min(maxZ, Math.max(MIN_Z, Math.min((W - 120) / (x1 - x0), (H - 120) / (y1 - y0))));
@@ -214,11 +223,13 @@ function layout() {
         const p = pos[key];
         if (!en || !p) return;
         const h = heightOfDoc(d);
-        Object.assign(en.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${device}px`, height: `${h}px` });
+        Object.assign(en.wrap.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
         // the live iframe never changes parent (that would reload it); it just sits over the active frame
-        if (key === curKey) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${device}px`, height: `${h}px` });
+        if (key === curKey) Object.assign(frame.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${h}px` });
     });
+    $("pillR").style.top = canvas.clientWidth < 820 ? "60px" : "";
     applyView();
+    renderFloat();
 }
 
 function handleWheel({ dx, dy, zoomKey, cx, cy }) {
@@ -256,6 +267,7 @@ window.addEventListener("message", (e) => {
         applyView();
         send({ cmd: "tool", tool });
         send({ cmd: "cssProps", props: CSS_PROP_LIST });
+        renderFloat();
     } else if (m.type === "height" || m.type === "preview-height") {
         frameHeight = m.height;
         layout();
@@ -268,14 +280,31 @@ window.addEventListener("message", (e) => {
         if (m.info) selected = m.info;
         renderLayers();
         if (!inspectorEditing()) renderInspector();
+        renderFloat();
+    } else if (m.type === "info") {
+        // the same element with fresh numbers (styles finished loading): update quietly
+        if (selected && m.info && pathKey(selected.path) === pathKey(m.info.path)) {
+            selected = m.info;
+            if (!inspectorEditing()) renderInspector();
+            renderFloat();
+        }
+    } else if (m.type === "editing") {
+        editingInfo = m;
+        renderFloat();
+    } else if (m.type === "gesture") {
+        gestureOn = m.on;
+        renderFloat();
     } else if (m.type === "tool") {
         setTool(m.tool, true);
     } else if (m.type === "space") {
         setSpace(m.down);
     } else if (m.type === "selected") {
         selected = m.info;
+        frameSel = null;
+        ftMenu = false;
         renderLayers();
         if (!inspectorEditing()) renderInspector();
+        renderFloat();
     } else if (m.type === "key") {
         handleKey(m);
     }
@@ -367,10 +396,8 @@ function applyColor(key, name, op) {
 }
 
 function setDevice(w) {
-    device = w;
-    document.querySelectorAll("#deviceSeg button").forEach((b) => b.classList.toggle("is-on", b.dataset.device === String(w)));
+    setFrameSize({ w });
     if (mode === "preview") loadFrame();
-    layout();
 }
 
 const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClasses", path: selected.path, value: next }); };
@@ -510,21 +537,17 @@ async function askAI() {
 }
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
-function setSeg(id, attr, value) {
-    document.querySelectorAll(`#${id} button`).forEach((b) => b.classList.toggle("is-on", b.dataset[attr] === String(value)));
-}
-$("deviceSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-device]"); if (b) setDevice(Number(b.dataset.device)); });
-$("modeSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-mode]");
-    if (!b || b.dataset.mode === mode) return;
-    mode = b.dataset.mode;
-    setSeg("modeSeg", "mode", mode);
+function setMode(next) {
+    if (next === mode) return;
+    mode = next;
+    $("playBtn").classList.toggle("on", mode === "preview");
     $("inspector").style.opacity = $("layers").style.opacity = mode === "edit" ? "" : "0.4";
     $("inspector").style.pointerEvents = $("layers").style.pointerEvents = mode === "edit" ? "" : "none";
-    $("canvasHint").textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Drag layers to reorder." : "Preview: running with its JavaScript. Switch back to Edit to change it.";
+    $("canvasHint").textContent = mode === "edit" ? "Click to select. Double-click text to edit it. Scroll to pan, Ctrl/Cmd + scroll to zoom." : "Preview: running with its JavaScript. Press play again to go back to editing.";
     updateShield();
     loadFrame();
-});
+}
+$("playBtn").addEventListener("click", () => setMode(mode === "edit" ? "preview" : "edit"));
 $("zoomSel").addEventListener("change", (e) => {
     const v = e.target.value;
     if (v === "custom") return;
@@ -561,7 +584,7 @@ async function persist(d) {
         d.isNew = false;
         const old = d.key;
         remapKey(old, m.id);
-        if (d.board && m.project) saveBoard([{ id: m.id, ...d.board }]);
+        if (d.board && m.project) saveBoard([boardPayload([m.id, d.board])]);
         if (m.id === curKey) window.history.replaceState({}, "", `/design/${m.id}`);
     } else {
         const res = await fetch(`/api/components/${m.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ ...body, note: "Edited in design canvas" }) });
@@ -679,7 +702,7 @@ function syncCode() { if (codeOpen()) codeText.value = model.markup.trim() ? ass
 function setCodePanel(open) {
     $("codePanel").classList.toggle("hidden", !open);
     $("codePanel").classList.toggle("flex", open);
-    $("codeBtn").classList.toggle("bg-neutral-100", open);
+    $("codeBtn").classList.toggle("on", open);
     if (open) { syncCode(); codeText.focus(); }
     layout();
 }
@@ -842,7 +865,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
             savedMarkup = model.markup;
             window.history.replaceState({}, "", `/design/${data.id}`);
             const d = docs.get(curKey);
-            if (d.board && data.project) saveBoard([{ id: data.id, ...d.board }]);
+            if (d.board && data.project) saveBoard([boardPayload([data.id, d.board])]);
             remapKey(curKey, data.id);
         }
         dlg.close();
@@ -947,7 +970,7 @@ function mountGhost(key, force) {
         en.box.prepend(en.ghost);
     }
     en.ghost.title = d.meta.title || "Design";
-    en.ghost.srcdoc = buildPreviewDocument(p, { width: device });
+    en.ghost.srcdoc = buildPreviewDocument(p, { width: widthOf(d) });
 }
 
 function setRole(key) {
@@ -1004,12 +1027,15 @@ function renderDesigns() {
             <span class="shrink-0 font-mono text-[10px] ${active ? "" : "text-neutral-500"}">${d.kind === "section" ? "sec" : "page"}</span>
             <span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot"></i>' : ""}</div>`;
     };
+    $("designsCount").textContent = String(list.length);
+    $("designsName").textContent = data.title || "Untitled design";
     $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
 }
 $("designs").addEventListener("click", (e) => {
     const r = e.target.closest("[data-design]");
     if (!r) return;
     viewTouched = true;
+    $("designsMenu").classList.add("hidden");
     activate(r.dataset.design);
     fitTo([r.dataset.design], Math.max(view.z, 0.5));
 });
@@ -1035,6 +1061,7 @@ function activate(key) {
     collapsed.clear();
     const oldKey = curKey;
     curKey = key;
+    frameSel = null;
     setRole(key);
     setRole(oldKey);
     mountGhost(oldKey, true);
@@ -1062,32 +1089,38 @@ function queueBoardSave(key) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushBoard, 500);
 }
+const boardPayload = ([id, p]) => ({ id, x: p ? p.x : null, y: p ? p.y : null, w: p ? p.w ?? null : undefined, h: p ? p.h ?? null : undefined });
 function flushBoard() {
     if (!pendingSave.size) return;
-    const positions = [...pendingSave].map(([id, p]) => ({ id, x: p ? p.x : null, y: p ? p.y : null }));
+    const positions = [...pendingSave].map(boardPayload);
     pendingSave.clear();
     saveBoard(positions);
 }
 window.addEventListener("beforeunload", () => {
     if (pendingSave.size && planeProject && navigator.sendBeacon) {
-        navigator.sendBeacon(`/api/projects/${planeProject.id}/layout`, new Blob([JSON.stringify({ positions: [...pendingSave].map(([id, p]) => ({ id, x: p ? p.x : null, y: p ? p.y : null })) })], { type: "application/json" }));
+        navigator.sendBeacon(`/api/projects/${planeProject.id}/layout`, new Blob([JSON.stringify({ positions: [...pendingSave].map(boardPayload) })], { type: "application/json" }));
     }
 });
 
 let gesture = null;
 canvas.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.target === $("panShield")) return;
+    const fh = e.target.closest("[data-fh]");
     const label = e.target.closest("[data-label]");
     const shield = e.target.closest("[data-shield]");
     const wrap = (label || shield) && e.target.closest(".fwrap");
-    if (wrap) {
+    if (fh && frameSel === curKey) {
+        const d = docs.get(curKey);
+        const pos = positions()[curKey];
+        gesture = { type: "fresize", key: curKey, h: fh.dataset.fh, sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y, ow: widthOf(d), oh: heightOfDoc(d), moved: false };
+    } else if (wrap) {
         const key = wrap.dataset.key;
         const pos = positions()[key];
         gesture = { type: "frame", key, wrap, sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y, moved: false, label: Boolean(label) };
     } else if (e.target === canvas || e.target === $("plane") || e.target === $("frames")) {
         gesture = { type: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
     } else return;
-    canvas.setPointerCapture(e.pointerId);
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
 });
 canvas.addEventListener("pointermove", (e) => {
     if (!gesture) return;
@@ -1096,20 +1129,75 @@ canvas.addEventListener("pointermove", (e) => {
     gesture.moved = true;
     viewTouched = true;
     if (gesture.type === "pan") { view.x = gesture.vx + dx; view.y = gesture.vy + dy; return applyView(); }
+    if (gesture.type === "fresize") return resizeFrame(gesture, dx / view.z, dy / view.z);
     gesture.wrap.classList.add("dragging");
+    const d = docs.get(gesture.key);
     const p = { x: Math.round((gesture.ox + dx / view.z) / SNAP) * SNAP, y: Math.round((gesture.oy + dy / view.z) / SNAP) * SNAP };
-    docs.get(gesture.key).board = p;
+    d.board = { ...(d.board || {}), ...p };
     gesture.wrap.style.left = `${p.x}px`;
     gesture.wrap.style.top = `${p.y}px`;
+    if (gesture.key === curKey) { frame.style.left = `${p.x}px`; frame.style.top = `${p.y}px`; }
+    renderFloat();
 });
 canvas.addEventListener("pointerup", () => {
     const g = gesture;
     gesture = null;
-    if (!g || g.type !== "frame") return;
+    if (!g) return;
+    if (g.type === "pan") { if (!g.moved) clearSelection(); return; }
+    if (g.type === "fresize") { if (g.moved) queueBoardSave(g.key); return; }
     g.wrap.classList.remove("dragging");
-    if (g.moved) { queueBoardSave(g.key); layout(); }
-    else activate(g.key);
+    if (g.moved) { queueBoardSave(g.key); layout(); return; }
+    if (g.key !== curKey) activate(g.key);
+    if (g.label) selectFrame();
 });
+
+function clearSelection() {
+    frameSel = null;
+    selected = null;
+    send({ cmd: "deselect" });
+    renderInspector();
+    renderLayers();
+    renderFloat();
+}
+function selectFrame() {
+    selected = null;
+    send({ cmd: "deselect" });
+    frameSel = curKey;
+    renderInspector();
+    renderLayers();
+    renderFloat();
+}
+
+const clampSize = (n, max) => Math.min(max, Math.max(120, Math.round(n)));
+
+/** Drag a frame handle: the frame changes size and the design inside reflows to fit. */
+function resizeFrame(g, dx, dy) {
+    let x = g.ox, y = g.oy, w = g.ow, h = g.oh;
+    if (g.h.includes("e")) w = g.ow + dx;
+    if (g.h.includes("s")) h = g.oh + dy;
+    if (g.h.includes("w")) w = g.ow - dx;
+    if (g.h.includes("n")) h = g.oh - dy;
+    w = clampSize(w, 8000);
+    h = clampSize(h, 20000);
+    if (g.h.includes("w")) x = g.ox + g.ow - w;
+    if (g.h.includes("n")) y = g.oy + g.oh - h;
+    const d = docs.get(g.key);
+    const vertical = g.h.includes("n") || g.h.includes("s");
+    d.board = { x: Math.round(x), y: Math.round(y), w, ...(vertical || (d.board && d.board.h) ? { h } : {}) };
+    layout();
+}
+
+/** Sets the live frame's width and/or height (null height = follow the content). Used by the frame toolbar. */
+function setFrameSize(sz) {
+    const d = docs.get(curKey);
+    const p = positions()[curKey];
+    const b = { x: p.x, y: p.y, ...(d.board || {}) };
+    if ("w" in sz) b.w = clampSize(sz.w, 8000);
+    if ("h" in sz) { if (sz.h === null) delete b.h; else b.h = clampSize(sz.h, 20000); }
+    d.board = b;
+    queueBoardSave(curKey);
+    layout();
+}
 
 // a new design on the same plane
 async function ensureProject() {
@@ -1133,6 +1221,7 @@ async function ensureProject() {
 }
 
 $("newDesignBtn").addEventListener("click", async () => {
+    $("designsMenu").classList.add("hidden");
     const project = await ensureProject();
     if (!project) return;
     const key = `draft-${++draftCount}`;
@@ -1149,8 +1238,173 @@ $("newDesignBtn").addEventListener("click", async () => {
     setTool("move");
 });
 
+// ── The floating toolbar, frame handles and the side panel ───────────────────
+let editingInfo = null;
+let gestureOn = false;
+let frameSel = null;
+let ftMenu = false;
+const ftb = $("ftb");
+
+function toolbarState() {
+    if (mode !== "edit" || gestureOn || tool !== "move") return null;
+    if (frameSel === curKey) {
+        const d = docs.get(curKey);
+        return { kind: "frame", frame: { w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h) } };
+    }
+    if (!selected || selected.tag === "body" || !selected.rect) return null;
+    const editing = Boolean(editingInfo && editingInfo.on);
+    const text = editing || TEXT_TAGS.has(selected.tag) || (selected.leaf && String(selected.text || "").trim() !== "");
+    return { kind: text ? "text" : "shape", sel: selected, editing, fmt: editing ? editingInfo.fmt : null, menu: ftMenu };
+}
+
+/** Where the thing the toolbar belongs to sits inside the canvas element. */
+function anchorRect(st) {
+    const d = docs.get(curKey);
+    const p = positions()[curKey];
+    if (!p) return null;
+    if (st.kind === "frame") return { x: view.x + p.x * view.z, y: view.y + p.y * view.z, w: widthOf(d) * view.z, h: heightOfDoc(d) * view.z, gap: 38 };
+    const r = st.editing && editingInfo.rect ? editingInfo.rect : st.sel.rect;
+    return { x: view.x + (p.x + r.x) * view.z, y: view.y + (p.y + r.y) * view.z, w: r.w * view.z, h: r.h * view.z, gap: 10 };
+}
+
+function placeFloat() {
+    if (ftb.classList.contains("hidden")) return;
+    const st = toolbarState();
+    const a = st && anchorRect(st);
+    if (!a) return;
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    const w = ftb.offsetWidth, h = ftb.offsetHeight;
+    const left = Math.min(Math.max(8, a.x), Math.max(8, cw - w - 8));
+    let top = a.y - h - a.gap;
+    if (top < 56) top = a.y + a.h + 10;
+    top = Math.min(Math.max(56, top), Math.max(56, ch - h - 8));
+    ftb.style.left = `${Math.round(left)}px`;
+    ftb.style.top = `${Math.round(top)}px`;
+}
+
+const FRAME_HANDLES = [
+    ["n", "left:0;top:calc(-5px * var(--iz));width:100%;height:calc(10px * var(--iz));cursor:ns-resize;"], ["s", "left:0;bottom:calc(-5px * var(--iz));width:100%;height:calc(10px * var(--iz));cursor:ns-resize;"],
+    ["w", "top:0;left:calc(-5px * var(--iz));height:100%;width:calc(10px * var(--iz));cursor:ew-resize;"], ["e", "top:0;right:calc(-5px * var(--iz));height:100%;width:calc(10px * var(--iz));cursor:ew-resize;"],
+];
+const FRAME_CORNERS = [["nw", "left:0;top:0;cursor:nwse-resize;"], ["ne", "left:100%;top:0;cursor:nesw-resize;"], ["se", "left:100%;top:100%;cursor:nwse-resize;"], ["sw", "left:0;top:100%;cursor:nesw-resize;"]];
+
+function renderFrameSel() {
+    const el = $("fsel");
+    if (frameSel !== curKey || mode !== "edit") return el.classList.add("hidden");
+    const d = docs.get(curKey);
+    const p = positions()[curKey];
+    if (!p) return el.classList.add("hidden");
+    Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${widthOf(d)}px`, height: `${heightOfDoc(d)}px`, outline: "calc(1.5px * var(--iz, 1)) solid #0d99ff" });
+    if (!el.firstChild) el.innerHTML = FRAME_HANDLES.map(([n, css]) => `<div class="fh" data-fh="${n}" style="${css}"></div>`).join("") + FRAME_CORNERS.map(([n, css]) => `<div class="fh fc" data-fh="${n}" style="${css}transform:translate(-50%,-50%);"></div>`).join("");
+    el.classList.remove("hidden");
+}
+
+function renderFloat() {
+    renderFrameSel();
+    const st = toolbarState();
+    if (!st) { ftb.classList.add("hidden"); ftb.classList.remove("flex"); return; }
+    const sizeFocus = document.activeElement && ftb.contains(document.activeElement) && document.activeElement.matches("input");
+    if (!sizeFocus) ftb.innerHTML = toolbarHtml(st);
+    ftb.classList.remove("hidden");
+    ftb.classList.add("flex");
+    placeFloat();
+}
+
+// the toolbar must not take focus from text being edited, except for its own fields
+ftb.addEventListener("mousedown", (e) => { if (!e.target.closest("select, input, label")) e.preventDefault(); });
+
+const tw = () => selected && modeFor(selected) === "tailwind";
+const styleProp = (prop, value) => cmd({ cmd: "setStyleProp", path: selected.path, prop, value });
+const FLOAT_ACTIONS = {
+    bold() {
+        if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "bold" });
+        const on = parseInt(selected.computed["font-weight"], 10) >= 600;
+        tw() ? applyValue("fontWeight", on ? "font-normal" : "font-bold") : styleProp("font-weight", on ? "400" : "700");
+    },
+    italic() {
+        if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "italic" });
+        const on = selected.computed["font-style"] === "italic";
+        tw() ? applyValue("fontStyle", on ? "not-italic" : "italic") : styleProp("font-style", on ? "normal" : "italic");
+    },
+    underline() {
+        if (editingInfo && editingInfo.on) return send({ cmd: "exec", name: "underline" });
+        const on = /underline/.test(selected.computed["text-decoration-line"] || "");
+        tw() ? applyValue("textDecoration", on ? "no-underline" : "underline") : styleProp("text-decoration-line", on ? "none" : "underline");
+    },
+    link() {
+        const url = prompt("Link address", "https://");
+        if (!url) return;
+        if (editingInfo && editingInfo.on) send({ cmd: "exec", name: "createLink", arg: url });
+        else if (selected.tag === "a") cmd({ cmd: "setAttr", path: selected.path, name: "href", value: url });
+        else alert("Select some text while editing it (double-click), then add the link.");
+    },
+    align() {
+        const cur = selected.computed["text-align"];
+        const next = { left: "center", start: "center", center: "right", right: "left", justify: "left" }[cur] || "center";
+        tw() ? applyValue("textAlign", `text-${next}`) : styleProp("text-align", next);
+    },
+    more() { ftMenu = !ftMenu; renderFloat(); },
+    dup() { ftMenu = false; cmd({ cmd: "duplicate", path: selected.path }); },
+    del() { ftMenu = false; cmd({ cmd: "remove", path: selected.path }); },
+    up() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: -1 }); },
+    down() { ftMenu = false; cmd({ cmd: "move", path: selected.path, dir: 1 }); },
+    free() { ftMenu = false; cmd({ cmd: "freePosition", path: selected.path, on: !selected.geom.abs }); },
+    group() { ftMenu = false; send({ cmd: "group" }); },
+    ungroup() { ftMenu = false; send({ cmd: "ungroup" }); },
+    props() { ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(); },
+};
+
+ftb.addEventListener("click", (e) => {
+    const dev = e.target.closest("[data-ftdev]");
+    if (dev) return setDevice(Number(dev.dataset.ftdev));
+    const b = e.target.closest("[data-ft]");
+    if (b && FLOAT_ACTIONS[b.dataset.ft] && selected) FLOAT_ACTIONS[b.dataset.ft]();
+});
+
+ftb.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.dataset.ftin === "fw") return setFrameSize({ w: Number(t.value) || curWidth() });
+    if (t.dataset.ftin === "fh") return setFrameSize({ h: t.value.trim() === "" ? null : Number(t.value) || null });
+    if (!selected) return;
+    if (t.dataset.ftsel === "family") return tw() ? applyValue("fontFamily", `font-${t.value}`) : styleProp("font-family", FAMILY_STACKS[t.value]);
+    if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? (tw() ? applyValue("fontSize", `${n}px`) : styleProp("font-size", `${n}px`)) : renderFloat(); }
+    if (t.dataset.ftin === "radius") { const n = Math.max(0, Number(t.value) || 0); return tw() ? applyValue("radius", n ? `${n}px` : "none") : styleProp("border-radius", n ? `${n}px` : "0"); }
+    if (t.dataset.ftcol === "text") return tw() ? applyColor("textColor", t.value) : styleProp("color", t.value);
+    if (t.dataset.ftcol === "fill") return tw() ? applyColor("bgColor", t.value) : styleProp("background-color", t.value);
+});
+
+document.addEventListener("click", (e) => {
+    $("designsMenu").classList.add("hidden");
+    if (ftMenu && !e.target.closest("#ftb")) { ftMenu = false; renderFloat(); }
+});
+$("designsBtn").addEventListener("click", (e) => { e.stopPropagation(); $("addMenu").classList.add("hidden"); $("designsMenu").classList.toggle("hidden"); });
+$("designsMenu").addEventListener("click", (e) => e.stopPropagation());
+
+// side panel: closed until you want every property or the layer tree
+let panelTab = "props";
+const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { /* storage is optional */ } return null; };
+function setPanelTab(t) {
+    panelTab = t;
+    document.querySelectorAll("#panelTabs .ptab").forEach((b) => b.classList.toggle("is-on", b.dataset.ptab === t));
+    $("inspector").classList.toggle("hidden", t !== "props");
+    $("layersPane").classList.toggle("hidden", t !== "layers");
+}
+function setPanel(open) {
+    $("panel").classList.toggle("hidden", !open);
+    $("panel").classList.toggle("flex", open);
+    $("panelBtn").classList.toggle("on", open);
+    pref("wc:panel", open ? "1" : "0");
+    scheduleLayout();
+}
+$("panelBtn").addEventListener("click", () => setPanel($("panel").classList.contains("hidden")));
+$("panelClose").addEventListener("click", () => setPanel(false));
+$("panelTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-ptab]"); if (b) setPanelTab(b.dataset.ptab); });
+new ResizeObserver(() => scheduleLayout()).observe(canvas);
+
 // ── Go ───────────────────────────────────────────────────────────────────────
 mountDatalists();
+setPanelTab("props");
+setPanel(pref("wc:panel") === "1");
 buildWraps();
 updateChrome();
 renderInspector();
