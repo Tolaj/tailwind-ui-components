@@ -281,7 +281,7 @@ function handleWheel({ dx, dy, zoomKey, cx, cy }) {
 }
 
 // ── Messages from the frame ──────────────────────────────────────────────────
-const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-live]") && $("inspector").contains(document.activeElement));
+const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches('[data-live], input[type="color"]') && $("inspector").contains(document.activeElement));
 
 window.addEventListener("message", (e) => {
     const m = e.data || {};
@@ -375,7 +375,7 @@ window.addEventListener("message", (e) => {
 });
 
 let pendingKey = "";
-const cmd = (msg, key = "") => { pendingKey = key; send(msg); };
+const cmd = (msg, key = "") => { pendingKey = key; send(key ? { key, ...msg } : msg); };
 
 // ── Layers ───────────────────────────────────────────────────────────────────
 const pathKey = (p) => (p || []).join(".");
@@ -584,19 +584,26 @@ function renderInspector() {
     insp.scrollTop = top;
 }
 
-function applyValue(key, value) {
+function applyValue(key, value, undoKey = "") {
     if (!selected) return;
     const next = setGroup(selected.classes, key, value, variant());
     if (next === null) return renderInspector();
     selected.classes = next;
-    cmd({ cmd: "setClasses", path: selected.path, value: next });
+    cmd({ cmd: "setClasses", path: selected.path, value: next }, undoKey);
 }
 
-function applyColor(key, name, op) {
+function applyColor(key, name, op, undoKey = "") {
     const o = op === undefined ? (val(selected, key).match(/\/(\d+)$/) || [])[1] || "" : op;
     const base = /^(#|rgb|hsl)/.test(name) ? `[${name.replace(/\s+/g, "_")}]` : name;
-    applyValue(key, base ? base + (o && o !== "100" ? `/${o}` : "") : "");
+    applyValue(key, base ? base + (o && o !== "100" ? `/${o}` : "") : "", undoKey);
 }
+
+// ── Colour pickers apply as they are dragged ─────────────────────────────────
+// Every pick, from opening a picker to closing it, is one undo step: a "live:" key (merged by commit without the time limit)
+// that moves on once the picker closes. The picker field is blurred then, so the bar and panel show the final value.
+let liveSession = 0;
+const liveKey = (field) => `live:${field}:${liveSession}`;
+const pickerClosed = (t) => { liveSession++; t.blur(); };
 
 // ── Which breakpoint a new class gets ────────────────────────────────────────
 // Sizes, position and spacing follow the frame's width, mobile-first: Desktop (1280) writes xl:, Tablet (768) md:, Mobile the
@@ -834,7 +841,7 @@ insp.addEventListener("change", (e) => {
         return renderInspector();
     }
     if (!selected) return;
-    if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value);
+    if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
     if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) {
         const n = Number(t.value);
@@ -848,7 +855,7 @@ insp.addEventListener("change", (e) => {
         const name = val(selected, t.dataset.cop).replace(/\/\d+$/, "");
         return name ? applyColor(t.dataset.cop, name, t.value.trim()) : renderInspector();
     }
-    if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value);
+    if (t.dataset.ccustom !== undefined) { applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`)); return pickerClosed(t); }
     if (t.matches("[data-bp]")) { ui.bp = t.value; setDevice(BREAKPOINT_WIDTH[ui.bp]); return renderInspector(); }
     if (t.matches("[data-st]")) { ui.st = t.value; return renderInspector(); }
     const stRow = t.closest("[data-stylerow]");
@@ -870,6 +877,8 @@ insp.addEventListener("change", (e) => {
 insp.addEventListener("input", (e) => {
     if (!selected) return;
     const t = e.target;
+    if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`));
+    if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`));
     if (t.dataset.field === "text") cmd({ cmd: "setText", path: selected.path, text: t.value }, "text");
     else if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
     else if (t.dataset.attr) cmd({ cmd: "setAttr", path: selected.path, name: t.dataset.attr, value: t.value === "" ? null : t.value }, `attr-${t.dataset.attr}`);
@@ -2081,15 +2090,20 @@ document.addEventListener("pointerdown", (e) => {
 }, true);
 // The border colour follows the picker while it is dragged, not only once it closes. Everything from opening the picker to
 // closing it is one undo step, however slowly it is dragged: a "live:" key, merged without the time limit (commit).
-let colorSession = 0;
-const colorKey = () => `live:border-color:${colorSession}`;
+const FT_COLOR = { text: "color", fill: "background-color" };
 ftb.addEventListener("input", (e) => {
     const t = e.target;
-    if (t.dataset.ftp !== "border-color" || !selected) return;
-    const label = t.closest(".swatch"), hex = ftb.querySelector('[data-ftp="border-color-hex"]');
+    if (!selected) return;
+    const label = t.closest(".swatch");
+    if (t.dataset.ftcol && FT_COLOR[t.dataset.ftcol]) {
+        if (label) { label.style.background = t.value; label.style.backgroundImage = "none"; }
+        return setProp(FT_COLOR[t.dataset.ftcol], t.value, undefined, liveKey(`ft-${t.dataset.ftcol}`));
+    }
+    if (t.dataset.ftp !== "border-color") return;
+    const hex = ftb.querySelector('[data-ftp="border-color-hex"]');
     if (label) label.style.background = t.value;
     if (hex) hex.value = t.value.toUpperCase();
-    setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, colorKey());
+    setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, liveKey("ft-border"));
 });
 ftb.addEventListener("change", (e) => {
     const t = e.target;
@@ -2099,14 +2113,12 @@ ftb.addEventListener("change", (e) => {
     if (t.dataset.ftsel === "family") return setProp("font-family", t.value, FAMILY_STACKS[t.value]);
     if (t.dataset.ftin === "size") { const n = Number(t.value); return n > 0 ? setProp("font-size", `${n}px`) : renderFloat(); }
     if (t.dataset.ftp === "border-color") { // the picker closed: its last value joins the drag's undo step, and the next pick starts a new one
-        if (selected) setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, colorKey());
-        colorSession++;
-        return;
+        if (selected) setProps(SIDES4.map((d) => `border-${d}-color`), t.value, "borderColor", [], undefined, liveKey("ft-border"));
+        return pickerClosed(t);
     }
     if (t.dataset.ftp) return applyPanel(t.dataset.ftp, t.value);
     if (t.dataset.ftin === "radius") return FLOAT_ACTIONS.radius(Math.max(0, Number(t.value) || 0));
-    if (t.dataset.ftcol === "text") return setProp("color", t.value);
-    if (t.dataset.ftcol === "fill") return setProp("background-color", t.value);
+    if (t.dataset.ftcol && FT_COLOR[t.dataset.ftcol]) { setProp(FT_COLOR[t.dataset.ftcol], t.value, undefined, liveKey(`ft-${t.dataset.ftcol}`)); return pickerClosed(t); }
 });
 
 document.addEventListener("click", (e) => {

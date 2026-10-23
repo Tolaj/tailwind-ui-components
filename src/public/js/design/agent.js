@@ -1330,7 +1330,7 @@ export function agentMain() {
             const el = elAt(m.path);
             if (!el) return;
             mutate[m.cmd](el, m);
-            changed();
+            changed(false, m.key); // the editor's undo key comes back with the result
             if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) });
         }
     });
