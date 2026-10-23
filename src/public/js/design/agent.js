@@ -253,8 +253,21 @@ export function agentMain() {
         return res;
     }
 
-    // a brand-new class takes Tailwind about a frame to build; a hidden frame has no animation frames, so a timer stands in
-    const settle = () => new Promise((r) => { let done = false; const fin = () => { if (!done) { done = true; r(); } }; requestAnimationFrame(() => requestAnimationFrame(fin)); setTimeout(fin, 150); });
+    // A brand-new class takes Tailwind a moment to build. Wait until its rule is in Tailwind's stylesheet (checked every few ms),
+    // at most 150 ms, so the time a released drag spends converting stays short.
+    const hasRule = (token) => {
+        const sel = "." + CSS.escape(token);
+        const walk = (list) => { for (const r of list) { if (r.selectorText && (r.selectorText === sel || r.selectorText.startsWith(sel + ":") || r.selectorText.startsWith(sel + " ") || r.selectorText.startsWith(sel + ","))) return true; if (r.cssRules && walk(r.cssRules)) return true; } return false; };
+        return sheetsByKind().tw.some((sh) => { try { return walk(sh.cssRules); } catch (err) { return false; } });
+    };
+    async function settle(tokens) {
+        const t0 = performance.now();
+        const list = (tokens || []).filter(Boolean);
+        do {
+            await new Promise((r) => setTimeout(r, 8));
+            if (list.length && list.every(hasRule)) return;
+        } while (performance.now() - t0 < 150);
+    }
     /** The CSS value a Tailwind class gives a property, measured on a hidden twin next to the element (used when the class itself can't win). */
     async function valueOfClass(el, token, prop) {
         if (!token || !el.parentElement) return null;
@@ -262,7 +275,7 @@ export function agentMain() {
         twin.className = token;
         twin.style.cssText = "visibility:hidden;pointer-events:none;position:absolute;";
         el.after(twin);
-        await settle();
+        await settle([token]);
         const v = getComputedStyle(twin).getPropertyValue(prop);
         twin.remove();
         return v || null;
@@ -287,10 +300,21 @@ export function agentMain() {
      * first, and only once Tailwind has built them is the inline pixel removed, all in one go, so nothing flickers. If any of an
      * element's properties then takes its value from something else, that element gets its classes and pixels back.
      */
+    // From release until the editor's classes are in, new presses wait: a second drag in that moment would work on pixels that
+    // are about to become classes. If the editor never answers, the pixels are saved as they are.
+    let converting = false, convertTimer = 0;
+    function askConvert(items) {
+        converting = true;
+        clearTimeout(convertTimer);
+        convertTimer = setTimeout(() => { converting = false; changed(); }, 2000);
+        post({ type: "convert", items });
+    }
     async function applyGesture(m) {
         const work = (m.items || []).map((it) => ({ it, el: elAt(it.path), props: Object.keys(it.tokens || {}) })).filter((w) => w.el && w.props.length);
         work.forEach((w) => { w.prevClass = w.el.getAttribute("class"); w.prevStyle = w.el.getAttribute("style"); w.el.setAttribute("class", w.it.classes); });
-        if (work.length) await settle();
+        if (!converting) return; // too late: the pixels were already saved
+        clearTimeout(convertTimer);
+        if (work.length) await settle(work.flatMap((w) => Object.values(w.it.tokens)));
         work.forEach((w) => {
             const { el, it, props } = w;
             props.forEach((p) => el.style.removeProperty(p));
@@ -301,6 +325,7 @@ export function agentMain() {
             if (w.prevClass === null) el.removeAttribute("class"); else el.setAttribute("class", w.prevClass);
             if (w.prevStyle === null) el.removeAttribute("style"); else el.setAttribute("style", w.prevStyle);
         });
+        converting = false;
         redraw();
         changed();
     }
@@ -317,7 +342,7 @@ export function agentMain() {
             props.forEach((p) => el.style.removeProperty(p));
             tidyStyle(el);
             if (!m.token) return; // a class was removed: nothing to check
-            await settle();
+            await settle([m.token]);
             if (seq !== propSeq) return;
             const now = sourcesOf(el, props);
             const lost = props.some((p) => { const s = now[p] || {}; return s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== m.token); });
@@ -454,14 +479,14 @@ export function agentMain() {
             if (deg) line.style.transform = `rotate(${deg}deg)`;
             setSelection([line]);
             setTool("move");
-            return post({ type: "convert", items: [gestureItem(line, {}, ["position", "left", "top", "width", "height"])] });
+            return askConvert([gestureItem(line, {}, ["position", "left", "top", "width", "height"])]);
         }
         const el = dragged && !(g.kind === "text" || g.kind === "button")
             ? createAt(g.kind, g.container, x0, y0, w, h)
             : createAt(g.kind, g.container, x0, y0);
         setSelection([el]);
         setTool("move");
-        post({ type: "convert", items: [gestureItem(el, {}, ["position", "left", "top", "width", "height"])] });
+        askConvert([gestureItem(el, {}, ["position", "left", "top", "width", "height"])]);
         if (t.text) startEdit(el, true);
     }
 
@@ -833,6 +858,7 @@ export function agentMain() {
 
     document.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
+        if (converting) { e.preventDefault(); return; } // the last drag is still becoming classes (askConvert)
         if (editing && editing.contains(e.target)) return;
         if (editing) finishEdit();
         try { root.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
@@ -899,10 +925,10 @@ export function agentMain() {
             return changed();
         }
         if (g.type === "pan") return;
-        if (g.moved && g.type === "move") return post({ type: "convert", items: g.items.map((i) => gestureItem(i.el, i.pre, ["left", "top"])) });
+        if (g.moved && g.type === "move") return askConvert(g.items.map((i) => gestureItem(i.el, i.pre, ["left", "top"])));
         if (g.moved && g.type === "resize") {
             const props = GESTURE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.inl0[p]); // what the resize wrote
-            return post({ type: "convert", items: [gestureItem(g.el, g.pre, props)] });
+            return askConvert([gestureItem(g.el, g.pre, props)]);
         }
         if (g.moved) changed();
         else post({ type: "selected", info: describe(primary()) });

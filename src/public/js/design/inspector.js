@@ -140,7 +140,7 @@ const crumbs = (s) => s.crumbs.map((c, i) => `<button type="button" data-crumb="
 
 const actions = (s) => (s.tag === "body" ? "" : `<div class="acts"><button type="button" data-do="up" title="Move earlier">Up</button><button type="button" data-do="down" title="Move later">Down</button><button type="button" data-do="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button type="button" data-do="remove" class="danger" title="Delete">Delete</button></div>`);
 
-const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">New Tailwind classes get <code>${variant()}</code></p>` : ""}`;
+const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">New Tailwind classes get <code>${variant()}</code></p>` : ui.frameBp ? `<p class="vnote">At this frame width, sizes and spacing get <code>${ui.frameBp}</code> (the base class if none is set yet)</p>` : ""}`;
 
 const contentFields = (s) => {
     const fields = [];

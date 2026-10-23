@@ -2,9 +2,9 @@ import { parseComponentSource, buildPreviewDocument } from "../playground/compon
 import { computeLayout } from "../shared/board-layout.js";
 import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
-import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "./class-groups.js";
+import { BREAKPOINT_WIDTH, BREAKPOINTS, setGroup, GROUPS, parseToken } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor, srcOf } from "./inspector.js";
-import { groupOf, twValue, twShown, variantOf, fromPx } from "./prop-tailwind.js";
+import { groupOf, twValue, twShown, variantOf, fromPx, hasScale } from "./prop-tailwind.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
 import { selectionHtml } from "./selection-overlay.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
@@ -574,6 +574,7 @@ function setPageBox(patch) {
 }
 const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg]") && $("inspector").contains(document.activeElement));
 function renderInspector() {
+    ui.frameBp = frameBp();
     const top = insp.scrollTop;
     insp.innerHTML = renderInspectorHtml(selected, selected ? null : pageInfo());
     insp.scrollTop = top;
@@ -593,6 +594,30 @@ function applyColor(key, name, op) {
     applyValue(key, base ? base + (o && o !== "100" ? `/${o}` : "") : "");
 }
 
+// ── Which breakpoint a new class gets ────────────────────────────────────────
+// Sizes, position and spacing follow the frame's width, mobile-first: Desktop (1280) writes xl:, Tablet (768) md:, Mobile the
+// base class, so each screen size is designed by switching the frame. Colours, type and borders stay plain classes.
+const RESPONSIVE = new Set(["w", "h", "minW", "maxW", "minH", "maxH", "gap", "gapX", "gapY", "inset", "top", "right", "bottom", "left", "p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml"]);
+const familyOf = (g) => (/^p[xytrbl]?$/.test(g) ? ["p", "px", "py", "pt", "pr", "pb", "pl"] : /^m[xytrbl]?$/.test(g) ? ["m", "mx", "my", "mt", "mr", "mb", "ml"] : ["inset", "top", "right", "bottom", "left"].includes(g) ? ["inset", "top", "right", "bottom", "left"] : [g]);
+/** "xl:" for a 1280 frame, "md:" for 768, "" for a phone-sized one: the largest breakpoint the frame's width reaches. */
+function frameBp() {
+    const w = curWidth();
+    let bp = "";
+    BREAKPOINTS.forEach((b) => { if (b && BREAKPOINT_WIDTH[b] <= w) bp = b; });
+    return bp ? `${bp}:` : "";
+}
+/**
+ * The variant for a new class of `group`: the one picked by hand in the panel, if any; else, for sizes and spacing, the frame's
+ * breakpoint, unless the element has no class of that kind yet: then the base class, so smaller screens keep the value too.
+ */
+function newVariant(classes, group) {
+    if (ui.bp || ui.st) return variant();
+    if (!RESPONSIVE.has(group)) return "";
+    const fam = familyOf(group).map((k) => GROUPS[k]);
+    const has = String(classes || "").split(/\s+/).filter(Boolean).some((t) => fam.some((g) => g.re.test(parseToken(t).base)));
+    return has ? frameBp() : "";
+}
+
 /**
  * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
  * variant), an inline style or the design's own CSS gets an inline style. A property nothing sets yet becomes a Tailwind class,
@@ -603,15 +628,16 @@ function setProp(prop, raw, cssOverride, key) {
     const s = selected, src = srcOf(s, prop), v = String(raw ?? "").trim();
     const group = groupOf(prop);
     const onTw = src.source === "tailwind";
-    const vp = onTw ? variantOf(src.token) : variant();
+    const winning = onTw ? variantOf(src.token) : "";
+    const vp = winning || newVariant(s.classes, group); // a md:/xl: class that gives the value is edited where it is
     const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, ...m }, key);
     if (v === "") {
-        if (onTw && group) { const next = setGroup(s.classes, group, "", vp); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
+        if (onTw && group) { const next = setGroup(s.classes, group, "", winning); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
     }
     // "500" means 500px, except on a row showing a Tailwind value (64 from w-64), where a bare number is Tailwind's scale
-    const scale = onTw && twShown(prop, src.token) !== null;
+    const scale = onTw && twShown(prop, src.token) !== null && hasScale(group);
     const candidate = scale && /^-?\d*\.?\d+$/.test(v) ? v : normalizeValue(prop, v);
     const css = cssOverride !== undefined ? cssOverride : CSS.supports(prop, candidate) ? candidate : null;
     const tv = group ? twValue(prop, v, scale) : null;
@@ -640,7 +666,7 @@ function setProps(props, raw, group, clear = [], cssOverride, key) {
     const n = parseFloat(v);
     const css = cssOverride !== undefined ? cssOverride : px ? `${n}px` : CSS.supports(props[0], v) ? v : null;
     const own = srcs.find((x) => x.source === "tailwind");
-    const vp = own ? variantOf(own.token) : variant();
+    const vp = (own && variantOf(own.token)) || newVariant(s.classes, group);
     const fromCss = srcs.some((x) => x.source === "inline" || x.source === "design");
     const tv = group ? (px ? fromPx(group, n) : twValue(props[0], v, false) ?? v) : null;
     let token = null;
@@ -675,7 +701,8 @@ function convertGesture(items) {
             if (tv === null) return;
             const built = GROUPS[group].build(tv);
             if (!GROUPS[group].re.test(built)) return;
-            const vp = pre.source === "tailwind" ? variantOf(pre.token) : variant();
+            // judged on the classes from before this gesture: a left-[..] written a moment ago must not make top an xl: class
+            const vp = (pre.source === "tailwind" && variantOf(pre.token)) || newVariant(it.classes, group);
             const next = setGroup(classes, group, tv, vp);
             if (next === null) return;
             classes = next;

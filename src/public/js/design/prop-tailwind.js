@@ -55,6 +55,9 @@ export function fromPx(key, n) {
     return `${sign}${a}px`;
 }
 
+/** Whether a bare number is a step of the group's own scale (w-64, leading-6) rather than pixels (font size has no number scale). */
+export const hasScale = (key) => SCALED.has(key) || key === "leading" || key === "z" || key === "opacity";
+
 /** The class group a property is written with in Tailwind, or null when it has none. */
 export function groupOf(prop) {
     if (WORDS[prop]) return WORDS[prop][0];
@@ -76,7 +79,7 @@ export function twValue(prop, raw, scale) {
     if (WORDS[prop]) return WORDS[prop][1](v);
     if (LENGTHS[prop]) {
         if (LENGTH_WORDS.test(v) || /^\[.*\]$/.test(v)) return v;
-        if (/^-?\d*\.?\d+$/.test(v)) return scale || prop === "z-index" ? v : fromPx(LENGTHS[prop], Number(v));
+        if (/^-?\d*\.?\d+$/.test(v)) return (scale && hasScale(LENGTHS[prop])) || prop === "z-index" ? v : fromPx(LENGTHS[prop], Number(v));
         if (/^-?\d*\.?\d+px$/.test(v)) return fromPx(LENGTHS[prop], parseFloat(v));
         if (/^-?\d*\.?\d+(px|rem|em|%|vh|vw|ch)$/.test(v) || /^(calc|var|min|max|clamp)\(/.test(v)) return v; // the group wraps it as [value]
         return null;
