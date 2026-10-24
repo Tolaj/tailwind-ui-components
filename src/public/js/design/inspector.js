@@ -243,8 +243,18 @@ function propSections(s) {
 
 const legend = (s) => `<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
+// the tags the element can validly become (the frame works them out from where it sits and what it holds), grouped by kind
+const TAG_KINDS = [["Layout", /^(div|section|article|aside|header|footer|nav|main|form|figure|blockquote)$/], ["Text", /^(p|h[1-6]|span|label|strong|em|small|b|i|u|s|code|mark|pre)$/], ["Action", /^(a|button)$/], ["List", /^(ul|ol|li|menu)$/], ["Table", /^(td|th|thead|tbody|tfoot)$/], ["Definition", /^(dt|dd)$/]];
+function tagRow(s) {
+    const opts = s.tagOptions || [];
+    if (opts.length < 2 || (s.count || 1) > 1) return "";
+    const opt = (t) => `<option value="${t}" ${t === s.tag ? "selected" : ""}>&lt;${t}&gt;</option>`;
+    const groups = TAG_KINDS.map(([label, re]) => [label, opts.filter((t) => re.test(t))]).filter(([, ts]) => ts.length);
+    return `<label class="row tagrow" title="Only tags that stay valid here are listed"><span class="lbl">Tag</span><select class="fi" data-tag>${groups.map(([label, ts]) => `<optgroup label="${label}">${ts.map(opt).join("")}</optgroup>`).join("")}</select></label>`;
+}
+
 function designTab(s) {
-    return `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
+    return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
         propSections(s) + section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
 }
 
@@ -274,6 +284,7 @@ function pageHtml(pg) {
     return `<div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
             <label class="row"><span class="lbl">Name</span><input class="fi" data-pg="name" value="${esc(pg.name)}" autocomplete="off"></label>
             <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${esc(pg.version)}`}${pg.project ? ` · ${esc(pg.project)}` : ""}</span></div></div></div>
+        ${pg.empty ? `<div class="sec"><div class="secb nopad"><p class="sub first">Generate with AI</p><textarea id="pageAi" class="fi area" rows="3" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan"></textarea><button type="button" data-pgact="draft" class="primary">Generate</button><p id="pageAiNote" class="hidden"></p><p class="muted">Or draw with the tools, add blocks from +, or paste code in the code panel.</p></div></div>` : ""}
         <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
             <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
             ${two(cell("w", "W", pg.w), cell("h", "H", pg.auto ? "" : pg.h, "auto"))}

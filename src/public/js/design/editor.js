@@ -127,9 +127,6 @@ function updateChrome() {
     pl.classList.toggle("inline-flex", Boolean(data.project));
     $("projSep").classList.toggle("hidden", !data.project);
     if (data.project) { pl.innerHTML = `<span class="truncate">Project: ${esc(data.project.name)}</span><svg class="shrink-0 text-neutral-500" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5h5v5M9.5 2.5l-6 6"/></svg>`; pl.href = `/projects/${data.project.id}`; }
-    const empty = model.markup.trim() === "";
-    $("startCard").classList.toggle("hidden", !empty || mode !== "edit");
-    $("startCard").classList.toggle("flex", empty && mode === "edit");
     if (!codeFocused()) syncCode();
     renderDesigns();
     refreshLabels();
@@ -384,6 +381,11 @@ window.addEventListener("message", (e) => {
         renderLayers();
         if (!inspectorEditing()) renderInspector();
         renderFloat();
+    } else if (m.type === "frameClick") {
+        selectFrame(); // the empty part of the design was clicked: the frame, with its handles and the page panel
+    } else if (m.type === "hoverFrame") {
+        const en = wraps.get(curKey);
+        if (en) en.wrap.classList.toggle("bodyhover", Boolean(m.on));
     } else if (m.type === "convert") {
         convertGesture(m.items || []);
     } else if (m.type === "key") {
@@ -584,7 +586,7 @@ const insp = $("inspector");
 /** The selected page's own properties, for the panel. */
 function pageInfo() {
     const d = docs.get(curKey), p = positions()[curKey] || { x: 0, y: 0 };
-    return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
+    return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), empty: model.markup.trim() === "", x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
 }
 function setPageBox(patch) {
     const d = docs.get(curKey), p = positions()[curKey];
@@ -593,7 +595,7 @@ function setPageBox(patch) {
     queueBoardSave(curKey);
     layout();
 }
-const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg]") && $("inspector").contains(document.activeElement));
+const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg], #pageAi") && $("inspector").contains(document.activeElement));
 function renderInspector() {
     ui.frameBp = frameBp();
     const top = insp.scrollTop;
@@ -802,7 +804,7 @@ insp.addEventListener("click", (e) => {
     const pw = t.closest("[data-pgw]");
     if (pw) return setDevice(Number(pw.dataset.pgw));
     const pa = t.closest("[data-pgact]");
-    if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : $("detailsBtn").click();
+    if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : pa.dataset.pgact === "draft" ? draftPage(pa) : $("detailsBtn").click();
     const arr = t.closest("[data-arrange]");
     if (arr && selected) return arrange(arr.dataset.arrange);
     const rst = t.closest("[data-propreset]");
@@ -858,6 +860,7 @@ insp.addEventListener("change", (e) => {
         return renderInspector();
     }
     if (!selected) return;
+    if (t.dataset.tag !== undefined) return cmd({ cmd: "setTag", path: selected.path, tag: t.value });
     if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
     if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) {
@@ -1288,10 +1291,7 @@ function addToEmpty(html) {
     loadFrame();
 }
 
-// ── Start screen: AI draft, paste, or a section ──────────────────────────────
-$("startBlank").addEventListener("click", () => addToEmpty(BLOCKS[0][1]));
-$("startPaste").addEventListener("click", () => setCodePanel(true));
-
+// ── An empty page: draft it with AI (the Page panel's Generate) ──────────────
 async function streamAI(body, onText) {
     const res = await fetch("/api/ai/generate-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "AI request failed");
@@ -1314,12 +1314,12 @@ async function streamAI(body, onText) {
     return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
 }
 
-$("startGo").addEventListener("click", async () => {
-    const prompt = $("startPrompt").value.trim();
-    const note = $("startNote");
-    const say = (msg, bad) => { note.textContent = msg; note.className = `mt-2 text-xs ${bad ? "text-red-700" : "text-neutral-500"}`; };
+async function draftPage(btn) {
+    const input = $("pageAi"), note = $("pageAiNote");
+    const prompt = input.value.trim();
+    const say = (msg, bad) => { note.textContent = msg; note.className = `text-[11px] ${bad ? "text-red-700" : "text-neutral-500"}`; };
     if (!prompt) return say("Describe what you want first.", true);
-    $("startGo").disabled = true;
+    btn.disabled = true;
     say("Drafting...");
     try {
         const html = await streamAI({ prompt, useLibrary: true });
@@ -1327,15 +1327,14 @@ $("startGo").addEventListener("click", async () => {
         parsed = parseComponentSource(html);
         commit(parsed.markup);
         loadFrame();
-        if (!data.title) { data.title = prompt.slice(0, 60); updateChrome(); }
-        $("startPrompt").value = "";
-        say("");
+        if (!data.title) data.title = prompt.slice(0, 60);
+        updateChrome();
+        renderInspector();
     } catch (err) {
         say(err.message, true);
-    } finally {
-        $("startGo").disabled = false;
+        btn.disabled = false;
     }
-});
+}
 
 // ── Details dialog: name, category, tags, visibility ─────────────────────────
 const dlg = $("detailsDlg");
@@ -2151,7 +2150,12 @@ document.addEventListener("click", (e) => {
     const opener = t.closest("label") || t;
     if (colorPickerOpener() === opener) return closeColorPicker(); // the same swatch again: done
     const feed = (type, hex) => { const f = document.querySelector(sel); if (f) { f.value = hex; f.dispatchEvent(new Event(type, { bubbles: true })); } };
-    openColorPicker({ value: t.value, near: selectionRect(), bounds: canvas.getBoundingClientRect(), opener, onInput: (hex) => feed("input", hex), onClose: (hex) => feed("change", hex) });
+    // from the Properties panel: just left of the panel, level with the swatch; from the floating bar: beside the selection
+    const fromPanel = insp.contains(t);
+    const p = insp.getBoundingClientRect(), o = opener.getBoundingClientRect();
+    const near = fromPanel ? { left: p.left, right: p.right, top: o.top, bottom: o.bottom } : selectionRect();
+    const bounds = fromPanel ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight } : canvas.getBoundingClientRect();
+    openColorPicker({ value: t.value, near, bounds, opener, onInput: (hex) => feed("input", hex), onClose: (hex) => feed("change", hex) });
 }, true);
 
 const FT_COLOR = { text: "color", fill: "background-color" };

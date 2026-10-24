@@ -149,7 +149,7 @@ export function agentMain() {
         const bbox = el && el !== document.body && alive(el) ? pageRect(el) : null;
         const data = JSON.stringify({ items, handles, label, bbox, at });
         if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
-        place(hoverBox, tool === "move" && hov && !sels.includes(hov) ? hov : null);
+        place(hoverBox, tool === "move" && hov && hov !== document.body && !sels.includes(hov) ? hov : null); // not the page itself
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -390,6 +390,51 @@ export function agentMain() {
         const margins = med(rs.slice(1).map((b, i) => (parseFloat(rs[i].cs.marginBottom) || 0) + (parseFloat(b.cs.marginTop) || 0)));
         return { count: kids.length, colGap: Math.max(0, Math.round(space - margins)), rowGap: Math.max(0, Math.round(space)) };
     };
+    // ── Which tags an element can become ───────────────────────────────────────────────────
+    // Only swaps that keep the HTML valid for where the element sits and what it holds: text tags (p, h1, span...) only around
+    // text and inline content, no link or button inside another, list items only in a list, one <main>, no form in a form.
+    // Images, inputs, media and table rows keep their own tag (another one would drop what they are).
+    const FLOW_TAGS = ["div", "section", "article", "aside", "header", "footer", "nav", "main", "form", "figure", "blockquote"];
+    const TEXT_TAGS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "label", "strong", "em", "small"];
+    const ACTION_TAGS = ["a", "button"];
+    const PHRASING = new Set(["a", "abbr", "b", "br", "button", "code", "em", "i", "img", "input", "kbd", "label", "mark", "q", "s", "select", "small", "span", "strong", "sub", "sup", "svg", "textarea", "time", "u", "wbr", "picture", "video", "audio", "canvas", "iframe", "object", "data", "var", "samp", "cite", "dfn", "bdi", "bdo", "ruby", "del", "ins", "map", "meter", "output", "progress", "slot", "template", "noscript", "script", "style"]);
+    const TEXT_ONLY = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "label", "strong", "em", "small", "a", "button", "b", "i", "u", "s", "code", "q", "cite", "mark", "sub", "sup", "abbr", "time", "legend", "dt", "caption", "summary", "pre"]);
+    const INTERACTIVE = "a, button, input, select, textarea, label, details, iframe, [tabindex]";
+    const PAIRS = { td: ["td", "th"], th: ["td", "th"], dt: ["dt", "dd"], dd: ["dt", "dd"], thead: ["thead", "tbody", "tfoot"], tbody: ["thead", "tbody", "tfoot"], tfoot: ["thead", "tbody", "tfoot"] };
+    const SWAPPABLE = new Set([...FLOW_TAGS, ...TEXT_TAGS, ...ACTION_TAGS, "ul", "ol", "li", "menu", "b", "i", "u", "s", "code", "mark", "pre"]);
+    function tagOptions(el) {
+        const tag = el.tagName.toLowerCase();
+        if (el === document.body || overlay.contains(el)) return [];
+        if (PAIRS[tag]) return PAIRS[tag];
+        if (!SWAPPABLE.has(tag)) return [];
+        const parent = el.parentElement, ptag = parent ? parent.tagName.toLowerCase() : "body";
+        if (["ul", "ol", "menu"].includes(ptag)) return ["li"]; // a list holds only list items
+        const kids = Array.prototype.filter.call(el.children, (k) => !["SCRIPT", "STYLE", "TEMPLATE"].includes(k.tagName));
+        const kidTags = kids.map((k) => k.tagName.toLowerCase());
+        if (kids.length && kidTags.every((t) => t === "li")) return ["ul", "ol"]; // its items need a list around them
+        const up = (sel) => Boolean(parent && parent.closest(sel));
+        const down = (sel) => Boolean(el.querySelector(sel));
+        const inlineOnly = kidTags.every((t) => PHRASING.has(t)); // holds only text and inline elements
+        const inText = TEXT_ONLY.has(ptag) || up("p, h1, h2, h3, h4, h5, h6, span, a, button, label");
+        const inAction = up("a, button");
+        let out = [];
+        if (!inText) {
+            out.push(...FLOW_TAGS.filter((t) => {
+                if (t === "main") return (tag === "main" || !document.querySelector("main")) && !up("article, aside, footer, header, nav"); // one per page
+                if (t === "header" || t === "footer") return !up("header, footer") && !down("header, footer");
+                if (t === "form") return !up("form") && !down("form");
+                return true;
+            }));
+            if (!kids.length && !el.textContent.trim()) out.push("ul", "ol"); // an empty one can start a list (text can't sit in one)
+        }
+        if (inlineOnly) {
+            out.push(...(inText ? TEXT_TAGS.filter((t) => !/^(p|h\d)$/.test(t)) : TEXT_TAGS).filter((t) => t !== "label" || (!inAction && !up("label") && !down("label"))));
+            if (!inAction && !down(INTERACTIVE)) out.push(...ACTION_TAGS);
+        }
+        if (!out.includes(tag)) out.unshift(tag);
+        return [...new Set(out)];
+    }
+
     const describe = (el) => {
         if (!el) return null;
         const attrs = {};
@@ -410,6 +455,7 @@ export function agentMain() {
             sources: sourcesOf(el, cssProps),
             flexItem: flexItemOf(el),
             arrange: arrangeOf(el),
+            tagOptions: tagOptions(el),
             added: made.has(el),
             count: sels.length,
             outer: el.outerHTML.slice(0, 20000),
@@ -924,10 +970,14 @@ export function agentMain() {
         startMove(e, sels.length ? sels : [t]);
     }, true);
 
+    // the pointer over the empty part of the design: the editor outlines the frame, as it does for a frame that isn't open
+    let frameHovered = false;
+    const hoverFrame = (on) => { if (on !== frameHovered) { frameHovered = on; post({ type: "hoverFrame", on }); } };
     function onMove(e) {
         const g = gesture;
         if (!g) {
             if (!editing && tool === "move") { hov = targetOf(e); redraw(); }
+            hoverFrame(!editing && tool === "move" && hov === document.body);
             return;
         }
         if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 3 && g.type !== "rotate") return;
@@ -962,7 +1012,11 @@ export function agentMain() {
             return post({ type: "radius", path: pathOf(g.el), value: g.r });
         }
         if (g.type === "draw") return finishDraw(g, e);
-        if (g.type === "marquee") { if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits); return; }
+        if (g.type === "marquee") {
+            if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits);
+            else if (!g.shift) post({ type: "frameClick" }); // a click on the empty part of the design: the frame itself
+            return;
+        }
         if (g.type === "reorder" && g.moved && g.target) {
             if (g.pos === "before") g.target.before(g.el); else if (g.pos === "after") g.target.after(g.el); else g.target.appendChild(g.el);
             setSelection([g.el]);
@@ -989,7 +1043,7 @@ export function agentMain() {
     }
     document.addEventListener("pointerup", onUp, true);
     // leaving the frame must also drop the hover highlight (no pointermove arrives once the pointer is outside)
-    const dropHover = () => { if (hov && !gesture) { hov = null; redraw(); } };
+    const dropHover = () => { hoverFrame(false); if (hov && !gesture) { hov = null; redraw(); } };
     root.addEventListener("pointerleave", dropHover);
     document.addEventListener("mouseleave", dropHover);
 
@@ -1229,6 +1283,17 @@ export function agentMain() {
     // ── Commands from the editor ────────────────────────────────────────────────────────────
     const mutate = {
         setClasses: (el, m) => { m.value ? el.setAttribute("class", m.value) : el.removeAttribute("class"); },
+        /** Another tag for the element (div -> section, p -> h2...), if it's one it can validly become: attributes and children move over unchanged. */
+        setTag: (el, m) => {
+            const tag = String(m.tag || "").toLowerCase();
+            if (tag === el.tagName.toLowerCase() || !tagOptions(el).includes(tag)) return;
+            const next = document.createElement(tag);
+            Array.prototype.forEach.call(el.attributes, (at) => next.setAttribute(at.name, at.value));
+            while (el.firstChild) next.appendChild(el.firstChild);
+            el.replaceWith(next);
+            if (made.has(el)) made.add(next);
+            sels = sels.map((x) => (x === el ? next : x));
+        },
         setText: (el, m) => { if (el.children.length === 0) el.textContent = m.text; },
         setAttr: (el, m) => { m.value === null ? el.removeAttribute(m.name) : el.setAttribute(m.name, m.value); },
         remove: (el) => { const p = el.parentElement; el.remove(); sels = p && p !== root ? [p] : []; },
