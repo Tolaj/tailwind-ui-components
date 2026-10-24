@@ -3,7 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>
+        // The app itself never zooms or scales: only the plane does (its own wheel handler still gets these events). A pinch, Ctrl/Cmd +
+        // scroll and Ctrl/Cmd + = / - / 0 are kept from zooming the page, wherever they happen.
+        addEventListener("wheel", (e) => { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
+        ["gesturestart", "gesturechange", "gestureend"].forEach((t) => addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+        addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && ["=", "+", "-", "_", "0"].includes(e.key)) e.preventDefault(); }, true);
+    </script>
     <title>{{title}} — Windcraft</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/public/js/tailwind.config.js"></script>

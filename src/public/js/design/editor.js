@@ -304,6 +304,7 @@ window.addEventListener("message", (e) => {
         const a = document.activeElement;
         if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
     }
+    if (m.type === "zoomKey") return keyZoom(m.key);
     if (m.type === "wheel") {
         const pos = positions()[curKey] || { x: 0, y: 0 };
         return handleWheel({ dx: m.dx, dy: m.dy, zoomKey: m.zoom, cx: view.x + (pos.x + m.x) * view.z, cy: view.y + (pos.y + m.y) * view.z });
@@ -1070,7 +1071,17 @@ function handleKey({ key, meta, shift }) {
     if (selected.tag === "body") return;
     if (key === "delete" || key === "backspace") return send({ cmd: "deleteSel" });
 }
+/** Ctrl/Cmd + = / - zoom the plane around the middle of the canvas, Ctrl/Cmd + 0 back to 100% (the browser's own zoom is off). */
+function keyZoom(key) {
+    const factor = key === "=" || key === "+" ? 1.25 : key === "-" || key === "_" ? 0.8 : key === "0" ? 1 / view.z : 0;
+    if (!factor) return false;
+    const [W, H] = canvasSize();
+    viewTouched = true;
+    zoomAt(factor, W / 2, H / 2);
+    return true;
+}
 document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && keyZoom(e.key)) return e.preventDefault();
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
     const meta = e.metaKey || e.ctrlKey;
     const key = e.key.toLowerCase();
