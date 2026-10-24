@@ -464,10 +464,10 @@ export function agentMain() {
     // The root a page or component gets when its first content comes from the design tools (a shape drawn, an image dropped):
     // the editor says which (a page's <main>, a component's <div>). Pasted or typed code never gets one.
     let rootSpec = "", designType = "page", rootUnlocked = false;
-    /** The root: the one top-level element. A page's root is locked by default (it follows the frame and stays put); a component's root is an ordinary element. */
+    /** The root: the one top-level element. It never moves; a page's root is also sized by the frame, not by hand. */
     const isRootEl = (el) => Boolean(el && el.parentElement === document.body && !overlay.contains(el)
         && Array.prototype.filter.call(document.body.children, (c) => !overlay.contains(c) && !c.hasAttribute("data-wc-agent") && !["SCRIPT", "STYLE"].includes(c.tagName)).length === 1);
-    const rootLock = (el) => (isRootEl(el) && !rootUnlocked && designType === "page" ? "page" : ""); // only a page's root locks
+    const rootLock = (el) => (isRootEl(el) && !rootUnlocked ? (designType === "page" ? "page" : "component") : "");
     const pageEmpty = () => !Array.prototype.some.call(document.body.children, (c) => !overlay.contains(c) && !c.hasAttribute("data-wc-agent") && !["SCRIPT", "STYLE"].includes(c.tagName));
     function ensureRoot() {
         const tpl = document.createElement("template");
