@@ -53,19 +53,6 @@ const componentSchema = new mongoose.Schema(
             enum: ["component", "page", "section"],
             default: "component"
         },
-        // what the editor treats it as: a full page (device-width frame, a <main> root) or a component (a smaller frame,
-        // a plain <div> root). Null: decided by kind, as before this existed.
-        designType: {
-            type: String,
-            enum: ["page", "component"],
-            default: null
-        },
-        // the root (the one top-level element) is locked by default: a page's root follows the frame and stays put, a
-        // component's root can be resized but stays put. Unlocked, it is edited like any other element.
-        rootUnlocked: {
-            type: Boolean,
-            default: false
-        },
         parent: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Component",

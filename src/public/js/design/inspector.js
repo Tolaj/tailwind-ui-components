@@ -160,22 +160,12 @@ const flexNote = (s) => {
     return `<p class="hintnote">Its ${what} is set by the flex layout: it grows to fill the ${f.dir === "row" ? "row" : "column"}, so a ${what} you set here has no effect. <button type="button" data-do="flexnone">Size it myself</button></p>`;
 };
 
-/** The root's lock: locked by default (it follows the rules for its type), unlocked it is edited like any element. */
-const LOCK_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0';
-const lockRow = (locked) => `<div class="lockrow ${locked ? "on" : ""}">${LOCK_SVG}${locked ? 'v2"/></svg><span>Root locked</span><button type="button" data-rootlock="unlock">Unlock</button>' : '"/></svg><span>Root unlocked: edited like any element</span><button type="button" data-rootlock="lock">Lock</button>'}</div>`;
-
 function geomBody(s) {
     const g = s.geom || {};
     const abs = Boolean(g.abs);
-    // the root: locked (the default), it never moves, and a page's root also takes its size from the frame
-    if (s.root) {
-        const sized = s.root === "component";
-        const cell = (k, label, v, on) => `<label class="cell ${on ? "" : "opacity-50"}"><span class="clbl">${label}</span><input class="fi" data-geom="${k}" value="${esc(v ?? "")}" ${on ? "" : "disabled"} autocomplete="off"></label>`;
-        return `${lockRow(true)}${two(cell("w", "W", g.w, sized), cell("h", "H", g.h, sized))}<p class="text-[10px] leading-relaxed text-neutral-500">${sized ? "The component's root: its size is the component's size, and it stays in place." : "The page's root: it fills the frame, so its size follows the frame's (Desktop, Tablet, Mobile), and it stays in place."}</p>`;
-    }
     const cell = (k, label, v, enabled) => `<label class="cell ${enabled ? "" : "opacity-50"}"><span class="clbl">${label}</span><input class="fi" data-geom="${k}" value="${esc(v ?? "")}" ${enabled ? "" : "disabled"} autocomplete="off"></label>`;
     const alignBtn = (m, l, t) => `<button type="button" data-align="${m}" title="${t}" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
-    return `${s.isRoot ? lockRow(false) : ""}${flexNote(s)}${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#111] bg-[#e5f4ff] text-[#111]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
+    return `${flexNote(s)}${two(cell("x", "X", g.x, abs), cell("y", "Y", g.y, abs))}${two(cell("w", "W", g.w, true), cell("h", "H", g.h, true))}${two(cell("rot", "Rot", g.rot, abs), `<button type="button" data-free="${abs ? "off" : "on"}" class="h-6 rounded-md border ${abs ? "border-[#111] bg-[#e5f4ff] text-[#111]" : "border-neutral-200 hover:bg-neutral-50"} text-[11px]" title="Position this element freely (position: absolute) so you can drag it anywhere">${abs ? "Free position ✓" : "Free position"}</button>`)}
         ${abs ? `<div class="flex gap-1">${alignBtn("left", "Left", "Align left")}${alignBtn("hcenter", "Center", "Align horizontal centers")}${alignBtn("right", "Right", "Align right")}${alignBtn("top", "Top", "Align top")}${alignBtn("vcenter", "Middle", "Align vertical centers")}${alignBtn("bottom", "Bottom", "Align bottom")}</div>` : ""}
         ${(s.count || 1) > 2 ? `<div class="flex gap-1">${alignBtn("distribute-h", "Space horizontally", "Distribute horizontally")}${alignBtn("distribute-v", "Space vertically", "Distribute vertically")}</div>` : ""}
         <div class="flex gap-1">${(s.count || 1) > 1 ? `<button type="button" data-do="group" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+G">Group</button><button type="button" data-do="autolayout" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Shift+A: line them up in a row or column with even spacing">Auto layout</button>` : ""}${abs ? `<button type="button" data-do="ungroup" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50" title="Ctrl/Cmd+Shift+G">Ungroup</button>` : ""}</div>`;
@@ -253,12 +243,8 @@ function propSections(s) {
 
 const legend = (s) => `<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
-// the tags an element can be switched to: structure and text (an image, an input or a line keeps its own)
-const TAGS = ["div", "main", "section", "header", "footer", "nav", "article", "aside", "form", "p", "span", "h1", "h2", "h3", "h4", "h5", "h6", "a", "button", "label", "ul", "ol", "li", "figure", "blockquote"];
-const tagRow = (s) => (s.tag === "body" || !TAGS.includes(s.tag) ? "" : `<label class="row tagrow"><span class="lbl">Tag</span><select class="fi" data-tag>${TAGS.map((t) => `<option value="${t}" ${t === s.tag ? "selected" : ""}>&lt;${t}&gt;</option>`).join("")}</select></label>`);
-
 function designTab(s) {
-    return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
+    return `<div class="crumbs">${crumbs(s)}</div>` + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
         propSections(s) + section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
 }
 
@@ -281,29 +267,6 @@ function aiTab() {
 }
 
 /** What the panel shows when a page is selected but no element in it: the page's own name, size, position and details. */
-/** The page's type, and its root: the one top-level element (or the virtual one an empty design shows), or a way to make one. */
-function rootHtml(pg) {
-    const r = pg.root || {};
-    const typeSeg = `<div class="row"><span class="lbl">Type</span><div class="seg2">${[["page", "Page"], ["component", "Component"]].map(([v, l]) => `<button type="button" data-pgtype="${v}" class="${pg.type === v ? "on" : ""}">${l}</button>`).join("")}</div></div>`;
-    let body;
-    if (r.several) body = `<p class="text-[10.5px] leading-relaxed text-neutral-500">This design has several top-level elements, so no single root to style.</p><button type="button" data-rootact="wrap" class="mt-1 w-full rounded border border-neutral-200 py-1 text-[10.5px] hover:bg-neutral-50">Wrap in a root</button>`;
-    else if (r.loading) body = '<p class="text-[10.5px] text-neutral-500">Reading the root...</p>';
-    else {
-        const defaults = { bg: "#ffffff", color: "#000000" }; // what an empty colour field starts the picker on
-        const bg = r.virtual ? (/\bbg-white\b/.test(r.classes || "") ? "#ffffff" : "") : rgbToHex(r.bg) || "";
-        const color = r.virtual ? "" : rgbToHex(r.color) || "";
-        const fontNow = /\bfont-serif\b/.test(r.classes || "") ? "serif" : /\bfont-mono\b/.test(r.classes || "") ? "mono" : !r.virtual && /mono/i.test(r.font || "") ? "mono" : !r.virtual && /serif/i.test(r.font || "") && !/sans-serif\s*$/i.test(r.font || "") && !/^ui-sans/i.test(r.font || "") ? "serif" : "sans";
-        const swatch = (prop, label, v, fallback) => `<div class="row"><span class="lbl">${label}</span><div class="flex min-w-0 flex-1 items-center gap-1"><input type="color" class="cinp" data-rootcolor="${prop}" value="${v || fallback}" title="Pick a colour"><span class="text-[10.5px] text-neutral-600">${v ? v.toUpperCase() : "none"}</span></div></div>`;
-        const tags = ["main", "div", "section", "article", "header", "footer", "form"];
-        body = `<label class="row"><span class="lbl">Tag</span><select class="fi" data-roottag>${(tags.includes(r.tag) ? tags : [r.tag, ...tags]).map((t) => `<option value="${t}" ${t === r.tag ? "selected" : ""}>&lt;${t}&gt;</option>`).join("")}</select></label>
-            ${swatch("background-color", "Background", bg, defaults.bg)}${swatch("color", "Text", color, defaults.color)}
-            <label class="row"><span class="lbl">Font</span><select class="fi" data-rootfont>${["sans", "serif", "mono"].map((f) => `<option value="${f}" ${f === fontNow ? "selected" : ""}>${f[0].toUpperCase() + f.slice(1)}</option>`).join("")}</select></label>
-            ${r.virtual ? '<p class="text-[10px] text-neutral-500">Not in the code yet: your first change here adds it.</p>' : `${lockRow(!pg.rootUnlocked)}<button type="button" data-rootact="select" class="w-full rounded border border-neutral-200 py-1 text-[10.5px] hover:bg-neutral-50">Select the root</button>`}`;
-    }
-    return `<div class="sec"><div class="secb nopad"><p class="sub first">Design</p>${typeSeg}</div></div>
-        <div class="sec"><div class="secb nopad"><p class="sub first">Root ${r.tag && !r.several && !r.loading ? `<span class="muted">&lt;${esc(r.tag)}&gt;</span>` : ""}</p>${body}</div></div>`;
-}
-
 function pageHtml(pg) {
     const cell = (k, label, v, ph = "") => `<label class="cell"><span class="clbl">${label}</span><input class="fi" data-pg="${k}" value="${esc(v ?? "")}" placeholder="${ph}" autocomplete="off"></label>`;
     const dev = (w, l) => `<button type="button" data-pgw="${w}" class="flex-1 rounded border py-1 text-[10px] ${pg.w === w ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 hover:bg-neutral-50"}">${l}</button>`;
@@ -311,7 +274,6 @@ function pageHtml(pg) {
     return `<div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
             <label class="row"><span class="lbl">Name</span><input class="fi" data-pg="name" value="${esc(pg.name)}" autocomplete="off"></label>
             <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${esc(pg.version)}`}${pg.project ? ` · ${esc(pg.project)}` : ""}</span></div></div></div>
-        ${rootHtml(pg)}
         <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
             <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
             ${two(cell("w", "W", pg.w), cell("h", "H", pg.auto ? "" : pg.h, "auto"))}

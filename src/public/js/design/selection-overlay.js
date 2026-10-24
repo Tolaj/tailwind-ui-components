@@ -30,12 +30,11 @@ const CORNERS = { nw: [0, 0], ne: [1, 0], se: [1, 1], sw: [0, 1] };
 export const HANDLE_CURSORS = { nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
 
 /** Handles for one selected box. W and H are its size on screen. */
-function handles(it, W, H, z, root) {
+function handles(it, W, H, z) {
     const out = [];
-    if (root === "page") return ""; // a page's root follows the frame: no handles at all
     const add = (name, css, cursor, cls = "") => out.push(`<div class="sh ${cls}" data-sh="${name}" style="${css}cursor:${cursor};"></div>`);
-    // rotating: the area just outside each corner (under the squares); a root never turns
-    if (!root) Object.entries(CORNERS).forEach(([name, [fx, fy]]) => {
+    // rotating: the area just outside each corner (under the squares)
+    Object.entries(CORNERS).forEach(([name, [fx, fy]]) => {
         const tx = fx ? "-4.5px" : "calc(-100% + 4.5px)";
         const ty = fy ? "-4.5px" : "calc(-100% + 4.5px)";
         add(`rot-${name}`, `left:${fx * 100}%;top:${fy * 100}%;width:24px;height:24px;transform:translate(${tx}, ${ty});`, rotateCursor(CORNER_TURN[name] + it.rot));
@@ -79,7 +78,7 @@ export function selectionHtml(data, { zoom: z, ox, oy }) {
     if (!data || !data.items || !data.items.length) return { lines: "", html: "", label: "" };
     const boxes = data.items.map((it) => {
         const W = it.w * z, H = it.h * z;
-        const inner = data.handles && data.items.length === 1 ? handles(it, W, H, z, data.root) : "";
+        const inner = data.handles && data.items.length === 1 ? handles(it, W, H, z) : "";
         const radius = `${it.rh.map((v) => `${round(v * z)}px`).join(" ")} / ${it.rv.map((v) => `${round(v * z)}px`).join(" ")}`;
         return `<div class="sbox" style="left:${round(ox + it.x * z)}px;top:${round(oy + it.y * z)}px;width:${round(W)}px;height:${round(H)}px;transform:rotate(${it.rot}deg);border-radius:${radius};">${inner}</div>`;
     }).join("");
