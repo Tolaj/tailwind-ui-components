@@ -131,6 +131,7 @@ export function profileToMarkdown(component) {
     lines.push(
         "",
         `- **Category:** ${component.category}${component.tags?.length ? `  |  **Tags:** ${component.tags.join(", ")}` : ""}`,
+        ...(component._id ? [`- **Id:** ${component._id}`] : []),
         `- **Version:** v${component.version || 1}`,
         `- **Colors:** ${list(s.tokens.colors)}`,
         `- **Type:** sizes ${list(s.tokens.fontSizes)}; weights ${list(s.tokens.fontWeights)}${s.tokens.fontFamilies.length ? `; families ${list(s.tokens.fontFamilies)}` : ""}`,

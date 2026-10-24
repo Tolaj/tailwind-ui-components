@@ -38,7 +38,7 @@ const TOOLS = [
     },
     {
         name: "get_component",
-        description: "Get a component's source code by id, optionally converted to react, vue or svelte.",
+        description: "Get a component's source code by id, optionally converted to react, vue or svelte, after a short card with its id, version (the baseVersion to pass when saving it again), tokens and structure. Use it to build with a design in an app, or before redesigning a saved page.",
         inputSchema: {
             type: "object",
             properties: {
@@ -167,6 +167,16 @@ const TOOLS = [
         inputSchema: { type: "object", properties: {} },
     },
 ];
+
+/** What a client reads on connecting, before any tool: what this server is for and which tools do what. */
+const INSTRUCTIONS = [
+    "Windcraft: the user's private library of designs (HTML with Tailwind), grouped into projects of pages.",
+    "",
+    "Find: get_context (the active project, its brief, its pages with id and version), then get_design_guide (design tokens and an index of every component), then search_components before writing new UI so it matches what exists.",
+    "Use in an app: get_component with format html, react, vue or svelte to match the codebase. Fetch only what you will use.",
+    "Change a saved design: for a small change, get_design_spec (each element with an id, a role and its classes as props per breakpoint and state), then apply_design_patch with small ops on those ids and the version you read. Only what you name changes. For a redesign, save the whole page again (below).",
+    "Save: a new page with save_design (one screen) or save_pages (several, each its own HTML, never merged); a reusable piece with save_component. Saving an existing page again (same title in its project, or its id) makes its next version, not a copy: pass baseVersion (from get_context or get_component). If the user edited it since, the save is refused so their edits are not lost: read it again and work from that.",
+].join("\n");
 
 const text = (value) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
 const fail = (message) => ({ isError: true, content: [{ type: "text", text: message }] });
@@ -369,6 +379,8 @@ const TITLES = {
 };
 const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "get_design_spec", "list_tags", "list_projects", "get_project", "get_context"]);
 
+// Saving a page again replaces its code (kept in its history) and deletes sections no longer on it.
+const DESTRUCTIVE = new Set(["save_design", "save_pages", "apply_design_patch"]);
 // Hints let clients (Claude shows these in its permission UI) treat read tools as safe.
 const ANNOTATED_TOOLS = TOOLS.map((t) => ({
     ...t,
@@ -376,7 +388,7 @@ const ANNOTATED_TOOLS = TOOLS.map((t) => ({
     annotations: {
         title: TITLES[t.name] || t.name,
         readOnlyHint: READ_ONLY.has(t.name),
-        destructiveHint: false,
+        destructiveHint: DESTRUCTIVE.has(t.name),
         idempotentHint: READ_ONLY.has(t.name),
         openWorldHint: false,
     },
@@ -421,7 +433,7 @@ async function handleRpc(msg, userId) {
                     protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
                     capabilities: { tools: { listChanged: false } },
                     serverInfo: { name: "tailwind-ui-library", title: "Windcraft component library", version: "1.0.0" },
-                    instructions: "The user's private component library. Call get_design_guide first for their design tokens and a component index, then search_components before writing new UI so output matches their existing components. Fetch full code with get_component only for what you will use, save good new components back with save_component, and when you finish designing, save each page as its own component: use save_pages with a project when there are several pages, or save_design for a single screen. Never merge multiple pages into one HTML document." + (context ? `\n\n${context}` : "\n\nNo active project yet: when the user says what they are working on, call set_active_project or create_project."),
+                    instructions: INSTRUCTIONS + (context ? `\n\n${context}` : "\n\nNo active project yet: when the user says what they are working on, call set_active_project or create_project."),
                 });
             }
             case "ping":
