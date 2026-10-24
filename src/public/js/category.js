@@ -1,6 +1,5 @@
 // Category page specific functionality
-// This file works alongside home.js and uses the existing createElementFromDescription function
-import { createDescriptionFromElement, createElementFromDescription } from "./element-description/index.js"
+// Previews are drawn from each component's own code (the Code panel holds it), read by the browser
 
 (function () {
     'use strict';
@@ -61,21 +60,15 @@ import { createDescriptionFromElement, createElementFromDescription } from "./el
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
-    function renderComponent(componentId, elementsDescription) {
+    /** Draws a component from its code: its styles and markup (scripts are left out, as before). */
+    function renderComponent(componentId) {
         const previewInner = document.getElementById(`preview-inner-${componentId}`);
-        if (!previewInner || !elementsDescription) return;
-
-        previewInner.innerHTML = '';
-
-        if (typeof createElementFromDescription === 'function') {
-            elementsDescription.forEach(description => {
-                const element = createElementFromDescription(description, false);
-                previewInner.appendChild(element);
-            });
-            setTimeout(() => fixComponentPositioning(componentId), 50);
-        } else {
-            console.error('createElementFromDescription is not defined. Make sure home.js is loaded first.');
-        }
+        const code = document.getElementById(`code-content-${componentId}`);
+        if (!previewInner || !code) return;
+        const doc = new DOMParser().parseFromString(code.textContent, "text/html");
+        doc.querySelectorAll("script").forEach((s) => s.remove());
+        previewInner.replaceChildren(...doc.head.querySelectorAll("style"), ...doc.body.childNodes);
+        setTimeout(() => fixComponentPositioning(componentId), 50);
     }
 
     function fixComponentPositioning(componentId) {
@@ -256,14 +249,7 @@ import { createDescriptionFromElement, createElementFromDescription } from "./el
                 preview.classList.add('bg-white');
             }
 
-            // Re-render component
-            const componentEl = document.querySelector(`[data-component-id="${id}"]`);
-            if (componentEl) {
-                try {
-                    const elementsDescription = JSON.parse(componentEl.dataset.elements);
-                    renderComponent(id, elementsDescription);
-                } catch (e) { }
-            }
+            renderComponent(id);
 
             btn.innerHTML = mobileIcon;
             btn.title = 'Switch to mobile view';
@@ -393,18 +379,7 @@ import { createDescriptionFromElement, createElementFromDescription } from "./el
     // ─── Init ─────────────────────────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('[data-component-id]').forEach(component => {
-            const componentId = component.dataset.componentId;
-            const elementsData = component.dataset.elements;
-
-            if (elementsData) {
-                try {
-                    renderComponent(componentId, JSON.parse(elementsData));
-                } catch (error) {
-                    console.error(`Error parsing elements for component ${componentId}:`, error);
-                }
-            }
-        });
+        document.querySelectorAll('[data-component-id]').forEach((component) => renderComponent(component.dataset.componentId));
     });
 
 })();

@@ -20,7 +20,7 @@ const top = (map, limit = 6) => [...map.entries()].sort((a, b) => b[1] - a[1]).s
 const strip = (s) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 /** Deterministic analysis of a component's source. Free, instant, no AI. */
-export function extractSpec(code = "") {
+export function extractProfile(code = "") {
     const { markup, css, js } = splitSource(code);
 
     const colors = new Map(), sizes = new Map(), weights = new Map(), families = new Map();
@@ -105,20 +105,20 @@ export function extractSpec(code = "") {
 }
 
 /** Recompute the deterministic parts and keep any AI-written text from before. */
-export function buildSpec(code, previous) {
-    const spec = extractSpec(code);
+export function buildProfile(code, previous) {
+    const profile = extractProfile(code);
     if (previous) {
-        spec.summary = previous.summary || "";
-        spec.useWhen = previous.useWhen || "";
-        spec.avoidWhen = previous.avoidWhen || "";
+        profile.summary = previous.summary || "";
+        profile.useWhen = previous.useWhen || "";
+        profile.avoidWhen = previous.avoidWhen || "";
     }
-    return spec;
+    return profile;
 }
 
 const list = (items) => items.map((i) => `${i.name} (${i.count})`).join(", ") || "none";
 
-export function specToMarkdown(component) {
-    const s = component.spec || extractSpec(component.htmlCode);
+export function profileToMarkdown(component) {
+    const s = component.profile || extractProfile(component.htmlCode);
     const st = s.structure;
     const lines = [
         `# ${component.title}`,
@@ -173,7 +173,7 @@ async function complete(settings, system, userMessage) {
 }
 
 /** Fire and forget. Never throws, never blocks saving. */
-export async function enrichSpecWithAI(componentId, userId) {
+export async function enrichProfileWithAI(componentId, userId) {
     try {
         const user = await User.findById(userId).select("llmSettings").lean();
         if (!user?.llmSettings?.enabled) return;
@@ -191,14 +191,14 @@ export async function enrichSpecWithAI(componentId, userId) {
 
         const fresh = await Component.findById(componentId);
         if (!fresh || fresh.htmlCode !== codeAtStart) return;
-        fresh.spec = {
-            ...(fresh.spec || extractSpec(fresh.htmlCode)),
+        fresh.profile = {
+            ...(fresh.profile || extractProfile(fresh.htmlCode)),
             summary: String(json.summary || "").slice(0, 240),
             useWhen: String(json.useWhen || "").slice(0, 240),
             avoidWhen: String(json.avoidWhen || "").slice(0, 240),
         };
         await fresh.save();
     } catch (error) {
-        console.error("Spec enrichment skipped:", error.message);
+        console.error("Profile enrichment skipped:", error.message);
     }
 }

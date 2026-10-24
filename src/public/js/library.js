@@ -117,7 +117,7 @@ const codeEl = document.getElementById("libCode");
 const historyEl = document.getElementById("libHistory");
 const copyBtn = document.getElementById("libCopy");
 const tabsEl = document.getElementById("libTabs");
-const TABS = [["spec", "Spec"], ["html", "HTML"], ["react", "React"], ["vue", "Vue"], ["svelte", "Svelte"], ["history", "History"]];
+const TABS = [["profile", "Profile"], ["design", "Design spec"], ["html", "HTML"], ["react", "React"], ["vue", "Vue"], ["svelte", "Svelte"], ["history", "History"]];
 const cache = {};
 let current = null;
 
@@ -147,8 +147,8 @@ async function showTab(tab) {
 
     const key = `${current.id}:${tab}`;
     codeEl.textContent = "Loading…";
-    if (!cache[key] && tab === "spec") {
-        const res = await fetch(`/api/components/${current.id}/spec`);
+    if (!cache[key] && tab === "profile") {
+        const res = await fetch(`/api/components/${current.id}/profile`);
         const json = await res.json();
         cache[key] = json.success ? json.markdown : json.message;
     } else if (!cache[key]) {

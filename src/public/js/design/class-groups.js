@@ -187,12 +187,16 @@ export function setGroup(classes, key, value, variant = "") {
         built = g.build(value);
         if (!g.re.test(built)) return null;
     }
-    const kept = split(classes).filter((tok) => {
+    // the new class takes the old one's place (or goes at the end), so the rest of the list keeps its order
+    const out = [];
+    let at = -1;
+    for (const tok of split(classes)) {
         const { variant: v, base } = parseToken(tok);
-        return !(v === variant && g.re.test(base));
-    });
-    if (built) kept.push(variant + built);
-    return kept.join(" ");
+        if (v === variant && g.re.test(base)) { if (at === -1) at = out.length; continue; }
+        out.push(tok);
+    }
+    if (built) out.splice(at === -1 ? out.length : at, 0, variant + built);
+    return out.join(" ");
 }
 
 export const ALL_GROUP_KEYS = Object.keys(GROUPS);

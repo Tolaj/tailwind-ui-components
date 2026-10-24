@@ -1,6 +1,7 @@
 import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
-import { buildSpec, specToMarkdown, enrichSpecWithAI } from "../services/spec.service.js";
+import { specOf } from "../services/design-spec.service.js";
+import { buildProfile, profileToMarkdown, enrichProfileWithAI } from "../services/profile.service.js";
 import { resolveProject } from "../services/project.service.js";
 
 export const normalizeTags = (tags) => {
@@ -66,7 +67,7 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, elementsDescription, tags, isPublished, project: projectRef } = req.body;
+        const { title, category, description, htmlCode, tags, isPublished, project: projectRef } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
 
         if (!title || !category || !description || !htmlCode) {
@@ -81,16 +82,15 @@ export const createComponent = async (req, res) => {
             category,
             description,
             htmlCode,
-            elementsDescription: elementsDescription || [],
             tags: normalizeTags(tags),
-            spec: buildSpec(htmlCode),
+            profile: buildProfile(htmlCode),
             project: project ? project._id : null,
             kind: project ? "page" : "component",
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
 
-        enrichSpecWithAI(component._id, req.session.user.id);
+        enrichProfileWithAI(component._id, req.session.user.id);
 
         res.status(201).json({
             success: true,
@@ -125,7 +125,7 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, elementsDescription, isPublished, tags, note, useAsReference, project: projectRef, board } = req.body;
+        const { title, category, description, htmlCode, isPublished, tags, note, useAsReference, project: projectRef, board } = req.body;
         let codeChanged = false;
 
         if (board !== undefined) {
@@ -147,19 +147,18 @@ export const updateComponent = async (req, res) => {
             component.versions.push({ version: component.version, htmlCode: component.htmlCode, note: note || "" });
             component.version += 1;
             component.htmlCode = htmlCode;
-            component.spec = buildSpec(htmlCode, component.spec);
+            component.profile = buildProfile(htmlCode, component.profile);
             codeChanged = true;
         }
         if (title) component.title = title;
         if (category) component.category = category;
         if (description) component.description = description;
-        if (elementsDescription) component.elementsDescription = elementsDescription;
         if (typeof useAsReference === 'boolean') component.useAsReference = useAsReference;
         if (tags !== undefined) component.tags = normalizeTags(tags);
         if (typeof isPublished !== 'undefined') component.isPublished = isPublished === true || isPublished === "true";
 
         const updated = await component.save();
-        if (codeChanged) enrichSpecWithAI(updated._id, req.session.user.id);
+        if (codeChanged) enrichProfileWithAI(updated._id, req.session.user.id);
 
         res.status(200).json({
             success: true,
@@ -276,21 +275,20 @@ export const restoreVersion = async (req, res) => {
         component.versions.push({ version: component.version, htmlCode: component.htmlCode, note: `Before restoring v${target.version}` });
         component.version += 1;
         component.htmlCode = target.htmlCode;
-        component.elementsDescription = [];
-        component.spec = buildSpec(component.htmlCode, component.spec);
+        component.profile = buildProfile(component.htmlCode, component.profile);
         await component.save();
-        enrichSpecWithAI(component._id, req.session.user.id);
+        enrichProfileWithAI(component._id, req.session.user.id);
         res.status(200).json({ success: true, data: component });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// Export as html | react | vue | svelte (public components, or the owner's own)
+// Export as html | react | vue | svelte, or design (the design spec as JSON) (public components, or the owner's own)
 export const exportComponentCode = async (req, res) => {
     try {
         const format = String(req.query.format || "html").toLowerCase();
-        if (!FORMATS.includes(format)) {
+        if (format !== "design" && !FORMATS.includes(format)) {
             return res.status(400).json({ success: false, message: `format must be one of ${FORMATS.join(", ")}` });
         }
         const component = await Component.findById(req.params.id).lean();
@@ -301,7 +299,7 @@ export const exportComponentCode = async (req, res) => {
         res.status(200).json({
             success: true,
             format,
-            code: exportComponent(component.htmlCode, format, component.title),
+            code: format === "design" ? JSON.stringify(specOf(component), null, 2) : exportComponent(component.htmlCode, format, component.title),
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -328,11 +326,10 @@ export const forkComponent = async (req, res) => {
             category: source.category,
             description: source.description,
             htmlCode: source.htmlCode,
-            elementsDescription: source.elementsDescription,
             tags: source.tags,
             createdBy: userId,
             forkedFrom: source._id,
-            spec: source.spec || buildSpec(source.htmlCode),
+            profile: source.profile || buildProfile(source.htmlCode),
             isPublished: false,
         });
         res.status(201).json({ success: true, existing: false, id: String(copy._id) });
@@ -342,15 +339,15 @@ export const forkComponent = async (req, res) => {
 };
 
 
-// Spec card (owner only): structured analysis + markdown for humans and agents
-export const getSpec = async (req, res) => {
+// Profile card (owner only): structured analysis + markdown for humans and agents
+export const getProfile = async (req, res) => {
     try {
         const component = await Component.findById(req.params.id).lean();
         if (!component || String(component.createdBy) !== req.session.user.id) {
             return res.status(404).json({ success: false, message: 'Component not found' });
         }
-        const spec = component.spec || buildSpec(component.htmlCode);
-        res.status(200).json({ success: true, spec, markdown: specToMarkdown({ ...component, spec }) });
+        const profile = component.profile || buildProfile(component.htmlCode);
+        res.status(200).json({ success: true, profile, markdown: profileToMarkdown({ ...component, profile }) });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

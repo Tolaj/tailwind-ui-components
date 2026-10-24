@@ -10,7 +10,7 @@ import {
     restoreVersion,
     exportComponentCode,
     forkComponent,
-    getSpec
+    getProfile
 } from "../controllers/component.controller.js";
 import { ensureAuthAPI } from "../middlewares/auth.js";
 import { importDesign } from "../services/import.service.js";
@@ -20,7 +20,7 @@ const router = express.Router();
 // Public routes
 router.get("/", getAllComponents);
 router.get("/:id/export", exportComponentCode);
-router.get("/:id/spec", ensureAuthAPI, getSpec);
+router.get("/:id/profile", ensureAuthAPI, getProfile);
 router.get("/:id/versions", ensureAuthAPI, getVersions);
 router.post("/:id/versions/:version/restore", ensureAuthAPI, restoreVersion);
 router.get("/:id", getComponentById);

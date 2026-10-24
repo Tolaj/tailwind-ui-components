@@ -1,5 +1,3 @@
-import { parseComponentSource } from "./component-source.js"
-import { createDescriptionFromElement } from "../element-description/index.js"
 
 let isDetailsOpen = false;
 
@@ -126,18 +124,10 @@ export const handleSave = async (e) => {
 
     const htmlCode = document.getElementById('htmlEditor').value;
 
-    const { markup } = parseComponentSource(htmlCode);
-    const dom = new DOMParser().parseFromString(markup, "text/html");
-
-    const elementsDescription = Array.from(dom.body.children).map(child =>
-        createDescriptionFromElement(child)
-    );
-
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
 
     data.htmlCode = htmlCode;
-    data.elementsDescription = elementsDescription;
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Publishing...';

@@ -1,6 +1,6 @@
 import Component from "../models/component.model.js";
 import { buildDesignGuide } from "./guide.service.js";
-import { buildSpec, specToMarkdown } from "./spec.service.js";
+import { buildProfile, profileToMarkdown } from "./profile.service.js";
 
 export const TOKEN_ENV = "TAILWIND_LIBRARY_TOKEN";
 const SERVER_NAME = "tailwind-library";
@@ -86,10 +86,10 @@ export async function buildDesignPack(userId, userName = "your") {
         let slug = slugify(c.title);
         while (used.has(slug)) slug += "-2";
         used.add(slug);
-        const spec = c.spec || buildSpec(c.htmlCode);
-        files.push({ name: `design-pack/components/${slug}.html`, content: `<!-- ${c.title} | ${c.category} | v${c.version || 1} -->\n${c.htmlCode}\n` });
-        files.push({ name: `design-pack/components/${slug}.spec.md`, content: specToMarkdown({ ...c, spec }) + "\n" });
-        index.push({ file: `components/${slug}.html`, title: c.title, category: c.category, tags: c.tags || [], summary: spec.summary || c.description });
+        const profile = c.profile || buildProfile(c.htmlCode);
+        files.push({ name: `design-pack/components/${slug}.html`, content: `<!-- ${c.title} | ${c.category} | id ${c._id} | v${c.version || 1} -->\n${c.htmlCode}\n` });
+        files.push({ name: `design-pack/components/${slug}.profile.md`, content: profileToMarkdown({ ...c, profile }) + "\n" });
+        index.push({ id: String(c._id), version: c.version || 1, file: `components/${slug}.html`, title: c.title, category: c.category, tags: c.tags || [], summary: profile.summary || c.description });
     }
 
     const brief = `# Brief: design with ${userName === "your" ? "my" : `${userName}'s`} component library
@@ -98,7 +98,7 @@ Attach this whole folder (or the files inside it) to Claude Design.
 
 ## What is in here
 - \`design-guide.md\`: my design tokens (Tailwind classes), conventions and a component index. **Read this first.**
-- \`components/\`: ${index.length} reusable components as HTML (Tailwind), each with a \`.spec.md\` describing what it is for and how it is built.
+- \`components/\`: ${index.length} reusable components as HTML (Tailwind), each with a \`.profile.md\` describing what it is for and how it is built.
 - \`index.json\`: the same index in machine-readable form.
 
 ## Rules
@@ -106,7 +106,8 @@ Attach this whole folder (or the files inside it) to Claude Design.
 2. **Stay on the tokens.** Use only the colors, radius, spacing and type listed in \`design-guide.md\`. Do not introduce new ones without saying so.
 3. **Keep the structure.** Preserve a component's classes and markup unless the request requires changing them.
 4. **Say what is new.** List any component you had to create that is not in the library, so it can be saved back. If the library connector is available, save each finished page yourself as its own component: \`save_pages\` for several pages, \`save_design\` for one.
-5. If something needed is missing from the library, put it under **Open questions** and continue with a stated assumption.
+5. **Changing an existing page: save it back as the same page.** Keep its title and pass its \`id\` and \`baseVersion\` (both in \`index.json\` and the first line of its file) so it becomes the page's next version, not a copy. If it was edited since this pack was made, the save is refused: ask for a fresh pack or read it with \`get_component\`.
+6. If something needed is missing from the library, put it under **Open questions** and continue with a stated assumption.
 
 ## What I want
 (Describe the screen or page you want designed here.)

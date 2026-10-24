@@ -6,9 +6,10 @@ import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
 import { searchLibrary } from "../services/library.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
-import { buildSpec, enrichSpecWithAI, specToMarkdown, extractSpec } from "../services/spec.service.js";
+import { buildProfile, enrichProfileWithAI, profileToMarkdown, extractProfile } from "../services/profile.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 import { importDesign } from "../services/import.service.js";
+import { specOf, patchDesign } from "../services/design-spec.service.js";
 import { resolveProject, listProjects, projectTree, getActiveProject, setActiveProject, projectContext } from "../services/project.service.js";
 import Project from "../models/project.model.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
@@ -48,6 +49,25 @@ const TOOLS = [
         },
     },
     {
+        name: "get_design_spec",
+        description: "Get a saved design as a design spec: JSON an AI can target reliably. Every element has an id (n1, n2...), a tag, a role (title, button, card...), its text, and its Tailwind classes read as props by breakpoint and state ({ base: { p: \"6\", bgColor: \"white\" }, md: { p: \"8\" }, hover: {...} }); classes no prop covers are in raw, inline CSS in css. Also the design's tokens and its <style>/<script>. Icons (svg) show only their size (svgChars), not their drawing: to change an icon, insert a new one and remove the old. Use this before changing a design with apply_design_patch. Ids belong to this version only.",
+        inputSchema: { type: "object", properties: { id: { type: "string", description: "The design's id" } }, required: ["id"] },
+    },
+    {
+        name: "apply_design_patch",
+        description: "Change a saved design with small operations on the ids from get_design_spec, instead of rewriting its HTML. Only what you name changes; the rest of the code stays exactly as it was. Pass the version you read (baseVersion): if the design changed since, nothing is applied and you must read it again. All ops are checked first and applied together, or none are. Saves a new version and returns the new spec (new ids). Ops: {op:\"set\", id, prop, value, at?} sets a prop (prop names as in the spec, e.g. bgColor, p, fontSize, flexDir; value as in the spec, e.g. \"blue-600\", \"8\"; at = a breakpoint or state like \"md\", \"hover\", \"md:hover\"); {op:\"unset\", id, prop, at?}; {op:\"classes\", id, add?:[], remove?:[]} for raw classes; {op:\"style\", id, value} inline CSS (null removes); {op:\"text\", id, text} for an element holding only text; {op:\"attr\", id, name, value} (null removes); {op:\"tag\", id, tag} within its family (div/section/header..., p/h1-h6, span/strong..., a/button, ul/ol, td/th); {op:\"insert\", id?, position?, html} position inside (default), start, before or after (no id: added to the design's end, or start); {op:\"remove\", id}; {op:\"move\", id, to, position?}.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "The design's id" },
+                baseVersion: { type: "number", description: "The version from get_design_spec" },
+                ops: { type: "array", items: { type: "object" }, description: "The operations, applied in order" },
+                note: { type: "string", description: "What changed, for the version history" },
+            },
+            required: ["id", "baseVersion", "ops"],
+        },
+    },
+    {
         name: "save_component",
         description: "Save a new component (HTML with Tailwind classes, optional <style>/<script>) to the user's library so it can be reused later.",
         inputSchema: {
@@ -65,7 +85,7 @@ const TOOLS = [
     },
     {
         name: "save_design",
-        description: "Save ONE finished screen (one page, one route, one tab) as ONE component. If the design has several pages or screens, do NOT merge them into one HTML document: call save_pages once with every page, or call save_design once per page with the same project. Only set split to true for a long marketing page made of stacked sections when the user wants each section saved separately. Never split dashboards or app screens.",
+        description: "Save ONE finished screen (one page, one route, one tab) as ONE component. If the design has several pages or screens, do NOT merge them into one HTML document: call save_pages once with every page, or call save_design once per page with the same project. Only set split to true for a long marketing page made of stacked sections when the user wants each section saved separately. Never split dashboards or app screens. Saving a page that already exists (same title in the same project, or its id) saves its next version instead of a copy: pass baseVersion, the version you started from (get_context and get_component show it). If it changed since (the user edited it in the editor), the save is refused so their edits aren't lost: read it again and work from that. For a small change to a saved page, apply_design_patch is better than saving the whole page.",
         inputSchema: {
             type: "object",
             properties: {
@@ -75,13 +95,17 @@ const TOOLS = [
                 tags: { type: "array", items: { type: "string" } },
                 split: { type: "boolean", description: "Also save each stacked section as its own component. Default false." },
                 project: { type: "string", description: "Project name or id to file this under (created if new). Optional: defaults to the user's active project." },
+                id: { type: "string", description: "The saved page to replace with this version (optional: a page with the same title in the project is found anyway)" },
+                baseVersion: { type: "number", description: "When saving an existing page again: the version you started from" },
+                force: { type: "boolean", description: "Replace the page even if it changed since baseVersion (only when the user says so)" },
+                note: { type: "string", description: "What changed, for the version history" },
             },
             required: ["title", "html"],
         },
     },
     {
         name: "save_pages",
-        description: "Save SEVERAL pages or screens in one call, each as its own separate page component inside one project. Use this whenever the design has more than one page (for example Overview, Customers and Transactions). Pass each page as its own complete HTML document. Never combine pages into one HTML file.",
+        description: "Save SEVERAL pages or screens in one call, each as its own separate page component inside one project. Use this whenever the design has more than one page (for example Overview, Customers and Transactions). Pass each page as its own complete HTML document. Never combine pages into one HTML file. A page that already exists in the project (same title, or its id) is saved as its next version, not a copy: give its baseVersion (from get_context), and a page changed since then is refused rather than overwritten.",
         inputSchema: {
             type: "object",
             properties: {
@@ -95,6 +119,9 @@ const TOOLS = [
                             title: { type: "string", description: "Page name, e.g. 'Customers'" },
                             html: { type: "string", description: "Complete HTML of this one page" },
                             description: { type: "string", description: "One sentence about the page" },
+                            id: { type: "string", description: "The saved page this replaces (optional)" },
+                            baseVersion: { type: "number", description: "For a page that already exists: the version you started from" },
+                            force: { type: "boolean", description: "Replace it even if it changed since baseVersion (only when the user says so)" },
                         },
                         required: ["title", "html"],
                     },
@@ -165,19 +192,19 @@ async function callTool(userId, name, args = {}) {
             }
             const results = await searchLibrary(userId, { query: args.query, tag: args.tag, project: projectId, limit: Math.min(Number(args.limit) || 10, 25) });
             return text(results.map((c) => {
-                const spec = c.spec || extractSpec(c.htmlCode);
+                const profile = c.profile || extractProfile(c.htmlCode);
                 return {
                     id: String(c._id),
                     title: c.title,
-                    summary: spec.summary || c.description,
-                    useWhen: spec.useWhen || undefined,
+                    summary: profile.summary || c.description,
+                    useWhen: profile.useWhen || undefined,
                     tags: c.tags,
                     category: c.category,
                     version: c.version,
-                    mainColors: (spec.tokens?.colors || []).slice(0, 3).map((t) => t.name),
-                    responsive: spec.responsive,
-                    darkMode: spec.darkMode,
-                    needsJs: Boolean(spec.needs?.javascript),
+                    mainColors: (profile.tokens?.colors || []).slice(0, 3).map((t) => t.name),
+                    responsive: profile.responsive,
+                    darkMode: profile.darkMode,
+                    needsJs: Boolean(profile.needs?.javascript),
                 };
             }));
         }
@@ -187,7 +214,20 @@ async function callTool(userId, name, args = {}) {
             if (!/^[a-f0-9]{24}$/i.test(String(args.id))) return fail("Invalid component id");
             const c = await Component.findOne({ _id: args.id, createdBy: userId }).lean();
             if (!c) return fail("Component not found in your library");
-            return text(`${specToMarkdown(c)}\n\n---\n\n${exportComponent(c.htmlCode, format, c.title)}`);
+            return text(`${profileToMarkdown(c)}\n\n---\n\n${exportComponent(c.htmlCode, format, c.title)}`);
+        }
+        case "get_design_spec": {
+            if (!/^[a-f0-9]{24}$/i.test(String(args.id))) return fail("Invalid design id");
+            const c = await Component.findOne({ _id: args.id, createdBy: userId }).lean();
+            if (!c) return fail("Design not found in your library");
+            return { content: [{ type: "text", text: JSON.stringify(specOf(c, { svg: false })) }] }; // compact: a spec is read by an AI
+        }
+        case "apply_design_patch": {
+            try {
+                return { content: [{ type: "text", text: JSON.stringify(await patchDesign(userId, args)) }] };
+            } catch (e) {
+                return fail(e.message);
+            }
         }
         case "save_component": {
             if (!args.title || !args.description || !args.htmlCode) return fail("title, description and htmlCode are required");
@@ -200,11 +240,11 @@ async function callTool(userId, name, args = {}) {
                 htmlCode: args.htmlCode,
                 category: args.category || "apps-general",
                 tags: normalizeTags(args.tags),
-                spec: buildSpec(args.htmlCode),
+                profile: buildProfile(args.htmlCode),
                 createdBy: userId,
                 isPublished: false,
             });
-            enrichSpecWithAI(c._id, userId);
+            enrichProfileWithAI(c._id, userId);
             return text({ id: String(c._id), message: "Saved to your library (private)" });
         }
         case "save_design": {
@@ -214,8 +254,10 @@ async function callTool(userId, name, args = {}) {
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
                     tags: args.tags, split: args.split === true, project: proj ? proj._id : null,
+                    id: args.id, baseVersion: args.baseVersion, force: args.force === true, note: args.note,
                 });
-                return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `Saved "${result.page.title}"${result.sections.length ? ` and ${result.sections.length} section component(s)` : ""} to your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
+                const what = result.page.created ? "Saved" : result.page.updated ? `Saved v${result.page.version} of` : "No change to";
+                return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `${what} "${result.page.title}"${result.sections.length ? ` and ${result.sections.length} section component(s)` : ""}${result.removedSections ? ` (${result.removedSections} section(s) no longer on the page removed)` : ""} in your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
             } catch (e) {
                 return fail(e.message);
             }
@@ -230,7 +272,7 @@ async function callTool(userId, name, args = {}) {
             const failed = [];
             for (const pg of pagesIn) {
                 try {
-                    const r = await importDesign(userId, { title: pg.title, html: pg.html, description: pg.description, tags: args.tags, split: false, project: proj._id });
+                    const r = await importDesign(userId, { title: pg.title, html: pg.html, description: pg.description, tags: args.tags, split: false, project: proj._id, id: pg.id, baseVersion: pg.baseVersion, force: pg.force === true });
                     saved.push(r.page);
                 } catch (e) {
                     failed.push({ title: pg && pg.title, error: e.message });
@@ -312,6 +354,8 @@ const TITLES = {
     get_design_guide: "Read the design guide",
     search_components: "Search components",
     get_component: "Get a component",
+    get_design_spec: "Read a design as a spec",
+    apply_design_patch: "Change a design",
     save_component: "Save a component",
     save_design: "Save a finished design",
     save_pages: "Save several pages",
@@ -323,7 +367,7 @@ const TITLES = {
     create_project: "Create a project",
     get_project: "Get a project",
 };
-const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "list_tags", "list_projects", "get_project", "get_context"]);
+const READ_ONLY = new Set(["get_design_guide", "search_components", "get_component", "get_design_spec", "list_tags", "list_projects", "get_project", "get_context"]);
 
 // Hints let clients (Claude shows these in its permission UI) treat read tools as safe.
 const ANNOTATED_TOOLS = TOOLS.map((t) => ({

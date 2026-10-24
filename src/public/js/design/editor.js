@@ -1,6 +1,5 @@
 import { parseComponentSource, buildPreviewDocument } from "../playground/component-source.js";
 import { computeLayout } from "../shared/board-layout.js";
-import { createDescriptionFromElement } from "../element-description/index.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, BREAKPOINTS, setGroup, GROUPS, parseToken } from "./class-groups.js";
 import { ui, variant, val, renderInspectorHtml, mountDatalists, modeFor, srcOf } from "./inspector.js";
@@ -993,8 +992,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 /** Writes one design: creates it the first time, a new version after that. */
 async function persist(d) {
     const m = d.meta;
-    const doc = new DOMParser().parseFromString(d.markup, "text/html");
-    const body = { htmlCode: assembleDoc(d.parsed, d.markup), elementsDescription: [...doc.body.children].map((c) => createDescriptionFromElement(c)) };
+    const body = { htmlCode: assembleDoc(d.parsed, d.markup) };
     if (d.isNew) {
         const res = await fetch("/api/components", {
             method: "POST", headers: JSON_HEADERS,
@@ -1392,11 +1390,10 @@ $("detailsForm").addEventListener("submit", async (e) => {
     try {
         let res;
         if (isNew) {
-            const doc = new DOMParser().parseFromString(model.markup, "text/html");
             res = await fetch("/api/components", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...fields, htmlCode: assemble(), elementsDescription: [...doc.body.children].map((c) => createDescriptionFromElement(c)) }),
+                body: JSON.stringify({ ...fields, htmlCode: assemble() }),
             });
         } else {
             res = await fetch(`/api/components/${data.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) });

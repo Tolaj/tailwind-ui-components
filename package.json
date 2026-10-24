@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/",
+    "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",
     "test-email": "node test-email.js",
     "start": "node --env-file=.env src/server.js"
@@ -24,6 +25,7 @@
     "googleapis": "^178.0.0",
     "mongodb": "^7.0.0",
     "mongoose": "^7.5.0",
+    "node-html-parser": "^6.1.13",
     "nodemailer": "^10.2.1"
   },
   "devDependencies": {

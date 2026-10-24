@@ -79,6 +79,6 @@ export async function projectContext(userId) {
     ];
     if (p.description) lines.push(`Description: ${p.description}`);
     if (p.brief) lines.push("", "Brief and notes from the user (follow these):", p.brief.slice(0, 3000));
-    lines.push("", pages.length ? `Pages so far (${pages.length}): ${pages.map((pg) => `${pg.title} (${pg.id})`).join("; ")}. Use get_component with an id to read one before designing a matching page.` : "No pages yet.");
+    lines.push("", pages.length ? `Pages so far (${pages.length}): ${pages.map((pg) => `${pg.title} (id ${pg.id}, v${pg.version || 1})`).join("; ")}. Use get_component with an id to read one before designing a matching page. To change one of these pages, save it again under the same title (or its id) with baseVersion set to its version: it becomes the next version, not a copy.` : "No pages yet.");
     return lines.join("\n");
 }

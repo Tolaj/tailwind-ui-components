@@ -20,10 +20,6 @@ const componentSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        elementsDescription: {  // ✅ Added this field
-            type: [mongoose.Schema.Types.Mixed],
-            default: []
-        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -66,7 +62,7 @@ const componentSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
-        spec: {
+        profile: {
             type: mongoose.Schema.Types.Mixed,
             default: null
         },
