@@ -9,7 +9,7 @@ import { normalizeTags } from "../controllers/component.controller.js";
 import { buildProfile, enrichProfileWithAI, profileToMarkdown, extractProfile } from "../services/profile.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 import { importDesign } from "../services/import.service.js";
-import { specOf, patchDesign } from "../services/design-spec.service.js";
+import { specOf, patchDesign, tailwindWarning } from "../services/design-spec.service.js";
 import { resolveProject, listProjects, projectTree, getActiveProject, setActiveProject, projectContext } from "../services/project.service.js";
 import Project from "../models/project.model.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
@@ -55,12 +55,12 @@ const TOOLS = [
     },
     {
         name: "apply_design_patch",
-        description: "Change a saved design with small operations on the ids from get_design_spec, instead of rewriting its HTML. Only what you name changes; the rest of the code stays exactly as it was. Pass the version you read (baseVersion): if the design changed since, nothing is applied and you must read it again. All ops are checked first and applied together, or none are. Saves a new version and returns the new spec (new ids). Ops: {op:\"set\", id, prop, value, at?} sets a prop (prop names as in the spec, e.g. bgColor, p, fontSize, flexDir; value as in the spec, e.g. \"blue-600\", \"8\"; at = a breakpoint or state like \"md\", \"hover\", \"md:hover\"); {op:\"unset\", id, prop, at?}; {op:\"classes\", id, add?:[], remove?:[]} for raw classes; {op:\"style\", id, value} inline CSS (null removes); {op:\"text\", id, text} for an element holding only text; {op:\"attr\", id, name, value} (null removes); {op:\"tag\", id, tag} within its family (div/section/header..., p/h1-h6, span/strong..., a/button, ul/ol, td/th); {op:\"insert\", id?, position?, html} position inside (default), start, before or after (no id: added to the design's end, or start); {op:\"remove\", id}; {op:\"move\", id, to, position?}.",
+        description: "Change a saved design with small operations on the ids from get_design_spec, instead of rewriting its HTML. Only what you name changes; the rest of the code stays exactly as it was. Pass baseVersion: the \"version\" field of the spec you read. If the design changed since, nothing is applied and you must read it again. All ops are checked first and applied together, or none are. Saves a new version and returns the new spec (new ids). Ops: {op:\"set\", id, prop, value, at?} sets a prop (prop names as in the spec, e.g. bgColor, p, fontSize, flexDir; value as in the spec, e.g. \"blue-600\", \"8\"; at = a breakpoint or state like \"md\", \"hover\", \"md:hover\"); {op:\"unset\", id, prop, at?}; {op:\"classes\", id, add?:[], remove?:[]} for raw classes; {op:\"style\", id, value} inline CSS (null removes); {op:\"text\", id, text} for an element holding only text; {op:\"attr\", id, name, value} (null removes); {op:\"tag\", id, tag} within its family (div/section/header..., p/h1-h6, span/strong..., a/button, ul/ol, td/th); {op:\"insert\", id?, position?, html} position inside (default), start, before or after (no id: added to the design's end, or start); {op:\"remove\", id}; {op:\"move\", id, to, position?}; {op:\"rule\", selector, prop, value, media?} edits a CSS rule in the design's <style> (shown in the spec's assets.css), for designs styled by their own CSS classes rather than Tailwind: e.g. {op:\"rule\", selector:\".btn-primary\", prop:\"background\", value:\"#D4A017\"}; value null removes the property; media is the @media line for a rule inside one; a rule that doesn't exist yet is added.",
         inputSchema: {
             type: "object",
             properties: {
                 id: { type: "string", description: "The design's id" },
-                baseVersion: { type: "number", description: "The version from get_design_spec" },
+                baseVersion: { type: "number", description: "Required: the \"version\" field of the get_design_spec result you made the patch from" },
                 ops: { type: "array", items: { type: "object" }, description: "The operations, applied in order" },
                 note: { type: "string", description: "What changed, for the version history" },
             },
@@ -175,6 +175,7 @@ const INSTRUCTIONS = [
     "Find: get_context (the active project, its brief, its pages with id and version), then get_design_guide (design tokens and an index of every component), then search_components before writing new UI so it matches what exists.",
     "Use in an app: get_component with format html, react, vue or svelte to match the codebase. Fetch only what you will use.",
     "Change a saved design: for a small change, get_design_spec (each element with an id, a role and its classes as props per breakpoint and state), then apply_design_patch with small ops on those ids and the version you read. Only what you name changes. For a redesign, save the whole page again (below).",
+    "Style with Tailwind: designs saved here should use Tailwind utility classes (the tokens in get_design_guide), not their own CSS classes and <style> rules, so they stay editable in the Windcraft editor and patchable by props. Use a <style> only for what Tailwind can't express.",
     "Save: a new page with save_design (one screen) or save_pages (several, each its own HTML, never merged); a reusable piece with save_component. Saving an existing page again (same title in its project, or its id) makes its next version, not a copy: pass baseVersion (from get_context or get_component). If the user edited it since, the save is refused so their edits are not lost: read it again and work from that.",
 ].join("\n");
 
@@ -255,7 +256,8 @@ async function callTool(userId, name, args = {}) {
                 isPublished: false,
             });
             enrichProfileWithAI(c._id, userId);
-            return text({ id: String(c._id), message: "Saved to your library (private)" });
+            const warning = tailwindWarning(args.htmlCode);
+            return text({ id: String(c._id), message: "Saved to your library (private)", ...(warning ? { warning } : {}) });
         }
         case "save_design": {
             if (!args.html || !args.title) return fail("title and html are required");

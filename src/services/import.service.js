@@ -2,6 +2,7 @@ import Component from "../models/component.model.js";
 import { buildProfile, enrichProfileWithAI } from "./profile.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
 import { parseDocument, splitSections } from "../public/js/shared/split-sections.js";
+import { tailwindWarning } from "./design-spec.service.js";
 
 const MAX_HTML = 1_000_000;
 
@@ -136,9 +137,11 @@ export async function importDesign(userId, { title, html, description, tags = []
         (async () => { for (const c of all.slice(0, 12)) await enrichProfileWithAI(c._id, userId); })();
     }
 
+    const warning = tailwindWarning(html);
     return {
         page: { id: String(page._id), title: page.title, version: page.version || 1, ...(isNew ? { created: true } : { updated, ...(updated ? {} : { note: "Same code as the saved version: nothing changed" }) }) },
         sections: sections.map((c) => ({ id: String(c._id), title: c.title, version: c.version || 1 })),
         ...(removedSections ? { removedSections } : {}),
+        ...(warning ? { warning } : {}),
     };
 }

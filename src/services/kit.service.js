@@ -20,7 +20,7 @@ When you build or change UI:
 1. Call \`get_context\` first: it returns the active project, its brief and the pages so far. Then call \`get_design_guide\`. It lists the design tokens and every available component.
 2. Call \`search_components\` for what you need. Reuse a match instead of writing new markup.
 3. Fetch full code with \`get_component\` (use format \`react\`, \`vue\` or \`svelte\` to match this project) only for the components you will use.
-4. If you must write something new, follow the tokens (colors, radius, spacing, type) from the guide.
+4. If you must write something new, follow the tokens (colors, radius, spacing, type) from the guide, as Tailwind utility classes (not your own CSS classes and \`<style>\` rules).
 5. To change a design already in the library: for a small change, \`get_design_spec\` (elements with ids, roles and props) then \`apply_design_patch\` with small ops and the version you read; only what you name changes. For a redesign, save the whole page again (step 7).
 6. Save genuinely reusable new components back with \`save_component\` (clear title, one-sentence description, tags).
 7. Save each page as its OWN component. For several pages call \`save_pages\` with a project name and one HTML document per page; never merge pages into one file. For a single screen use \`save_design\` (title plus the complete HTML). It saves one component per screen; only pass split: true for a long marketing page when the user wants its sections saved separately. Group the screens of one site or app by passing the same \`project\` name each time (for example \`project: "Acme website"\`). Use \`get_project\` to see what a project already contains. Saving a page that already exists (same title in its project, or its id) makes its next version, not a copy: pass \`baseVersion\` (from \`get_context\` or \`get_component\`). If it was edited since, the save is refused: read it again and work from that.
@@ -105,7 +105,7 @@ Attach this whole folder (or the files inside it) to Claude Design.
 
 ## Rules
 1. **Reuse before inventing.** If a component in \`components/\` fits, use it and change only content (text, images, links).
-2. **Stay on the tokens.** Use only the colors, radius, spacing and type listed in \`design-guide.md\`. Do not introduce new ones without saying so.
+2. **Stay on the tokens, in Tailwind.** Use only the colors, radius, spacing and type listed in \`design-guide.md\`, written as Tailwind utility classes on the elements. Do not restyle with your own CSS classes and a \`<style>\` sheet (custom fonts and CSS variables included): the library and its editor work with Tailwind classes. Do not introduce new tokens without saying so.
 3. **Keep the structure.** Preserve a component's classes and markup unless the request requires changing them.
 4. **Say what is new.** List any component you had to create that is not in the library, so it can be saved back. If the library connector is available, save each finished page yourself as its own component: \`save_pages\` for several pages, \`save_design\` for one.
 5. **Changing an existing page: save it back as the same page.** Keep its title and pass its \`id\` and \`baseVersion\` (both in \`index.json\` and the first line of its file) so it becomes the page's next version, not a copy. If it was edited since this pack was made, the save is refused: ask for a fresh pack or read it with \`get_component\`.

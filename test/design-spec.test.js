@@ -125,3 +125,41 @@ test("malformed HTML is refused with where it breaks, not patched", () => {
     const html = `<section>\n<div class="p-4">\n<div>unclosed\n</section>`;
     assert.throws(() => applyOps(html, [{ op: "set", id: "n1", prop: "p", value: "2" }]), (e) => /malformed around line/.test(e.message));
 });
+
+test("rule edits a CSS rule in <style>, keeping the rest of the stylesheet as written", () => {
+    const html = `<html><head><style>
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .hero { background: url("data:image/svg+xml;utf8,<svg/>"); padding: 4px }
+  @media (min-width: 768px) {
+    .btn-primary { padding: 8px; }
+  }
+</style></head><body><button class="btn-primary">Add</button></body></html>`;
+    let out = applyOps(html, [
+        { op: "rule", selector: ".btn-primary", prop: "background", value: "#D4A017" },
+        { op: "rule", selector: ".btn-primary", prop: "border-radius", value: "8px" },
+        { op: "rule", selector: ".hero", prop: "padding", value: "12px" },
+        { op: "rule", selector: ".btn-primary", media: "@media (min-width:768px)", prop: "padding", value: "16px" },
+    ]).html;
+    assert.equal(out, html
+        .replace("background: var(--accent);\n    color: #fff;", "background: #D4A017;\n    color: #fff;\n    border-radius: 8px;")
+        .replace("padding: 4px }", "padding: 12px }")
+        .replace("{ padding: 8px; }", "{ padding: 16px; }"));
+    out = applyOps(html, [{ op: "rule", selector: ".btn-secondary", prop: "color", value: "red" }, { op: "rule", selector: ".btn-primary", prop: "color", value: null }]).html;
+    assert.match(out, /\.btn-secondary \{ color: red; \}\n<\/style>/);
+    assert.doesNotMatch(out, /color: #fff/);
+    out = applyOps(`<div class="p-4">x</div>`, [{ op: "rule", selector: ".p-4", prop: "color", value: "red" }]).html;
+    assert.equal(out, `<style>\n.p-4 { color: red; }\n</style><div class="p-4">x</div>`);
+    assert.throws(() => applyOps(html, [{ op: "rule", selector: ".nope", prop: "color", value: null }]), /no rule "\.nope"/);
+    assert.throws(() => applyOps(html, [{ op: "rule", selector: ".x", prop: "color", value: "red;} body{display:none" }]), /needs a CSS value/);
+});
+
+test("baseVersion: missing, wrong or stale says exactly what to send", async () => {
+    const { checkBaseVersion } = await import("../src/services/design-spec.service.js");
+    assert.throws(() => checkBaseVersion(undefined, 3), /baseVersion is missing: pass the "version" from get_design_spec \(this design is v3\)/);
+    assert.throws(() => checkBaseVersion("abc", 3), /must be a number/);
+    assert.throws(() => checkBaseVersion(2, 3), /it is now v3, the patch was made from v2/);
+    assert.doesNotThrow(() => checkBaseVersion("3", 3));
+});

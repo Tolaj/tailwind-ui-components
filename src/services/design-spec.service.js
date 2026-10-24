@@ -4,7 +4,7 @@
 //
 // A patch changes only what it names: every other byte of the design stays as the reader wrote it. It is checked and
 // applied in full or not at all, and only to the version it was read from, so an id can't land on the wrong element.
-import { parse } from "node-html-parser";
+import { parse, TextNode } from "node-html-parser";
 import Component from "../models/component.model.js";
 import { toSpec, walkElements, contentRoots } from "../public/js/shared/design-spec.js";
 import { GROUPS, setGroup, BREAKPOINTS, STATES } from "../public/js/design/class-groups.js";
@@ -29,6 +29,24 @@ export function specOf(component, opts = {}) {
         ...(broken ? { warning: `${broken} It can't be patched until it's fixed: open it in the editor and save, or save corrected HTML.` } : {}),
         ...toSpec(root, opts),
     };
+}
+
+/**
+ * A warning for a design styled mostly by its own CSS classes instead of Tailwind (the Windcraft editor and prop patches
+ * work with Tailwind classes), or null. Judged by how many of its classes the spec reads as Tailwind props.
+ */
+export function tailwindWarning(html) {
+    let props = 0, raw = 0;
+    const count = (nodes) => nodes.forEach((n) => {
+        if (!n.tag) return;
+        props += Object.values(n.props || {}).reduce((s, p) => s + Object.keys(p).length, 0);
+        raw += (n.raw || []).length;
+        if (n.children) count(n.children);
+    });
+    const spec = toSpec(readHtml(html), { svg: false });
+    count(spec.tree);
+    if (raw < 8 || props >= raw) return null;
+    return `This design is styled mostly by its own CSS (${raw} custom classes, ${props} Tailwind ones${spec.assets.css ? `, ${spec.assets.css.length} characters of <style>` : ""}). It's saved, but the Windcraft editor and prop patches work with Tailwind classes: next time, style it with Tailwind utility classes on the elements.`;
 }
 
 // ── Checking ─────────────────────────────────────────────────────────────────
@@ -131,6 +149,98 @@ function write(n, src) {
     return `${open}${inner}</${n.rawTagName}>`;
 }
 
+// ── CSS rules in <style> ─────────────────────────────────────────────────────
+// Designs styled with their own CSS (".btn-primary { background: ... }") are patched by editing the rule itself.
+// A small scanner, enough for that: it skips comments and strings, and finds blocks by matching braces.
+
+/** Index just after the brace matching the "{" at i (or the end), skipping comments and strings. */
+function blockEnd(css, i) {
+    let depth = 0;
+    for (let j = i; j < css.length; j++) {
+        const ch = css[j];
+        if (ch === "/" && css[j + 1] === "*") { j = css.indexOf("*/", j + 2); if (j === -1) return css.length; j++; }
+        else if (ch === '"' || ch === "'") { const k = css.indexOf(ch, j + 1); j = k === -1 ? css.length : k; }
+        else if (ch === "{") depth++;
+        else if (ch === "}" && --depth === 0) return j + 1;
+    }
+    return css.length;
+}
+/** "@media (min-width:768px)" and "@media ( min-width: 768px )" are the same query */
+const normMedia = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").replace(/\s*([:(),])\s*/g, "$1").trim().toLowerCase();
+const normSel = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").replace(/\s*([,>+~])\s*/g, "$1").trim();
+
+/** The rules of a stylesheet (or of the inside of an @media block): { prelude, start, open, end } with body = css.slice(open + 1, end - 1). */
+function rulesOf(css, from = 0, to = css.length) {
+    const out = [];
+    let i = from;
+    while (i < to) {
+        const open = css.indexOf("{", i);
+        if (open === -1 || open >= to) break;
+        // the prelude starts after the previous rule or a ";" (an @import), comments skipped
+        const prelude = css.slice(i, open).replace(/\/\*[\s\S]*?\*\//g, "").split(";").pop();
+        const end = Math.min(blockEnd(css, open), to);
+        out.push({ prelude: prelude.trim(), start: i, open, end });
+        i = end;
+    }
+    return out;
+}
+
+/** Sets (or with value null removes) one declaration in a rule body, keeping the rest of it as written. */
+function setDeclaration(body, prop, value) {
+    // split at ";" outside parentheses and strings (a data: URL in url(...) has its own ";")
+    const parts = [];
+    let depth = 0, q = "", last = 0;
+    for (let j = 0; j < body.length; j++) {
+        const ch = body[j];
+        if (q) { if (ch === q) q = ""; continue; }
+        if (ch === '"' || ch === "'") q = ch;
+        else if (ch === "(") depth++;
+        else if (ch === ")") depth--;
+        else if (ch === ";" && depth === 0) { parts.push(body.slice(last, j)); last = j + 1; }
+    }
+    parts.push(body.slice(last));
+    const name = prop.toLowerCase();
+    const at = parts.findIndex((d) => d.includes(":") && d.slice(0, d.indexOf(":")).replace(/\/\*[\s\S]*?\*\//g, "").trim().toLowerCase() === name);
+    if (at !== -1) {
+        if (value === null) parts.splice(at, 1);
+        else parts[at] = parts[at].replace(/:[\s\S]*?(\s*)$/, (_, tail) => `: ${value}${tail}`);
+        return parts.join(";");
+    }
+    if (value === null) return body;
+    // a new one goes after the last declaration, indented like it
+    const trimmedEnd = body.replace(/\s*$/, "");
+    const tail = body.slice(trimmedEnd.length);
+    const indent = (body.match(/\n([ \t]*)\S/) || [])[1];
+    const sep = trimmedEnd && !trimmedEnd.endsWith(";") ? ";" : "";
+    return `${trimmedEnd}${sep}${indent !== undefined ? `\n${indent}` : " "}${prop}: ${value};${tail || " "}`;
+}
+
+/**
+ * Edits a CSS rule in the design's <style> elements: the rule with this selector (inside the @media given by `media`,
+ * else at the top level). Returns false when no such rule exists (the caller adds one).
+ */
+function editRule(styles, selector, media, prop, value) {
+    const want = normSel(selector), wantMedia = media ? normMedia(media) : null;
+    for (const st of styles) {
+        const css = st.childNodes.map((k) => k.rawText).join("");
+        const scope = (from, to) => rulesOf(css, from, to);
+        let rules = scope(0, css.length);
+        if (wantMedia) {
+            const m = rules.find((r) => r.prelude.startsWith("@") && normMedia(r.prelude) === wantMedia);
+            if (!m) continue;
+            rules = scope(m.open + 1, m.end - 1);
+        }
+        const r = rules.find((x) => !x.prelude.startsWith("@") && normSel(x.prelude) === want);
+        if (!r) continue;
+        const body = css.slice(r.open + 1, r.end - 1);
+        const next = css.slice(0, r.open + 1) + setDeclaration(body, prop, value) + css.slice(r.end - 1);
+        st.childNodes = [new TextNode(next, st)];
+        st.__kids = true;
+        return true;
+    }
+    return false;
+}
+
 // ── Applying ─────────────────────────────────────────────────────────────────
 const detach = (n) => {
     if (n.parentNode) n.parentNode.__kids = true;
@@ -179,7 +289,7 @@ export function applyOps(html, ops) {
             if (!contains(root, n)) fail(`"${id}" was removed by an earlier op`);
             return n;
         };
-        const el = op.op === "insert" && !op.id ? null : find("id");
+        const el = (op.op === "insert" && !op.id) || op.op === "rule" ? null : find("id");
         try {
             switch (op.op) {
                 case "set":
@@ -250,8 +360,33 @@ export function applyOps(html, ops) {
                     changed.add(op.to);
                     break;
                 }
+                case "rule": {
+                    const selector = String(op.selector || "").trim(), prop = String(op.prop || "").trim().toLowerCase();
+                    const value = op.value === null || op.value === undefined ? null : String(op.value).trim();
+                    if (!selector || /[{}<>]/.test(selector)) fail("rule needs a selector, as written in the design's CSS (e.g. \".btn-primary\")");
+                    if (!/^-{0,2}[a-z][a-z0-9-]*$/.test(prop)) fail(`invalid CSS property "${op.prop}"`);
+                    if (value !== null && (!value || /[{}<>;]/.test(value.replace(/\([^)]*\)/g, "")))) fail("rule needs a CSS value (no ; { } < >), or null to remove the property");
+                    if (op.media !== undefined && (typeof op.media !== "string" || !/^@media\b/.test(op.media.trim()) || /[{}<>]/.test(op.media))) fail("media must be the rule's @media line, e.g. \"@media (min-width: 768px)\"");
+                    const styles = root.querySelectorAll("style");
+                    if (editRule(styles, selector, op.media, prop, value)) { changed.add("css"); return; }
+                    if (value === null) fail(`no rule "${selector}"${op.media ? ` in ${op.media}` : ""} in the design's CSS`);
+                    // no such rule yet: add it to the last <style>, or a new <style> at the start of the design
+                    const rule = `${selector} { ${prop}: ${value}; }`;
+                    const add = op.media ? `${op.media.trim()} { ${rule} }` : rule;
+                    if (styles.length) {
+                        const st = styles[styles.length - 1];
+                        const css = st.childNodes.map((k) => k.rawText).join("");
+                        st.childNodes = [new TextNode(`${css.replace(/\s*$/, "")}\n${add}\n`, st)];
+                        st.__kids = true;
+                    } else {
+                        const head = root.querySelector("head");
+                        place([...readHtml(`<style>\n${add}\n</style>`).childNodes], head || container, head ? "inside" : "start");
+                    }
+                    changed.add("css");
+                    return;
+                }
                 default:
-                    fail(`unknown op "${op.op}" (set, unset, classes, style, text, attr, tag, insert, remove, move)`);
+                    fail(`unknown op "${op.op}" (set, unset, classes, style, text, attr, tag, insert, remove, move, rule)`);
             }
         } catch (e) {
             if (e instanceof PatchError) throw e;
@@ -267,11 +402,22 @@ export function applyOps(html, ops) {
  * Patches a saved design: the patch must be for its current version. Saves the result as a new version (the old code
  * stays in its history) and returns the new spec, so the next patch can build on it straight away.
  */
-export async function patchDesign(userId, { id, baseVersion, ops, note }) {
+/**
+ * Checks the version a patch was made from against the design's. `version` (the field's name in the spec) is accepted
+ * for `baseVersion`. Throws a PatchError that says exactly what to send.
+ */
+export function checkBaseVersion(baseVersion, current) {
+    const missing = baseVersion === undefined || baseVersion === null || baseVersion === "";
+    if (missing) throw new PatchError(null, `baseVersion is missing: pass the "version" from get_design_spec (this design is v${current}), e.g. "baseVersion": ${current}.`);
+    if (!Number.isInteger(Number(baseVersion))) throw new PatchError(null, `baseVersion must be a number, the "version" from get_design_spec (this design is v${current}).`);
+    if (Number(baseVersion) !== current) throw new PatchError(null, `The design changed since you read it: it is now v${current}, the patch was made from v${Number(baseVersion)}. Read it again with get_design_spec (ids may have changed) and make the patch from that, with "baseVersion": ${current}.`);
+}
+
+export async function patchDesign(userId, { id, baseVersion, version, ops, note }) {
     if (!/^[a-f0-9]{24}$/i.test(String(id))) throw new PatchError(null, "Invalid design id");
     const c = await Component.findOne({ _id: id, createdBy: userId });
     if (!c) throw new PatchError(null, "Design not found in your library");
-    if (Number(baseVersion) !== (c.version || 1)) throw new PatchError(null, `The design is now v${c.version || 1}, but this patch was made from v${baseVersion}. Read it again with get_design_spec and make the patch from that.`);
+    checkBaseVersion(baseVersion ?? version, c.version || 1);
     const { html, changed } = applyOps(c.htmlCode, ops);
     if (html !== c.htmlCode) {
         c.versions.push({ version: c.version, htmlCode: c.htmlCode, note: String(note || `Patch: ${ops.length} change${ops.length === 1 ? "" : "s"}`).slice(0, 200) });
