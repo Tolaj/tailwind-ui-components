@@ -64,9 +64,32 @@
         .frename { font: inherit; color: #222; background: #fff; border: 1px solid #111; border-radius: 4px; padding: 0 4px; min-width: 140px; outline: none; -webkit-user-select: text; user-select: text; }
         .gshield { position: absolute; inset: 0; z-index: 2; }
         /* the code box and the highlight behind it share every metric, so a character is exactly where its highlight is */
-        .code-layer { margin: 0; padding: 12px; font: 12px/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; tab-size: 4; overflow-y: scroll; overflow-x: hidden; letter-spacing: 0; }
-        #codeHl mark { background: rgba(0,0,0,.06); color: transparent; border-radius: 2px; }
-        #codeHl mark.tag { background: rgba(0,0,0,.14); }
+        /* code boxes: a coloured copy (pre.ck) behind a see-through textarea with the same font and spacing */
+        .code-layer { margin: 0; padding: 12px; font: 12px/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; tab-size: 4; overflow: auto; letter-spacing: 0; }
+        .code-input { color: transparent; caret-color: #111; }
+        .code-input::selection { background: rgba(10,132,224,.22); }
+        .ck { color: #24292f; }
+        .ck .ck-tag { color: #116329; }
+        .ck .ck-attr { color: #8250df; }
+        .ck .ck-str { color: #0a3069; }
+        .ck .ck-com, .ck .ck-doc { color: #6e7781; font-style: italic; }
+        .ck .sel { background: rgba(10,132,224,.07); }
+        .ck .selt { background: rgba(10,132,224,.16); }
+        .code-gutter { margin: 0; padding: 12px 8px 12px 10px; font: 12px/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #b0b0b0; text-align: right; background: #fafafa; border-right: 1px solid #eee; overflow: hidden; user-select: none; min-width: 40px; }
+        #codeHl { overflow: hidden; }
+        /* the Code tab's element code: wraps to the panel's width and grows with its content, up to a limit */
+        .elcode { position: relative; max-height: 320px; overflow: auto; border: 1px solid #e5e5e5; border-radius: 6px; background: #fff; }
+        .elcode .code-layer { padding: 8px; font-size: 11px; line-height: 17px; white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
+        /* one scroll only: the box scrolls, the inner block is as tall as the code, and the textarea fills that block */
+        .elcode .elin { position: relative; }
+        .elcode pre { position: relative; min-height: 34px; }
+        .elcode textarea.code-layer { position: absolute; inset: 0; width: 100%; height: 100%; resize: none; border: 0; background: transparent; color: transparent; caret-color: #111; outline: none; overflow: hidden; }
+        .elcode:focus-within { border-color: #0a84e0; }
+        .elhead { display: flex; align-items: center; justify-content: space-between; }
+        .elhead button { font-size: 10.5px; color: #555; padding: 1px 6px; border-radius: 4px; }
+        .elhead button:hover { background: #f0f0f0; }
+        [data-elnote] { margin-top: 4px; }
+        [data-elnote].bad { color: #b45309; }
         .dirty-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #111; margin-left: 6px; vertical-align: middle; }
         .fwrap.dragging { z-index: 50; cursor: grabbing; }
         .fwrap.dragging .frame { box-shadow: 0 8px 30px rgba(0,0,0,.25); cursor: grabbing; }

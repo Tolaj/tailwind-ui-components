@@ -8,6 +8,7 @@ import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.
 import { selectionHtml } from "./selection-overlay.js";
 import { openColorPicker, closeColorPicker, colorPickerOpener } from "./color-picker.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
+import { highlight, checkTags, formatHtml, lineNumbers } from "./code-view.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -302,6 +303,12 @@ window.addEventListener("message", (e) => {
         closeColorPicker(); // its colours belong to the element it was opened for
         const a = document.activeElement;
         if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
+        // a panel field still being typed in (the element code, classes...) belongs to the element it was opened for:
+        // leaving it applies what was typed there, while `selected` is still that element, and lets the panel show the new one
+        else if (otherElement && a && insp.contains(a) && a.matches("[data-live]")) {
+            if (a.matches("[data-elcode]")) applyElementCode(a); // directly: a blur sends no focus events when the window isn't focused
+            a.blur();
+        }
     }
     if (m.type === "zoomKey") return keyZoom(m.key);
     if (m.type === "wheel") {
@@ -598,9 +605,62 @@ function setPageBox(patch) {
 const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg], #pageAi") && $("inspector").contains(document.activeElement));
 function renderInspector() {
     ui.frameBp = frameBp();
+    ui.elementSource = selected && ui.tab === "classes" ? elementSource() : null;
     const top = insp.scrollTop;
     insp.innerHTML = renderInspectorHtml(selected, selected ? null : pageInfo());
     insp.scrollTop = top;
+    paintElementCode();
+}
+
+// ── The Code tab's element code: the selected element's source, editable in place ──
+let elIndent = ""; // the indentation its lines had in the design, taken off for showing and put back when applied
+/** The selected element's code as written in the design (its lines' common indentation removed), or null for the page itself. */
+function elementSource() {
+    if (!selected.path || !selected.path.length) return null;
+    const r = elementRange(model.markup, selected.path);
+    const raw = r ? model.markup.slice(r.start, r.end) : selected.outer || "";
+    const lines = raw.split("\n");
+    const indents = lines.slice(1).filter((l) => l.trim()).map((l) => l.match(/^[ \t]*/)[0]);
+    elIndent = indents.length ? indents.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); }) : "";
+    return [lines[0], ...lines.slice(1).map((l) => (l.startsWith(elIndent) ? l.slice(elIndent.length) : l))].join("\n");
+}
+function paintElementCode() {
+    const ta = insp.querySelector("[data-elcode]");
+    if (!ta) return;
+    if (ta._orig === undefined) ta._orig = ta.value;
+    insp.querySelector("[data-elhl]").innerHTML = highlight(ta.value);
+    const note = insp.querySelector("[data-elnote]");
+    const bad = ta.value !== ta._orig && checkTags(ta.value);
+    note.textContent = bad ? `Line ${bad.line}: ${bad.message}` : ta.value !== ta._orig ? "Ctrl/Cmd+Enter or click away to apply. Esc undoes your typing." : "Edit it, then Ctrl/Cmd+Enter or click away to apply.";
+    note.classList.toggle("bad", Boolean(bad));
+}
+/** Keeps the cursor in view: the element code box scrolls (the textarea inside it doesn't), so it follows the caret's line. */
+function followElementCaret() {
+    const ta = insp.querySelector("[data-elcode]");
+    if (!ta || document.activeElement !== ta) return;
+    const box = ta.closest(".elcode"), hl = insp.querySelector("[data-elhl]");
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    hl.innerHTML = `${esc(ta.value.slice(0, ta.selectionEnd))}<span data-caret>\u200b</span>`; // measured on the copy, then repainted
+    const mark = hl.querySelector("[data-caret]");
+    const top = mark.offsetTop, bottom = top + mark.offsetHeight;
+    hl.innerHTML = highlight(ta.value);
+    if (top < box.scrollTop) box.scrollTop = Math.max(0, top - 8);
+    else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight + 8;
+}
+/** Puts the edited element code in place of the element (one undo step), if it is one well-formed element. */
+function applyElementCode(ta) {
+    const v = ta.value.trim();
+    if (!selected || v === ta._orig.trim()) return;
+    const note = insp.querySelector("[data-elnote]");
+    const fail = (msg) => { note.textContent = msg; note.classList.add("bad"); };
+    const bad = checkTags(v);
+    if (bad) return fail(`Not applied. Line ${bad.line}: ${bad.message}`);
+    const tpl = document.createElement("template");
+    tpl.innerHTML = v;
+    const nodes = [...tpl.content.childNodes].filter((n) => n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim()));
+    if (nodes.length !== 1 || nodes[0].nodeType !== 1) return fail("Not applied: the code must be exactly one element (wrap several in one).");
+    ta._orig = ta.value;
+    cmd({ cmd: "replaceOuter", path: selected.path, html: v.split("\n").map((l, i) => (i && l ? elIndent + l : l)).join("\n") });
 }
 
 function applyValue(key, value, undoKey = "") {
@@ -798,9 +858,12 @@ function setDevice(w) {
 
 const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClasses", path: selected.path, value: next }); };
 
+insp.addEventListener("focusout", (e) => { if (e.target.matches("[data-elcode]")) applyElementCode(e.target); });
+insp.addEventListener("keyup", (e) => { if (e.target.matches("[data-elcode]") && /^(Arrow|Page|Home|End)/.test(e.key)) followElementCaret(); });
 insp.addEventListener("click", (e) => {
     const t = e.target;
     if (t.closest("[data-closepanel]")) return setPanel(false);
+    if (t.closest('[data-do="copyel"]')) { const ta = insp.querySelector("[data-elcode]"); if (ta) copyText(ta.value, t.closest("button")); return; }
     const pw = t.closest("[data-pgw]");
     if (pw) return setDevice(Number(pw.dataset.pgw));
     const pa = t.closest("[data-pgact]");
@@ -895,6 +958,7 @@ insp.addEventListener("change", (e) => {
 });
 
 insp.addEventListener("input", (e) => {
+    if (e.target.matches("[data-elcode]")) { paintElementCode(); return followElementCaret(); }
     if (!selected) return;
     const t = e.target;
     if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`));
@@ -905,6 +969,13 @@ insp.addEventListener("input", (e) => {
 });
 
 insp.addEventListener("keydown", (e) => {
+    if (e.target.matches("[data-elcode]")) {
+        const ta = e.target;
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); applyElementCode(ta); if (!insp.querySelector("[data-elnote]").classList.contains("bad")) ta.blur(); return; }
+        if (e.key === "Escape") { e.preventDefault(); ta.value = ta._orig; paintElementCode(); ta.blur(); return; }
+        if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); document.execCommand("insertText", false, "  "); return; }
+        return;
+    }
     if (e.key === "Enter" && e.target.matches("[data-addclass]") && selected) {
         e.preventDefault();
         const add = e.target.value.split(/\s+/).filter(Boolean);
@@ -1176,16 +1247,17 @@ window.addEventListener("beforeunload", (e) => { if (anyDirty()) { e.preventDefa
 const codeText = $("codeText");
 const codeOpen = () => !$("codePanel").classList.contains("hidden");
 const codeFocused = () => document.activeElement === codeText;
-let codeMirror = null;
-/** Scrolls the code box so the character at `index` is in view (measured with an offscreen copy, since a textarea can't be asked). */
+const CODE_LINE = 20, CODE_PAD = 12; // the code box's line height and padding (canvas.handlebars .code-layer)
+/** Scrolls the code box so the character at `index` is in view (lines don't wrap, so its line gives its height). */
 function revealInCode(text, index) {
-    if (!codeMirror) { codeMirror = document.createElement("div"); document.body.appendChild(codeMirror); }
-    const cs = getComputedStyle(codeText);
-    Object.assign(codeMirror.style, { position: "absolute", visibility: "hidden", left: "-9999px", top: "0", width: `${codeText.clientWidth}px`, font: cs.font, lineHeight: cs.lineHeight, padding: cs.padding, boxSizing: "border-box", whiteSpace: "pre-wrap", overflowWrap: "break-word", tabSize: cs.tabSize });
-    codeMirror.textContent = text.slice(0, index) + "\u200b";
-    const y = codeMirror.offsetHeight;
-    const lineH = parseFloat(cs.lineHeight) || 20;
-    if (y - lineH < codeText.scrollTop || y > codeText.scrollTop + codeText.clientHeight - lineH) codeText.scrollTop = Math.max(0, y - codeText.clientHeight / 2);
+    const y = CODE_PAD + (text.slice(0, index).split("\n").length - 1) * CODE_LINE;
+    if (y < codeText.scrollTop || y > codeText.scrollTop + codeText.clientHeight - 2 * CODE_LINE) codeText.scrollTop = Math.max(0, y - codeText.clientHeight / 2);
+    syncCodeScroll();
+}
+/** Copies text and says so on the button for a moment. */
+function copyText(text, btn) {
+    const done = (msg) => { if (!btn) return; const was = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = was; }, 1200); };
+    navigator.clipboard.writeText(text).then(() => done("Copied"), () => done("Copy failed"));
 }
 
 // ── The selected element, highlighted in the code ───────────────────────────
@@ -1217,21 +1289,28 @@ function elementRange(markup, path) {
     }
     return null;
 }
-const codeHl = $("codeHl");
-const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-/** Paints the selected element's source behind the code and, when the selection just changed, scrolls to it. */
+const codeHl = $("codeHl"), codeGutter = $("codeGutter");
+/** The coloured copy and the line numbers follow the textarea's scrolling. */
+function syncCodeScroll() {
+    codeHl.scrollTop = codeText.scrollTop;
+    codeHl.scrollLeft = codeText.scrollLeft;
+    codeGutter.scrollTop = codeText.scrollTop;
+}
+/** Paints the code in colour, shading the selected element's source (its opening tag darker), and when the selection just changed, scrolls to it. */
 function updateCodeHighlight(reveal) {
     if (!codeOpen()) return;
     const text = codeText.value;
     const base = model.markup ? text.indexOf(model.markup) : -1;
     const r = selected && selected.path && selected.path.length && base >= 0 ? elementRange(model.markup, selected.path) : null;
-    if (!r) { codeHl.innerHTML = escHtml(text) + "\n"; return; }
-    const s = base + r.start, o = base + r.openEnd, e = base + r.end;
-    codeHl.innerHTML = `${escHtml(text.slice(0, s))}<mark>${`<mark class="tag">${escHtml(text.slice(s, o))}</mark>`}${escHtml(text.slice(o, e))}</mark>${escHtml(text.slice(e))}\n`;
-    codeHl.scrollTop = codeText.scrollTop;
-    if (reveal) revealInCode(text, s);
+    const marks = r ? [[base + r.start, base + r.end, "sel"], [base + r.start, base + r.openEnd, "selt"]] : [];
+    codeHl.innerHTML = highlight(text, marks);
+    const n = text.split("\n").length;
+    if (codeGutter.dataset.n !== String(n)) { codeGutter.textContent = lineNumbers(text) + "\n"; codeGutter.dataset.n = String(n); }
+    $("codeLines").textContent = `${n} line${n === 1 ? "" : "s"}`;
+    syncCodeScroll();
+    if (reveal && r) revealInCode(text, base + r.start);
 }
-codeText.addEventListener("scroll", () => { codeHl.scrollTop = codeText.scrollTop; });
+codeText.addEventListener("scroll", syncCodeScroll);
 
 function syncCode() {
     if (!codeOpen()) return;
@@ -1258,15 +1337,71 @@ function setCodePanel(open) {
 $("codeBtn").addEventListener("click", () => setCodePanel(!codeOpen()));
 $("codeClose").addEventListener("click", () => setCodePanel(false));
 let codeTimer = null;
+/** Shows the first place the tags don't match up (and returns it), or hides the warning. */
+function showCodeProblem() {
+    const bad = checkTags(codeText.value);
+    const w = $("codeWarn");
+    w.classList.toggle("hidden", !bad);
+    if (bad) { w.textContent = `Line ${bad.line}: ${bad.message}. Not applied until fixed.`; w.dataset.line = String(bad.line); }
+    return bad;
+}
+/** Applies the code to the design now (it waits half a second after typing), unless its tags don't match up. */
+function applyCode() {
+    clearTimeout(codeTimer);
+    codeTimer = null;
+    if (showCodeProblem()) return false;
+    parsed = parseComponentSource(codeText.value);
+    commit(parsed.markup, "code");
+    loadFrame();
+    return true;
+}
 codeText.addEventListener("input", () => {
     updateCodeHighlight(false);
     clearTimeout(codeTimer);
-    codeTimer = setTimeout(() => {
-        parsed = parseComponentSource(codeText.value);
-        commit(parsed.markup, "code");
-        loadFrame();
-    }, 500);
+    // broken tags are shown at once but never sent to the canvas, where the browser would "repair" them its own way
+    codeTimer = setTimeout(applyCode, 500);
 });
+codeText.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); document.execCommand("insertText", false, "  "); }
+});
+$("codeWarn").addEventListener("click", () => {
+    const line = Number($("codeWarn").dataset.line) || 1;
+    const lines = codeText.value.split("\n");
+    const at = lines.slice(0, line - 1).reduce((s, l) => s + l.length + 1, 0);
+    codeText.focus();
+    codeText.setSelectionRange(at, at + (lines[line - 1] || "").length);
+    revealInCode(codeText.value, at);
+});
+$("codeCopy").addEventListener("click", (e) => copyText(codeText.value, e.currentTarget));
+// Format: tidy indentation of the design's markup (its <style> and <script> stay as they are), as one undo step
+$("codeFormat").addEventListener("click", (e) => {
+    if (codeTimer && !applyCode()) return;
+    if (showCodeProblem()) return;
+    const next = formatHtml(model.markup);
+    if (next === model.markup) { copyFlash(e.currentTarget, "Already tidy"); return; }
+    model.markup = next;
+    commit(next, "format");
+    loadFrame();
+    syncCode();
+});
+const copyFlash = (btn, msg) => { const was = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = was; }, 1200); };
+// Resize: drag the panel's top edge; the height is remembered
+(() => {
+    const panel = $("codePanel");
+    try { const h = Number(localStorage.getItem("wc:codeH")); if (h) panel.style.height = `${h}px`; } catch { /* storage is optional */ }
+    $("codeResize").addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        const startY = e.clientY, startH = panel.offsetHeight;
+        const move = (ev) => { panel.style.height = `${Math.round(Math.min(innerHeight * 0.8, Math.max(120, startH + startY - ev.clientY)))}px`; layout(); };
+        const up = () => {
+            removeEventListener("pointermove", move);
+            removeEventListener("pointerup", up);
+            try { localStorage.setItem("wc:codeH", String(panel.offsetHeight)); } catch { /* storage is optional */ }
+        };
+        addEventListener("pointermove", move);
+        addEventListener("pointerup", up);
+    });
+})();
 
 // ── Add menu: build from blocks ──────────────────────────────────────────────
 const BLOCKS = [

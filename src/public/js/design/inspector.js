@@ -265,10 +265,15 @@ function classesTab(s) {
     const stRow = ([k, v], i) => `<div class="kv" data-stylerow><input class="fi" data-live list="dl-cssprops" placeholder="property" value="${esc(k)}"><input class="fi" data-live placeholder="value" value="${esc(v)}"></div>`;
     const attrRows = Object.entries(s.attrs);
     const aRow = ([k, v]) => `<div class="kv" data-arow data-old="${esc(k)}"><input class="fi" data-live placeholder="attribute" value="${esc(k)}"><input class="fi" data-live placeholder="value" value="${esc(v)}"></div>`;
-    return `<div class="sec"><div class="secb nopad"><p class="sub first">Classes <span class="muted">${toks.length}</span></p><div class="chips">${chips || '<span class="muted">No classes</span>'}</div>
+    // the element's own code, as written in the design (ui.elementSource, set by the editor), editable in place
+    const src = ui.elementSource;
+    const elementCode = src == null ? "" : `<div class="sec"><div class="secb nopad"><div class="elhead"><p class="sub first">Element code</p><button type="button" data-do="copyel" title="Copy this element's HTML">Copy</button></div>
+        <div class="codebox elcode"><div class="elin"><pre class="code-layer ck" data-elhl aria-hidden="true"></pre><textarea class="code-layer" data-live data-elcode spellcheck="false" autocomplete="off" rows="1">${esc(src)}</textarea></div></div>
+        <p class="muted" data-elnote>Edit it, then Ctrl/Cmd+Enter or click away to apply. Esc undoes your typing.</p></div></div>`;
+    return elementCode + `<div class="sec"><div class="secb nopad"><p class="sub first">Classes <span class="muted">${toks.length}</span></p><div class="chips">${chips || '<span class="muted">No classes</span>'}</div>
         <input class="fi" data-live data-addclass placeholder="Add classes, press Enter (hover:bg-red-500)" autocomplete="off">
         <p class="sub">Edit all</p><textarea class="fi area mono" rows="4" data-live data-field="classes" spellcheck="false">${esc(s.classes)}</textarea></div></div>
-        <div class="sec"><div class="secb nopad"><p class="sub first">Custom CSS <span class="muted">style attribute</span></p>${[...styleRows, ["", ""]].map(stRow).join("")}</div></div>
+        <div class="sec"><div class="secb nopad"><p class="sub first">Inline CSS <span class="muted">style attribute</span></p>${[...styleRows, ["", ""]].map(stRow).join("")}</div></div>
         <div class="sec"><div class="secb nopad"><p class="sub first">Attributes</p>${[...attrRows, ["", ""]].map(aRow).join("")}</div></div>`;
 }
 
@@ -297,7 +302,7 @@ function pageHtml(pg) {
 
 export function renderInspectorHtml(s, page) {
     if (!s && page) return `<div class="itabs"><span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>${ui.closeInTabs ? '<button type="button" data-closepanel title="Close" style="padding:0;margin-left:auto" class="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : ""}</div>${pageHtml(page)}`;
-    const tabs = `<div class="itabs">${[["design", "Design"], ["classes", "Classes and CSS"], ["ai", "AI"]].map(([k, l]) => `<button type="button" data-tab="${k}" class="${ui.tab === k ? "on" : ""}">${l}</button>`).join("")}${ui.closeInTabs ? `<button type="button" data-closepanel title="Close" style="padding:0" class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ""}</div>`;
+    const tabs = `<div class="itabs">${[["design", "Design"], ["classes", "Code"], ["ai", "AI"]].map(([k, l]) => `<button type="button" data-tab="${k}" class="${ui.tab === k ? "on" : ""}">${l}</button>`).join("")}${ui.closeInTabs ? `<button type="button" data-closepanel title="Close" style="padding:0" class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ""}</div>`;
     if (!s) return tabs + `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>`;
     return tabs + (ui.tab === "design" ? designTab(s) : ui.tab === "classes" ? classesTab(s) : aiTab());
 }

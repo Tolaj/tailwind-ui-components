@@ -1315,7 +1315,7 @@ export function agentMain() {
             const tpl = document.createElement("template");
             tpl.innerHTML = m.html;
             const n = tpl.content.firstElementChild;
-            if (n) { el.replaceWith(n); sels = [n]; }
+            if (n) { el.replaceWith(n); sels = sels.includes(el) ? sels.map((x) => (x === el ? n : x)) : sels; } // the selection stays where it is
         },
         insert: (el, m) => {
             const tpl = document.createElement("template");
