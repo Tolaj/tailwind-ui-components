@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "test": "node --test test/",
+    "typecheck": "tsc -p tsconfig.json",
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",
     "test-email": "node test-email.js",
@@ -30,7 +31,10 @@
   },
   "devDependencies": {
     "eslint": "^9.39.2",
+    "htm": "^3.1.1",
     "nodemon": "^3.1.11",
-    "prettier": "^3.7.4"
+    "preact": "^10.24.3",
+    "prettier": "^3.7.4",
+    "typescript": "^5.6.3"
   }
 }

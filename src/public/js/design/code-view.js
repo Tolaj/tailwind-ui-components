@@ -1,3 +1,4 @@
+// @ts-check
 // What the editor's code boxes need beyond a textarea: syntax colours (painted on a layer behind the see-through
 // textarea), a check for tags that don't match up, and tidy indentation on request. Used by the code panel and by the
 // Code tab's element code (editor.js).

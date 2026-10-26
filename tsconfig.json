@@ -1,0 +1,17 @@
+{
+    // Type checking only: nothing is compiled, the browser and Node run the .js files as they are.
+    // A file opts in with `// @ts-check` at its top; `npm run typecheck` checks them all.
+    "compilerOptions": {
+        "allowJs": true,
+        "checkJs": false,
+        "noEmit": true,
+        "target": "es2022",
+        "module": "es2022",
+        "moduleResolution": "bundler",
+        "lib": ["es2022", "dom", "dom.iterable"],
+        "strict": true,
+        "noImplicitAny": false,
+        "skipLibCheck": true
+    },
+    "include": ["src/public/js/**/*.js", "src/services/design-spec.service.js"]
+}

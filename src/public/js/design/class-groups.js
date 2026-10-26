@@ -1,3 +1,4 @@
+// @ts-check
 // A registry of Tailwind utility groups. Each group is a set of mutually exclusive classes
 // (for example every font size). Controls read and write a group for a chosen variant
 // (breakpoint and state), e.g. "md:hover:".

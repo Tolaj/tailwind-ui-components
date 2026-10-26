@@ -1,3 +1,4 @@
+// @ts-check
 // The design spec on the server: what MCP hands an AI (get_design_spec) and the small patches it sends back
 // (apply_design_patch). The spec itself is built by the shared module (public/js/shared/design-spec.js); this file reads
 // HTML without a browser, applies patches to the real code, and saves the result as a new version.
@@ -50,6 +51,21 @@ export function tailwindWarning(html) {
 }
 
 // ── Checking ─────────────────────────────────────────────────────────────────
+/**
+ * One patch operation. `id` is an element id of the spec the patch was read from; `at` a breakpoint or state ("md", "hover", "md:hover").
+ * @typedef {{ op: "set", id: string, prop: string, value: string, at?: string }
+ *   | { op: "unset", id: string, prop: string, at?: string }
+ *   | { op: "classes", id: string, add?: string | string[], remove?: string | string[] }
+ *   | { op: "style", id: string, value: string | null }
+ *   | { op: "text", id: string, text: string }
+ *   | { op: "attr", id: string, name: string, value: string | null }
+ *   | { op: "tag", id: string, tag: string }
+ *   | { op: "insert", id?: string, position?: "inside" | "start" | "before" | "after", html: string }
+ *   | { op: "remove", id: string }
+ *   | { op: "move", id: string, to: string, position?: "inside" | "start" | "before" | "after" }
+ *   | { op: "rule", selector: string, prop: string, value: string | null, media?: string }} PatchOp
+ */
+
 export class PatchError extends Error {
     constructor(index, message) {
         super(index === null ? message : `op ${index + 1}: ${message}`);
@@ -118,6 +134,7 @@ function openTagEnd(src, i) {
 /** Where the HTML is malformed (a tag never closed, a stray closing tag), as a sentence, or null when it's sound. */
 function brokenAt(root, src) {
     markOriginal(root);
+    /** @type {any} */
     let bad = null;
     const find = (n) => {
         if (bad) return;
@@ -265,11 +282,15 @@ const contains = (outer, n) => { for (let p = n; p; p = p.parentNode) if (p === 
 /**
  * Applies patch operations to HTML. Ids are the ones of the spec made from this same HTML. Returns { html, changed }
  * (the ids of the elements touched), or throws a PatchError naming the first op that can't be applied (nothing changes).
+ * @param {string} html
+ * @param {PatchOp[]} ops
+ * @returns {{ html: string, changed: string[] }}
  */
 export function applyOps(html, ops) {
     if (!Array.isArray(ops) || !ops.length) throw new PatchError(null, "ops must be a non-empty array");
     if (ops.length > 200) throw new PatchError(null, "at most 200 ops per patch");
-    const root = readHtml(html);
+    /** @type {any} */
+    const root = readHtml(html); // the reader's nodes, plus the marks this file puts on them (__orig, __self, __kids, __edges)
     const broken = brokenAt(root, String(html || ""));
     if (broken) throw new PatchError(null, `${broken} Fix it first: open it in the editor and save (the editor repairs it), or save corrected HTML.`);
     const tops = root.childNodes.filter((k) => k.range);
@@ -303,7 +324,9 @@ export function applyOps(html, ops) {
                     break;
                 }
                 case "classes": {
-                    const add = [].concat(op.add || []), remove = new Set([].concat(op.remove || []));
+                    /** @type {(v: any) => string[]} */
+                    const list = (v) => [].concat(v || []);
+                    const add = list(op.add), remove = new Set(list(op.remove));
                     if (![...add, ...remove].every((t) => typeof t === "string" && CLASS_TOKEN.test(t))) fail("classes must be single class names");
                     const now = (el.getAttribute("class") || "").split(/\s+/).filter((t) => t && !remove.has(t));
                     const next = [...now, ...add.filter((t) => !now.includes(t))].join(" ");
@@ -386,14 +409,14 @@ export function applyOps(html, ops) {
                     return;
                 }
                 default:
-                    fail(`unknown op "${op.op}" (set, unset, classes, style, text, attr, tag, insert, remove, move, rule)`);
+                    fail(`unknown op "${/** @type {any} */ (op).op}" (set, unset, classes, style, text, attr, tag, insert, remove, move, rule)`);
             }
         } catch (e) {
             if (e instanceof PatchError) throw e;
-            fail(e.message);
+            fail(/** @type {Error} */ (e).message);
         }
         if (["set", "unset", "classes", "style", "attr", "tag"].includes(op.op)) el.__self = true;
-        changed.add(op.id);
+        if ("id" in op && op.id) changed.add(op.id);
     });
     return { html: write(root, String(html || "")), changed: [...changed] };
 }
@@ -420,7 +443,7 @@ export async function patchDesign(userId, { id, baseVersion, version, ops, note 
     checkBaseVersion(baseVersion ?? version, c.version || 1);
     const { html, changed } = applyOps(c.htmlCode, ops);
     if (html !== c.htmlCode) {
-        c.versions.push({ version: c.version, htmlCode: c.htmlCode, note: String(note || `Patch: ${ops.length} change${ops.length === 1 ? "" : "s"}`).slice(0, 200) });
+        c.versions.push(/** @type {any} */ ({ version: c.version, htmlCode: c.htmlCode, note: String(note || `Patch: ${ops.length} change${ops.length === 1 ? "" : "s"}`).slice(0, 200) }));
         c.version += 1;
         c.htmlCode = html;
         c.profile = buildProfile(html, c.profile);

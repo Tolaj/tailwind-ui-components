@@ -1,3 +1,4 @@
+// @ts-check
 // The design spec: a design as JSON an AI can read and target reliably, and back to HTML. It replaces the old element
 // description (element-description/index.js), which only ran in the browser and lost spaces, comments and most SVG.
 //
@@ -7,6 +8,45 @@
 // Elements are numbered in document order (n1, n2...) every time a spec is made. The ids belong to that version of the
 // design: a patch says which version it was read from (design-spec.service.js), so an id never lands on the wrong element.
 import { GROUPS, parseToken } from "../design/class-groups.js";
+
+/**
+ * Class properties by variant: { base: { p: "6" }, md: { p: "8" }, "md:hover": { bgColor: "blue-600" } }.
+ * The keys inside are class groups (class-groups.js), the values what the group reads and builds.
+ * @typedef {Record<string, Record<string, string>>} Props
+ */
+/**
+ * One element of a spec, or a run of text between elements ({ text } alone).
+ * @typedef {object} SpecNode
+ * @property {string} [id] n1, n2... in document order; only for elements
+ * @property {string} [tag]
+ * @property {string} [role] title, button, card... (simple rules)
+ * @property {Props} [props] classes read as properties
+ * @property {string[]} [raw] classes no group reads back exactly
+ * @property {string} [css] the style attribute
+ * @property {Record<string, string>} [attrs]
+ * @property {string} [text]
+ * @property {SpecNode[]} [children]
+ * @property {string} [svg] an <svg>'s inner markup
+ * @property {number} [svgChars] its length, when the drawing is left out
+ */
+/**
+ * @typedef {object} Assets
+ * @property {string} [css]
+ * @property {string} [js]
+ * @property {string[]} [stylesheets]
+ * @property {string[]} [scripts]
+ */
+/**
+ * @typedef {object} Spec
+ * @property {Record<string, string[]>} tokens
+ * @property {Assets} assets
+ * @property {SpecNode[]} tree
+ * @property {string} [id]
+ * @property {string} [title]
+ * @property {number} [version]
+ * @property {string} [kind]
+ * @property {string} [warning]
+ */
 
 // ── Reading either tree ──────────────────────────────────────────────────────
 const tagOf = (n) => String(n.localName || n.rawTagName || "").toLowerCase();
@@ -59,8 +99,12 @@ const atOf = (variant) => (variant ? variant.slice(0, -1) : "base");
  * Splits a class list into properties by class group and variant ({ base: { p: "6" }, md: { p: "8" } }) and the classes
  * no group reads back exactly (`raw`). Nothing is lost: every class is in one or the other.
  */
+/** @param {string | null | undefined} classes @returns {{ props: Props, raw: string[] }} */
 export function readClasses(classes) {
-    const props = {}, raw = [];
+    /** @type {Props} */
+    const props = {};
+    /** @type {string[]} */
+    const raw = [];
     for (const tok of String(classes || "").split(/\s+/).filter(Boolean)) {
         const { variant, base } = parseToken(tok);
         let placed = false;
@@ -82,6 +126,7 @@ export function readClasses(classes) {
 }
 
 /** The class list for properties and raw classes: the reverse of readClasses. */
+/** @param {Props} [props] @param {string[]} [raw] @returns {string} */
 export function writeClasses(props = {}, raw = []) {
     const out = [];
     const ats = Object.keys(props).sort((a, b) => (a === "base" ? -1 : b === "base" ? 1 : 0));
@@ -184,6 +229,7 @@ function tokensOf(tree) {
         (n.children || []).forEach(visit);
     };
     tree.forEach(visit);
+    /** @type {Record<string, string[]>} */
     const out = {};
     for (const [k, m] of Object.entries(buckets)) {
         const top = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([v]) => v);
@@ -199,6 +245,7 @@ function assetsOf(root) {
     const js = all("script").filter((s) => !attrsOf(s).src).map(rawOf).map((s) => s.trim()).filter(Boolean).join("\n\n");
     const stylesheets = all("link[href]").filter((l) => /stylesheet/i.test(attrsOf(l).rel || "")).map((l) => attrsOf(l).href);
     const scripts = all("script[src]").map((s) => attrsOf(s).src);
+    /** @type {Assets} */
     const out = {};
     if (css) out.css = css;
     if (js) out.js = js;
@@ -214,6 +261,7 @@ export const readHtmlInBrowser = (html) => new DOMParser().parseFromString(Strin
  * A design (already read into a tree) as a spec: { tokens, assets, tree }. With { svg: false }, icons carry only their
  * size (svgChars) instead of their drawing: smaller to read, but toHtml can't rebuild the icons from it.
  */
+/** @param {any} root a read tree @param {{ svg?: boolean }} [opts] @returns {Spec} */
 export function toSpec(root, opts = {}) {
     let count = 0;
     const nextId = () => `n${++count}`;
@@ -240,6 +288,7 @@ function nodeHtml(n) {
 }
 
 /** A spec (or a list of spec nodes) as HTML, with its <style> and <script> when it has them. */
+/** @param {Spec | SpecNode[]} spec @returns {string} */
 export function toHtml(spec) {
     const tree = Array.isArray(spec) ? spec : spec.tree || [];
     const body = tree.map(nodeHtml).join("\n");
