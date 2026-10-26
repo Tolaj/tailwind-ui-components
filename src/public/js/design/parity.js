@@ -3,7 +3,7 @@
 // control with its value, options, classes and on/off state, in order. From the browser console on /design:
 //   const p = await import("/public/js/design/parity.js"); p.checkGroupControls();
 // Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2,
-// checkPropSections: step 3, checkGeomSection: step 4, checkExtrasSection: step 5; checkAll runs them all); it goes with the old builders in step 7.
+// checkPropSections: step 3, checkGeomSection: step 4, checkExtrasSection: step 5, checkClassesSection: step 6; checkAll runs them all); it goes with the old builders in step 7.
 import { html, render } from "../vendor/preact-htm.js";
 import { ui } from "./inspector.js";
 import { GROUPS } from "./class-groups.js";
@@ -13,6 +13,7 @@ import { DesignTop } from "./design-tab.js";
 import { PropSections } from "./prop-sections.js";
 import { GeomSection } from "./geom-section.js";
 import { ExtrasSection } from "./extras-section.js";
+import { ClassesSection } from "./classes-section.js";
 import { CSS_SECTIONS } from "./css-props.js";
 
 const norm = (t) => String(t || "").replace(/\s+/g, " ").trim();
@@ -38,8 +39,8 @@ export function snapshot(root) {
             if (c.matches(CONTROLS)) out.push(describeControl(c));
             else if (c.matches(TEXTS) && !c.querySelector(CONTROLS)) out.push(`text|${classes(c)}|${norm(c.textContent)}`);
             else {
-                // a note with a button in it (the flex note): its own words first, then the button
-                if (c.matches("p") && c.querySelector(CONTROLS)) { const copy = c.cloneNode(true); copy.querySelectorAll(CONTROLS).forEach((x) => x.remove()); out.push(`text|${classes(c)}|${norm(copy.textContent)}`); }
+                // a note or a chip with a button in it (the flex note, a class chip): its own words first, then the button
+                if (c.matches("p, .chip") && c.querySelector(CONTROLS)) { const copy = c.cloneNode(true); copy.querySelectorAll(CONTROLS).forEach((x) => x.remove()); out.push(`text|${classes(c)}|${norm(copy.textContent)}`); }
                 walk(c);
             }
         }
@@ -284,8 +285,33 @@ export function checkExtrasSection() {
     return { checked, failures };
 }
 
+// ── The Code tab below the element's code ────────────────────────────────────
+const CODE_SAMPLES = [
+    { what: "nothing", classes: "", style: "", attrs: {} },
+    { what: "classes, style, attributes", classes: "p-4 md:hover:bg-red-500 flex dark:text-white", style: "color: red; margin : 0 auto", attrs: { id: "x", "data-a": "1" } },
+    { what: "spacing and quotes", classes: "  spaced   out  w-[30px]", style: "background:url(a.png);padding:1px", attrs: { href: "/a", target: "_blank", title: 'Say "hi" & <bye>' } },
+    { what: "a style with no value", classes: "x", style: "broken", attrs: {} },
+    { what: "many classes", classes: Array.from({ length: 30 }, (_, i) => (i % 3 ? `m-${i}` : `lg:p-${i}`)).join(" "), style: "", attrs: { a: "", b: "2" } },
+];
+const codeActions = { removeClass: noop, addClasses: noop, setClassesText: noop, setStyle: noop, setAttribute: noop };
+
+/** The classes, inline CSS and attributes: the old classesTab against ClassesSection. */
+export function checkClassesSection() {
+    const failures = [];
+    let checked = 0;
+    for (const c of CODE_SAMPLES) {
+        const s = { tag: "div", crumbs: [], ...c };
+        const [a, b] = draw(old.classesTab(s), html`<${ClassesSection} s=${s} actions=${codeActions} />`);
+        const r = compare(a, b);
+        checked++;
+        if (!r.same) failures.push({ what: c.what, diffs: r.diffs.slice(0, 3) });
+    }
+    if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
+    return { checked, failures };
+}
+
 /** Everything moved so far. */
 export function checkAll() {
-    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections(), checkGeomSection(), checkExtrasSection()];
+    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections(), checkGeomSection(), checkExtrasSection(), checkClassesSection()];
     return { checked: parts.reduce((n, p) => n + p.checked, 0), failures: parts.flatMap((p) => p.failures) };
 }

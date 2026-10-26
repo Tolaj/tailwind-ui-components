@@ -265,7 +265,8 @@ export const designRest = (s) => designBefore(s) + propSections(s) + designAfter
 /** What the components at the top of the Design tab need besides the selection: the panel's breakpoint and state, and how new values are written. */
 export const designCtx = (s) => ({ bp: ui.bp, st: ui.st, variant: variant(), frameBp: ui.frameBp, mode: modeFor(s) });
 
-function classesTab(s) {
+/** The Code tab below the element's own code, as HTML. A component now (classes-section.js); kept for parity.js. */
+export function classesTab(s) {
     const toks = s.classes.split(/\s+/).filter(Boolean);
     const chips = toks.map((t, i) => `<span class="chip ${parseToken(t).variant ? "var" : ""}">${esc(t)}<button type="button" data-rm="${i}" title="Remove">×</button></span>`).join("");
     const styleRows = (s.style || "").split(";").map((d) => d.trim()).filter(Boolean).map((d) => { const i = d.indexOf(":"); return [d.slice(0, i).trim(), d.slice(i + 1).trim()]; });
@@ -283,10 +284,11 @@ const CLOSE_BTN = (extra) => `<button type="button" data-closepanel title="Close
 
 /**
  * What the panel shows, for panel.js: { head } (HTML) and one of
- *  - body: HTML (the Design tab, the classes and attributes when there is no code to show);
  *  - design: { key, s, ctx }, the Design tab, all components: its top (design-tab.js), position and size (geom-section.js),
  *    the property sections (prop-sections.js) and the Tailwind extras (extras-section.js);
- *  - code: { key, path, source, indent, rest }, the Code tab: the element's own code (a component) and the HTML of the rest;
+ *  - code: { key, path, source, indent, s }, the Code tab: the element's own code and the classes, inline CSS and attributes
+ *    below it (components: panel.js, classes-section.js);
+ *  - classes: { key, s }, the same without the element's own code (the page body has none);
  *  - ai: { key, path, outer }, the AI tab (a component);
  *  - page: the page's info (pageInfo() in editor.js), the page panel (a component), when no element is selected.
  * The editor sets ui.elementCode ({ source, indent }) for the selected element when the Code tab is open.
@@ -295,8 +297,8 @@ export function inspectorView(s, page) {
     if (!s && page) return { head: `<div class="itabs"><span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>${ui.closeInTabs ? CLOSE_BTN("margin-left:auto") : ""}</div>`, page };
     const head = `<div class="itabs">${[["design", "Design"], ["classes", "Code"], ["ai", "AI"]].map(([k, l]) => `<button type="button" data-tab="${k}" class="${ui.tab === k ? "on" : ""}">${l}</button>`).join("")}${ui.closeInTabs ? CLOSE_BTN("margin-left:auto") : ""}</div>`;
     if (!s) return { head, body: `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>` };
-    if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, rest: classesTab(s) } };
+    if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, s } };
     if (ui.tab === "ai") return { head, ai: { key: s.path.join("."), path: s.path, outer: s.outer } };
     if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s) } };
-    return { head, body: classesTab(s) };
+    return { head, classes: { key: s.path.join("."), s } };
 }

@@ -12,6 +12,7 @@ import { DesignTop } from "./design-tab.js";
 import { GeomSection } from "./geom-section.js";
 import { PropSections } from "./prop-sections.js";
 import { ExtrasSection } from "./extras-section.js";
+import { ClassesSection } from "./classes-section.js";
 
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
 const PageField = ({ label, value, placeholder, onCommit, row }) => html`<${Field} label=${label} cell=${!row}><${TextInput} value=${value} placeholder=${placeholder} onCommit=${onCommit} /></${Field}>`;
@@ -42,7 +43,8 @@ function caretRect(root, offset) {
  * what was applied; anything typed is applied to *this* element when another is picked (the component is keyed by the
  * element's path, so it unmounts then). `onApply(path, code, indent, original)` returns { ok, message? }.
  */
-function CodeTab({ path, source, indent, rest, onApply }) {
+function CodeTab({ path, source, indent, s, actions }) {
+    const onApply = actions.applyElement;
     const [draft, setDraft] = useState(source);
     const [error, setError] = useState("");
     const orig = useRef(source); // the code as last shown or applied
@@ -105,7 +107,7 @@ function CodeTab({ path, source, indent, rest, onApply }) {
             </div></div>
             <p class=${`muted ${error || problem ? "bad" : ""}`} data-elnote>${note}</p>
         </div></div>
-        <${Raw} html=${rest} />`;
+        <${ClassesSection} s=${s} actions=${actions} />`;
 }
 
 /** A box for asking the AI something: its own text, status and busy state. `run(prompt)` returns { ok, message? }. */
@@ -170,9 +172,11 @@ function Panel({ view, actions }) {
     let body;
     if (view.design) {
         const d = view.design;
-        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${GeomSection} s=${d.s} actions=${actions} /><${PropSections} s=${d.s} actions=${actions} /><${ExtrasSection} s=${d.s} actions=${actions} />`;
+        // keyed by the element: another one gets fresh fields, so nothing typed for one can land on the next
+        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${GeomSection} key=${d.key} s=${d.s} actions=${actions} /><${PropSections} key=${d.key} s=${d.s} actions=${actions} /><${ExtrasSection} key=${d.key} s=${d.s} actions=${actions} />`;
     }
-    else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} rest=${view.code.rest} onApply=${actions.applyElement} />`;
+    else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
+    else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
     else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />`;
     else body = html`<${Raw} html=${view.body} />`;

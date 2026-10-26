@@ -9,9 +9,10 @@ import { HUES, SHADES, SPECIAL_COLORS } from "./class-groups.js";
  * What a typed-in field needs: it shows `value` until it is focused, keeps what is typed in its own state (a redraw with the
  * old value must not undo a keystroke), and hands the text over: `onInput(text)` on every keystroke, `onCommit(text)` on Enter
  * (a single line) or when it is left. Esc gives up. Whether the value changes is up to the caller: a refused entry shows the
- * old value again. Enter and Esc act at once rather than through blur, which a window without focus never sends.
+ * old value again. Enter and Esc act at once rather than through blur, which a window without focus never sends. Leaving the
+ * field hands the text over too, unless `blurCommits` is false (a box that only means something on Enter).
  */
-function useTyped(value, onCommit, onInput, multiline) {
+function useTyped(value, onCommit, onInput, multiline, blurCommits = true) {
     const [draft, setDraft] = useState(/** @type {string | null} */ (null));
     const typed = useRef(/** @type {string | null} */ (null)); // the same text as `draft`, readable at once (a key can arrive before the redraw)
     const type = (/** @type {string} */ text, /** @type {boolean} */ live) => { typed.current = text; setDraft(text); if (live && onInput) onInput(text); };
@@ -25,7 +26,7 @@ function useTyped(value, onCommit, onInput, multiline) {
         shown: draft ?? String(value ?? ""),
         onFocus: (/** @type {any} */ e) => type(e.target.value, false),
         onInput: (/** @type {any} */ e) => type(e.target.value, true),
-        onBlur: () => finish(true),
+        onBlur: () => finish(blurCommits),
         onKeyDown: (/** @type {any} */ e) => {
             if (e.key === "Enter" && !multiline) { finish(true); e.target.blur(); }
             else if (e.key === "Escape") { finish(false); e.target.blur(); }
@@ -35,21 +36,21 @@ function useTyped(value, onCommit, onInput, multiline) {
 
 /**
  * A text input typed in freely (see useTyped).
- * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, disabled?: boolean, class?: string }} props
+ * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, disabled?: boolean, blurCommits?: boolean, class?: string }} props
  */
-export function TextInput({ value, onCommit, onInput, placeholder, list, title, disabled, class: cls = "fi" }) {
-    const t = useTyped(value, onCommit, onInput, false);
+export function TextInput({ value, onCommit, onInput, placeholder, list, title, disabled, blurCommits, class: cls = "fi" }) {
+    const t = useTyped(value, onCommit, onInput, false, blurCommits !== false);
     return html`<input class=${cls} value=${t.shown} placeholder=${placeholder || undefined} list=${list} title=${title} disabled=${disabled || undefined} autocomplete="off"
         onFocus=${t.onFocus} onInput=${t.onInput} onBlur=${t.onBlur} onKeyDown=${t.onKeyDown} />`;
 }
 
 /**
  * A multi-line text box typed in freely (see useTyped); Enter is a new line.
- * @param {{ value?: string | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, rows?: number, class?: string }} props
+ * @param {{ value?: string | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, rows?: number, spellcheck?: boolean, class?: string }} props
  */
-export function TextArea({ value, onCommit, onInput, placeholder, rows = 3, class: cls = "fi area" }) {
+export function TextArea({ value, onCommit, onInput, placeholder, rows = 3, spellcheck, class: cls = "fi area" }) {
     const t = useTyped(value, onCommit, onInput, true);
-    return html`<textarea class=${cls} rows=${rows} placeholder=${placeholder || undefined} value=${t.shown}
+    return html`<textarea class=${cls} rows=${rows} placeholder=${placeholder || undefined} spellcheck=${spellcheck} value=${t.shown}
         onFocus=${t.onFocus} onInput=${t.onInput} onBlur=${t.onBlur} onKeyDown=${t.onKeyDown}></textarea>`;
 }
 

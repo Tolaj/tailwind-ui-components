@@ -282,8 +282,6 @@ function handleWheel({ dx, dy, zoomKey, cx, cy }) {
 }
 
 // ── Messages from the frame ──────────────────────────────────────────────────
-const inspectorEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches('[data-live], input[type="color"]') && $("inspector").contains(document.activeElement));
-
 window.addEventListener("message", (e) => {
     const m = e.data || {};
     if (m.type === "preview-height" && e.source !== frame.contentWindow) {
@@ -304,9 +302,6 @@ window.addEventListener("message", (e) => {
         closeColorPicker(); // its colours belong to the element it was opened for
         const a = document.activeElement;
         if (a && ftb.contains(a) && a.matches("input, select")) a.blur();
-        // a panel field still being typed in (the element code, classes...) belongs to the element it was opened for:
-        // leaving it applies what was typed there, while `selected` is still that element, and lets the panel show the new one
-        else if (otherElement && a && insp.contains(a) && a.matches("[data-live]")) a.blur();
     }
     if (m.type === "zoomKey") return keyZoom(m.key);
     if (m.type === "wheel") {
@@ -348,7 +343,7 @@ window.addEventListener("message", (e) => {
         pendingKey = "";
         if (m.info) selected = m.info;
         renderLayers();
-        renderInspector(inspectorEditing());
+        renderInspector();
         renderFloat();
     } else if (m.type === "radius") {
         // a corner dot was dragged: apply the radius the same way the toolbar does (class in Tailwind mode, style otherwise)
@@ -357,7 +352,7 @@ window.addEventListener("message", (e) => {
         // the same element with fresh numbers (styles finished loading): update quietly
         if (selected && m.info && pathKey(selected.path) === pathKey(m.info.path)) {
             selected = m.info;
-            renderInspector(inspectorEditing());
+            renderInspector();
             renderFloat();
         }
     } else if (m.type === "typing") {
@@ -384,7 +379,7 @@ window.addEventListener("message", (e) => {
         frameSel = null;
         updateCodeHighlight(newSelection); // find it in the code, and scroll there when it is a different element
         renderLayers();
-        renderInspector(inspectorEditing());
+        renderInspector();
         renderFloat();
     } else if (m.type === "frameClick") {
         selectFrame(); // the empty part of the design was clicked: the frame, with its handles and the page panel
@@ -621,7 +616,6 @@ function setPageBox(patch) {
     queueBoardSave(curKey);
     layout();
 }
-let lastView = null;
 /** What the panel's components ask of the editor (panel.js). */
 const panelActions = {
     applyElement: applyElementCode,
@@ -676,24 +670,25 @@ const panelActions = {
         renderInspector();
     },
     setAttr: (name, value) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name, value: value === "" ? null : value }, `attr-${name}`); },
+    // the classes, inline CSS and attributes below the element's code (classes-section.js)
+    removeClass: (index) => { if (selected) setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== index).join(" ")); },
+    addClasses: (text) => {
+        if (!selected) return;
+        const add = text.split(/\s+/).filter(Boolean);
+        if (!add.length) return;
+        const cur = selected.classes.split(/\s+/).filter(Boolean);
+        setClassString([...cur, ...add.filter((c) => !cur.includes(c))].join(" "));
+    },
+    setClassesText: (text) => { if (selected) { selected.classes = text.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); } },
+    setStyle: (css) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name: "style", value: css }); },
+    setAttribute: (name, value) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name, value }); },
 };
-/**
- * Draws the panel. `soft` (a field is being typed in): the HTML parts are left as they are, since redrawing them would take
- * the field from under the cursor, and only what is a component (the element's code) is brought up to date.
- */
-function renderInspector(soft = false) {
+/** Draws the panel. Every part is a component that keeps its own typed text, so it can be redrawn at any time, whatever has focus. */
+function renderInspector() {
     ui.frameBp = frameBp();
     ui.elementCode = selected && ui.tab === "classes" ? sourceOf(selected.path) : null;
-    let view = inspectorView(selected, selected ? null : pageInfo());
-    const kind = (v) => (v.design ? "design" : v.code ? "code" : v.ai ? "ai" : v.page ? "page" : "body");
-    const same = (v) => (v.design || v.code || {}).key;
-    if (soft && lastView && kind(lastView) === kind(view) && same(lastView) === same(view)) {
-        if (view.code) view = { ...lastView, code: { ...lastView.code, source: view.code.source } };
-        else if (!view.design) view = lastView; // (the Design tab is all components: they keep their own typed text, so it just redraws)
-    }
-    lastView = view;
     const top = insp.scrollTop;
-    renderPanel(insp, view, panelActions);
+    renderPanel(insp, inspectorView(selected, selected ? null : pageInfo()), panelActions);
     insp.scrollTop = top;
 }
 
@@ -927,44 +922,6 @@ insp.addEventListener("click", (e) => {
     if (t.closest("[data-closepanel]")) return setPanel(false);
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
-    const rm = t.closest("[data-rm]");
-    if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
-});
-
-insp.addEventListener("change", (e) => {
-    const t = e.target;
-    if (!selected) return;
-    const stRow = t.closest("[data-stylerow]");
-    if (stRow) {
-        const css = [...insp.querySelectorAll("[data-stylerow]")]
-            .map((r) => { const [k, v] = r.querySelectorAll("input"); return k.value.trim() && v.value.trim() ? `${k.value.trim()}: ${v.value.trim()}` : ""; })
-            .filter(Boolean).join("; ");
-        return cmd({ cmd: "setAttr", path: selected.path, name: "style", value: css ? css + ";" : null });
-    }
-    const aRow = t.closest("[data-arow]");
-    if (aRow) {
-        const [k, v] = aRow.querySelectorAll("input");
-        const old = aRow.dataset.old;
-        if (old && old !== k.value.trim()) cmd({ cmd: "setAttr", path: selected.path, name: old, value: null });
-        if (k.value.trim()) cmd({ cmd: "setAttr", path: selected.path, name: k.value.trim(), value: v.value });
-    }
-});
-
-insp.addEventListener("input", (e) => {
-    if (!selected) return;
-    const t = e.target;
-    if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
-});
-
-insp.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target.matches("[data-addclass]") && selected) {
-        e.preventDefault();
-        const add = e.target.value.split(/\s+/).filter(Boolean);
-        if (!add.length) return;
-        const cur = selected.classes.split(/\s+/).filter(Boolean);
-        setClassString([...cur, ...add.filter((c) => !cur.includes(c))].join(" "));
-        e.target.value = "";
-    }
 });
 
 // ── Ask AI about the selected element (the AI tab) ───────────────────────────
@@ -1892,7 +1849,7 @@ function startRename(key) {
 async function renameFrame(key, name, previous) {
     const d = docs.get(key);
     const isNewDoc = key === curKey ? isNew : d.isNew;
-    const apply = (t) => { d.meta.title = t; if (key === curKey) { data.title = t; renderInspector(inspectorEditing()); } updateChrome(); }; // the page panel shows the name
+    const apply = (t) => { d.meta.title = t; if (key === curKey) { data.title = t; renderInspector(); } updateChrome(); }; // the page panel shows the name
     apply(name);
     if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its name when it is
     try {
