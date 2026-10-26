@@ -6,6 +6,11 @@
 // Moved so far: the Code tab's element code, the AI tab, and the page panel (shown when no element is selected).
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { highlight, checkTags } from "./code-view.js";
+import { TextInput, Field } from "./controls.js";
+
+/** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
+const PageField = ({ label, value, placeholder, onCommit, row }) => html`<${Field} label=${label} cell=${!row}><${TextInput} value=${value} placeholder=${placeholder} onCommit=${onCommit} /></${Field}>`;
+
 
 /** HTML from inspector.js, shown as it is (the wrapper takes no space of its own). */
 const Raw = ({ html: h }) => html`<div style="display:contents" dangerouslySetInnerHTML=${{ __html: h }}></div>`;
@@ -128,33 +133,6 @@ function AiTab({ path, outer, actions }) {
         done="Applied. Undo with Ctrl/Cmd+Z." run=${(prompt) => actions.askAI(path, outer, prompt)} />`;
 }
 
-/**
- * A text field typed in freely: it shows the value until it is focused, keeps what is typed in its own state, and hands it
- * over on Enter or when it is left (`onCommit(text)`). Esc gives up. Whether the value changes is up to the editor: a
- * refused entry simply shows the old value again.
- */
-function Field({ label, value, placeholder, onCommit, row }) {
-    const [draft, setDraft] = useState(null);
-    const typed = useRef(null); // the same text as `draft`, readable at once (a key can arrive before the redraw)
-    const shown = draft ?? String(value ?? "");
-    const type = (text) => { typed.current = text; setDraft(text); };
-    const finish = (commit) => {
-        const text = typed.current;
-        typed.current = null;
-        setDraft(null);
-        if (commit && text !== null && text !== String(value ?? "")) onCommit(text);
-    };
-    const onKeyDown = (e) => {
-        if (e.key === "Enter") { finish(true); e.target.blur(); }
-        else if (e.key === "Escape") { finish(false); e.target.blur(); }
-    };
-    return html`
-        <label class=${row ? "row" : "cell"}><span class=${row ? "lbl" : "clbl"}>${label}</span>
-            <input class="fi" value=${shown} placeholder=${placeholder || ""} autocomplete="off"
-                onFocus=${(e) => type(e.target.value)} onInput=${(e) => type(e.target.value)} onBlur=${() => finish(true)} onKeyDown=${onKeyDown} />
-        </label>`;
-}
-
 /** The page's own panel (no element selected): name, version, size, position, and a draft box while the page is empty. */
 function PagePanel({ page: pg, actions }) {
     const dev = (w, l) => html`<button type="button" onClick=${() => actions.setDevice(w)}
@@ -163,7 +141,7 @@ function PagePanel({ page: pg, actions }) {
     const set = (key) => (text) => actions.setPageField(key, text);
     return html`
         <div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
-            <${Field} row label="Name" value=${pg.name} onCommit=${set("name")} />
+            <${PageField} row label="Name" value=${pg.name} onCommit=${set("name")} />
             <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${pg.version}`}${pg.project ? ` · ${pg.project}` : ""}</span></div>
         </div></div>
         ${pg.empty && html`<${AskBox} title="Generate with AI" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan" rows=${3}
@@ -171,11 +149,11 @@ function PagePanel({ page: pg, actions }) {
             run=${actions.draftPage} />`}
         <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
             <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
-            <div class="two"><${Field} label="W" value=${pg.w} onCommit=${set("w")} /><${Field} label="H" value=${pg.auto ? "" : pg.h} placeholder="auto" onCommit=${set("h")} /></div>
+            <div class="two"><${PageField} label="W" value=${pg.w} onCommit=${set("w")} /><${PageField} label="H" value=${pg.auto ? "" : pg.h} placeholder="auto" onCommit=${set("h")} /></div>
             <p class="text-[10px] text-neutral-500">Leave the height empty and it follows the content.</p>
         </div></div>
         <div class="sec"><div class="secb nopad"><p class="sub first">Position on the canvas</p>
-            <div class="two"><${Field} label="X" value=${pg.x} onCommit=${set("x")} /><${Field} label="Y" value=${pg.y} onCommit=${set("y")} /></div>
+            <div class="two"><${PageField} label="X" value=${pg.x} onCommit=${set("x")} /><${PageField} label="Y" value=${pg.y} onCommit=${set("y")} /></div>
         </div></div>
         <div class="sec"><div class="secb nopad"><div class="flex gap-1">${btn("Zoom to fit", actions.fit)}${btn("Details…", actions.details)}</div>
             <p class="text-[10px] text-neutral-500">Click an element in the page to edit it.</p>

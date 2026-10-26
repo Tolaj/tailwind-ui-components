@@ -11,7 +11,7 @@ const DEGS = ["0", "1", "2", "3", "6", "12", "45", "90", "180"];
 const MS = ["0", "75", "100", "150", "200", "300", "500", "700", "1000"];
 
 // suggestions for the free-type inputs (any value, including [arbitrary], is accepted)
-const PRESETS = {
+export const PRESETS = {
     w: SIZES, h: SIZES, minW: ["0", "full", "min", "max", "fit"], minH: ["0", "full", "screen", "min", "max", "fit"], maxW: MAX_W, maxH: ["none", "full", "screen", "min", "max", "fit"],
     gap: STEPS, gapX: STEPS, gapY: STEPS, spaceX: STEPS, spaceY: STEPS, z: ["0", "10", "20", "30", "40", "50", "auto"], order: ["first", "last", "none", "1", "2", "3"],
     gridCols: ["1", "2", "3", "4", "5", "6", "12", "none"], gridRows: ["1", "2", "3", "4", "5", "6", "none"], colSpan: ["1", "2", "3", "4", "6", "full"], rowSpan: ["1", "2", "3", "full"],
@@ -27,7 +27,7 @@ for (const k of ["p", "px", "py", "pt", "pr", "pb", "pl"]) PRESETS[k] = STEPS;
 for (const k of ["m", "mx", "my", "mt", "mr", "mb", "ml"]) PRESETS[k] = [...STEPS, "auto"];
 
 const en = (prefix, list) => list.map((v) => [`${prefix}${v}`, v]);
-const OPTS = {
+export const OPTS = {
     display: ["block", "inline-block", "inline", "flex", "inline-flex", "grid", "inline-grid", "contents", "hidden"].map((v) => [v, v]),
     position: ["static", "relative", "absolute", "fixed", "sticky"].map((v) => [v, v]),
     overflow: en("overflow-", ["auto", "hidden", "visible", "scroll", "clip"]),
@@ -81,22 +81,23 @@ export const ui = { closeInTabs: false, docTailwind: true, closed: new Set(), ta
 export const variant = () => `${ui.bp ? ui.bp + ":" : ""}${ui.st ? ui.st + ":" : ""}`;
 
 export const val = (sel, k) => { const r = getGroup(sel.classes, k, variant()); return r ? r.value : ""; };
-const splitOpacity = (v) => { const m = String(v).match(/^(.*?)(?:\/(\d+))?$/); return [m[1], m[2] || ""]; };
+export const splitOpacity = (v) => { const m = String(v).match(/^(.*?)(?:\/(\d+))?$/); return [m[1], m[2] || ""]; };
 
 // ── Controls ─────────────────────────────────────────────────────────────────
-const combo = (sel, k, label, cell) => `<label class="${cell ? "cell" : "row"}" title="${k}"><span class="${cell ? "clbl" : "lbl"}">${label}</span><input class="fi" data-g="${k}" list="dl-${PRESETS[k] ? k : "spacing"}" value="${esc(val(sel, k))}" placeholder="-" autocomplete="off"></label>`;
-const select = (sel, k, label) => {
+/** The old HTML builders below are exported for parity.js, which checks the components against them; they go with step 7. */
+export const combo = (sel, k, label, cell) => `<label class="${cell ? "cell" : "row"}" title="${k}"><span class="${cell ? "clbl" : "lbl"}">${label}</span><input class="fi" data-g="${k}" list="dl-${PRESETS[k] ? k : "spacing"}" value="${esc(val(sel, k))}" placeholder="-" autocomplete="off"></label>`;
+export const select = (sel, k, label) => {
     const cur = val(sel, k);
     return `<label class="row"><span class="lbl">${label}</span><select class="fi" data-g="${k}"><option value="">-</option>${OPTS[k].map(([v, l]) => `<option value="${v}" ${cur === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>`;
 };
-const seg = (sel, k, label, items) => {
+export const seg = (sel, k, label, items) => {
     const cur = val(sel, k);
     return `<div class="row"><span class="lbl">${label}</span><div class="seg2">${items.map(([v, l, t]) => `<button type="button" data-seg="${k}" data-v="${cur === v ? "" : v}" title="${t || l}" class="${cur === v ? "on" : ""}">${l}</button>`).join("")}</div></div>`;
 };
 const two = (a, b) => `<div class="two">${a}${b}</div>`;
 const four = (a, b, c, d) => `<div class="four">${a}${b}${c}${d}</div>`;
 
-function colorRow(sel, k, label) {
+export function colorRow(sel, k, label) {
     const [name, op] = splitOpacity(val(sel, k));
     const named = /^(?:black|white|transparent|current|inherit)$/.test(name) || /^[a-z]+-\d{2,3}$/.test(name);
     const arb = name.match(/^\[(.*)\]$/);
