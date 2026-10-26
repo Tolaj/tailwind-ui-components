@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "test": "node --test test/",
+    "licenses": "node scripts/check-licenses.js",
     "typecheck": "tsc -p tsconfig.json",
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",
@@ -13,7 +14,7 @@
   },
   "keywords": [],
   "author": "Swapnil Jadhav",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.75.0",

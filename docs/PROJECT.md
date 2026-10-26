@@ -116,6 +116,9 @@ See `.env.example`. Key vars: `MONGO_URI`, `SESSION_SECRET`, `PORT`, `ANTHROPIC_
 - `npm run dev` — nodemon dev server
 - `npm start` — production (uses --env-file=.env)
 
+## Licences
+Only permissive code goes in (MIT, ISC, BSD, Apache-2.0...). `npm run licenses` fails the build on GPL/AGPL/SSPL or an unreadable licence in the production dependencies. Code copied into the repo is listed in `THIRD_PARTY_LICENSES.md`. Never copy code from GPL tools such as FigmaToCode; build from their ideas and public docs only.
+
 ## Known Issues (as of initial audit)
 See `docs/BUGS.md`
 
