@@ -1,12 +1,12 @@
 // The Code tab below the element's own code, as components: the element's classes (chips, add one, edit them all as text), its
-// inline CSS (the style attribute, as property/value rows), and its attributes. They draw what the old classesTab drew, and act
-// through `actions`, which the editor provides:
+// inline CSS (the style attribute, as property/value rows), and its attributes. They act through `actions`, which the editor
+// provides:
 //   removeClass(index) · addClasses(text) · setClassesText(text) · setStyle(css | null) · setAttribute(name, value | null)
 import { html, useState, useEffect, useRef } from "../vendor/preact-htm.js";
 import { parseToken } from "./class-groups.js";
 import { TextInput, TextArea } from "./controls.js";
 
-/** "color: red; margin: 0" -> [["color","red"],["margin","0"]] (the same reading the old builder had) */
+/** "color: red; margin: 0" -> [["color","red"],["margin","0"]] */
 const parseStyle = (style) => (style || "").split(";").map((d) => d.trim()).filter(Boolean).map((d) => { const i = d.indexOf(":"); return [d.slice(0, i).trim(), d.slice(i + 1).trim()]; });
 /** The style attribute for rows: only rows with both a property and a value count. null when there are none. */
 const cssOf = (rows) => rows.filter(([k, v]) => k.trim() && v.trim()).map(([k, v]) => `${k.trim()}: ${v.trim()}`).join("; ");

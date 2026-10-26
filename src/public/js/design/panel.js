@@ -1,11 +1,13 @@
-// The Properties panel as components (Preact + htm, one vendored file, no build step).
-//
-// It is moved over piece by piece. What is not a component yet is still an HTML string from inspector.js, shown by <Raw>:
-// the editor's click/input handlers keep working on it through the data attributes. What is a component keeps its own
-// state (what is being typed, the cursor, errors) across renders, so the editor can redraw the panel whenever it likes.
-// Moved so far: the Code tab's element code, the AI tab, the page panel (shown when no element is selected), and the top of
-// the Design tab (design-tab.js) its position and size (geom-section.js), its property sections (prop-sections.js) and its Tailwind extras (extras-section.js): the whole Design tab; controls.js and group-controls.js hold the blocks the rest of the Design tab will be made of.
+// The Properties panel as components (Preact + htm, one vendored file, no build step): the shell and the parts that are
+// not a section of the Design tab. Everything is a component that keeps its own state (what is being typed, the cursor,
+// errors) across redraws, so the editor can redraw the panel whenever it likes. The panel's own state (tab, breakpoint, open
+// sections...) comes from panel-state.js through context; what to show comes from inspectorView (panel-model.js); what the
+// components ask of the editor goes through `actions` (editor.js panelActions).
+//   here: the head (tabs), the page panel, the AI tab, the Code tab's element code
+//   design-tab.js · geom-section.js · prop-sections.js · extras-section.js: the Design tab
+//   classes-section.js: the Code tab below the element's code; controls.js, group-controls.js: the blocks they are made of
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
+import { UiContext } from "./panel-state.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
@@ -17,9 +19,6 @@ import { ClassesSection } from "./classes-section.js";
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
 const PageField = ({ label, value, placeholder, onCommit, row }) => html`<${Field} label=${label} cell=${!row}><${TextInput} value=${value} placeholder=${placeholder} onCommit=${onCommit} /></${Field}>`;
 
-
-/** HTML from inspector.js, shown as it is (the wrapper takes no space of its own). */
-const Raw = ({ html: h }) => html`<div style="display:contents" dangerouslySetInnerHTML=${{ __html: h }}></div>`;
 
 /** Where the text at `offset` of an element's text is on screen, as { top, bottom } in the page's coordinates. */
 function caretRect(root, offset) {
@@ -167,23 +166,33 @@ function PagePanel({ page: pg, actions }) {
         </div></div>`;
 }
 
-/** The panel: its head (tabs), then a component or HTML from inspector.js. */
-function Panel({ view, actions }) {
+const CLOSE = html`<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>`;
+const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
+
+/** The row at the top: the tabs (or just "Page" when no element is selected) and the close button. */
+function Head({ page, tab, actions }) {
+    return html`<div class="itabs">
+        ${page ? html`<span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>`
+        : TABS.map(([k, label]) => html`<button type="button" class=${tab === k ? "on" : ""} onClick=${() => actions.setTab(k)}>${label}</button>`)}
+        <button type="button" title="Close" style="padding:0" class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100" onClick=${actions.closePanel}>${CLOSE}</button>
+    </div>`;
+}
+
+/** The panel: its head, then what the view says to show. The Design tab's parts are keyed by the element: another one gets fresh fields, so nothing typed for one can land on the next. */
+function Panel({ view, tab, actions }) {
     let body;
     if (view.design) {
-        const d = view.design;
-        // keyed by the element: another one gets fresh fields, so nothing typed for one can land on the next
-        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${GeomSection} key=${d.key} s=${d.s} actions=${actions} /><${PropSections} key=${d.key} s=${d.s} actions=${actions} /><${ExtrasSection} key=${d.key} s=${d.s} actions=${actions} />`;
+        const { key, s } = view.design;
+        body = html`<${DesignTop} key=${key} s=${s} actions=${actions} /><${GeomSection} key=${key} s=${s} actions=${actions} /><${PropSections} key=${key} s=${s} actions=${actions} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
     else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />`;
-    else body = html`<${Raw} html=${view.body} />`;
-    return html`<${Raw} html=${view.head} />${body}`;
+    return html`<${Head} page=${view.page} tab=${tab} actions=${actions} />${body}`;
 }
 
-/** Draws the panel into its element. `view` comes from inspectorView (inspector.js). */
-export function renderPanel(container, view, actions) {
-    render(html`<${Panel} view=${view} actions=${actions} />`, container);
+/** Draws the panel into its element. `view` comes from inspectorView (panel-model.js), `ui` is the panel's state (panel-state.js) plus what is worked out at the time of drawing. */
+export function renderPanel(container, view, actions, ui) {
+    render(html`<${UiContext.Provider} value=${ui}><${Panel} view=${view} tab=${ui.tab} actions=${actions} /></${UiContext.Provider}>`, container);
 }

@@ -1,11 +1,11 @@
 // The top of the Design tab as components: where the element is (crumbs), what tag it is, what you can do with it, how edits
-// are written (legend, breakpoint and state), and what it says (content). The rest of the tab is still HTML (inspector.js)
-// and moves in the next steps. These draw what the old builders (crumbs, tagRow, actions, legend, variantBar, contentFields)
-// drew, and act through `actions`, which the editor provides:
+// are written (legend, breakpoint and state), and what it says (content). They read the panel's state (breakpoint, state, the
+// frame's breakpoint) through useUi() and act through `actions`, which the editor provides:
 //   select(path) · move(dir) · duplicate() · remove() · setTag(tag) · setBreakpoint(bp) · setState(st) · setText(text) · setAttr(name, value)
 import { html } from "../vendor/preact-htm.js";
 import { BREAKPOINTS, STATES } from "./class-groups.js";
-import { TAG_KINDS } from "./inspector.js";
+import { TAG_KINDS, variant, modeFor } from "./panel-model.js";
+import { useUi } from "./panel-state.js";
 import { TextInput, TextArea, SelectInput, Field } from "./controls.js";
 
 const Crumbs = ({ s, actions }) => html`<div class="crumbs">${s.crumbs.map((c, i) => html`${i > 0 && html`<span class="sl">/</span>`}<button type="button" class=${i === s.crumbs.length - 1 ? "cur" : ""} onClick=${() => actions.select(c.path || [])}>${c.tag}</button>`)}</div>`;
@@ -25,16 +25,19 @@ const Actions = ({ s, actions }) => s.tag === "body" ? null : html`<div class="a
     <button type="button" title="Ctrl/Cmd+D" onClick=${actions.duplicate}>Duplicate</button>
     <button type="button" class="danger" title="Delete" onClick=${actions.remove}>Delete</button></div>`;
 
-const Legend = ({ ctx }) => html`<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${ctx.mode === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
+const Legend = ({ s }) => html`<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s, useUi()) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
 /** Which breakpoint and state new Tailwind classes are written for. */
-const VariantBar = ({ ctx, actions }) => html`
-    <div class="vbar">
-        <${SelectInput} value=${ctx.bp} options=${BREAKPOINTS.map((b) => [b, b ? `${b} and up` : "Base (all sizes)"])} onChange=${actions.setBreakpoint} />
-        <${SelectInput} value=${ctx.st} options=${STATES.map((b) => [b, b || "Default state"])} onChange=${actions.setState} />
-    </div>
-    ${ctx.variant ? html`<p class="vnote">New Tailwind classes get <code>${ctx.variant}</code></p>`
-        : ctx.frameBp ? html`<p class="vnote">At this frame width, sizes and spacing get <code>${ctx.frameBp}</code> (the base class if none is set yet)</p>` : null}`;
+const VariantBar = ({ actions }) => {
+    const ui = useUi(), prefix = variant(ui);
+    return html`
+        <div class="vbar">
+            <${SelectInput} value=${ui.bp} options=${BREAKPOINTS.map((b) => [b, b ? `${b} and up` : "Base (all sizes)"])} onChange=${actions.setBreakpoint} />
+            <${SelectInput} value=${ui.st} options=${STATES.map((b) => [b, b || "Default state"])} onChange=${actions.setState} />
+        </div>
+        ${prefix ? html`<p class="vnote">New Tailwind classes get <code>${prefix}</code></p>`
+            : ui.frameBp ? html`<p class="vnote">At this frame width, sizes and spacing get <code>${ui.frameBp}</code> (the base class if none is set yet)</p>` : null}`;
+};
 
 /** The element's text and the attributes that matter for its kind; each applies as you type. */
 const Content = ({ s, actions }) => {
@@ -51,7 +54,7 @@ const Content = ({ s, actions }) => {
 };
 
 /** Everything above the Design tab's sections. */
-export function DesignTop({ s, ctx, actions }) {
+export function DesignTop({ s, actions }) {
     return html`<${Crumbs} s=${s} actions=${actions} /><${TagRow} s=${s} actions=${actions} /><${Actions} s=${s} actions=${actions} />
-        <${Legend} ctx=${ctx} /><${VariantBar} ctx=${ctx} actions=${actions} /><${Content} s=${s} actions=${actions} />`;
+        <${Legend} s=${s} /><${VariantBar} actions=${actions} /><${Content} s=${s} actions=${actions} />`;
 }

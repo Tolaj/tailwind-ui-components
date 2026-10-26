@@ -1,12 +1,13 @@
 // The Design tab's property sections (Layout, Size, Spacing, Position offsets, Typography, Fill, Border and radius, Effects) as
 // components. Every row shows a CSS property wherever its value comes from (a Tailwind class, the element's style attribute,
-// the design's own CSS, or a parent) and edits it there (editor.js setProp). They draw what the old builders propRow, propBox,
-// arrangeRow and propSections drew, and act through `actions`, which the editor provides:
+// the design's own CSS, or a parent) and edits it there (editor.js setProp). Which sections are open comes from the panel's
+// state (useUi); they act through `actions`, which the editor provides:
 //   setProp(prop, value) · setPropLive(prop, hex) · setPropDone(prop, hex, input) · resetProp(prop) · arrange(kind) · toggleSection(id, wasOpen)
 import { html } from "../vendor/preact-htm.js";
 import { CSS_SECTIONS, rgbToHex } from "./css-props.js";
 import { variantOf } from "./prop-tailwind.js";
-import { ui, srcOf, shownOf, ownsValue } from "./inspector.js";
+import { srcOf, shownOf, ownsValue } from "./panel-model.js";
+import { useUi } from "./panel-state.js";
 import { TextInput, SelectInput, Segmented, Section, ColorInput } from "./controls.js";
 
 const bare = (v) => String(v || "").replace(/:$/, "");
@@ -63,6 +64,7 @@ const BOX = ["margin-top", "margin-right", "margin-bottom", "margin-left", "padd
 
 /** All the property sections, open or closed as the panel remembers (a free element opens Position offsets by itself). */
 export function PropSections({ s, actions }) {
+    const ui = useUi();
     return CSS_SECTIONS.map(([id, title, controls]) => {
         const props = controls === "box" ? BOX : controls.map((c) => c.p);
         const open = ui.open.has(id) || (id === "css-offsets" && s.geom && s.geom.abs && !ui.closed.has(id));

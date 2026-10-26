@@ -2,7 +2,8 @@ import { parseComponentSource, buildPreviewDocument } from "../playground/compon
 import { computeLayout } from "../shared/board-layout.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, BREAKPOINTS, setGroup, GROUPS, parseToken } from "./class-groups.js";
-import { ui, variant, val, inspectorView, mountDatalists, modeFor, srcOf } from "./inspector.js";
+import { variant, val, inspectorView, mountDatalists, modeFor, srcOf } from "./panel-model.js";
+import { panelStore, toggleSection, togglePalette } from "./panel-state.js";
 import { renderPanel } from "./panel.js";
 import { groupOf, twValue, twShown, variantOf, fromPx, hasScale } from "./prop-tailwind.js";
 import { toolbarHtml, TEXT_TAGS, FAMILY_STACKS, DEVICES } from "./float-toolbar.js";
@@ -110,7 +111,7 @@ function refreshDocFlag() {
     const tokens = [];
     String(model.markup).replace(/\bclass\s*=\s*"([^"]*)"|\bclass\s*=\s*'([^']*)'/g, (_, a, b) => { tokens.push(...(a ?? b).split(/\s+/).filter(Boolean)); return ""; });
     const hit = tokens.some((t) => /^(?:flex|grid|block|hidden|inline-flex|rounded)$/.test(t) || /^-?(?:p|m|px|py|pt|pr|pb|pl|mx|my|mt|mr|mb|ml|w|h|gap)-(?:\d|px|auto|full)/.test(t) || /^(?:text|bg|border)-(?:xs|sm|base|lg|xl|\d?xl|[a-z]+-\d{2,3}|black|white)$/.test(t));
-    ui.docTailwind = Boolean(parsed.hasTailwindScript || hit);
+    panelStore.set({ docTailwind: Boolean(parsed.hasTailwindScript || hit) });
 }
 
 function updateChrome() {
@@ -580,7 +581,7 @@ $("layers").addEventListener("drop", (e) => {
 });
 $("layers").addEventListener("dragend", () => { clearDrop(); dragPath = null; document.querySelectorAll(".is-dragging").forEach((r) => r.classList.remove("is-dragging")); });
 
-// ── Inspector (see inspector.js for the controls) ───────────────────────────
+// ── Inspector (the panel is components: see panel.js; what it shows, panel-model.js; its state, panel-state.js) ──
 const insp = $("inspector");
 
 /** The selected page's own properties, for the panel. */
@@ -631,8 +632,10 @@ const panelActions = {
     duplicate: () => { if (selected) cmd({ cmd: "duplicate", path: selected.path }); },
     remove: () => { if (selected) cmd({ cmd: "remove", path: selected.path }); },
     setTag: (tag) => { if (selected) cmd({ cmd: "setTag", path: selected.path, tag }); },
-    setBreakpoint: (bp) => { ui.bp = bp; setDevice(BREAKPOINT_WIDTH[ui.bp]); renderInspector(); },
-    setState: (st) => { ui.st = st; renderInspector(); },
+    setTab: (tab) => panelStore.set({ tab }),
+    closePanel: () => setPanel(false),
+    setBreakpoint: (bp) => { panelStore.set({ bp }); setDevice(BREAKPOINT_WIDTH[bp]); },
+    setState: (st) => panelStore.set({ st }),
     setText: (text) => { if (selected) cmd({ cmd: "setText", path: selected.path, text }, "text"); },
     // position and size (geom-section.js)
     setGeom: (key, text) => {
@@ -652,7 +655,7 @@ const panelActions = {
     // the class-group controls (group-controls.js): the Tailwind extras
     applyValue: (key, value) => { if (selected) applyValue(key, value); },
     applyColor: (key, name, op, undoKey) => { if (selected) applyColor(key, name, op, undoKey); },
-    togglePalette: (key) => { ui.palette = ui.palette === key ? null : key; renderInspector(); },
+    togglePalette,
     customColor: (key, hex, done, input) => {
         if (!selected) return;
         applyColor(key, hex, undefined, liveKey(`c-${key}`));
@@ -665,10 +668,7 @@ const panelActions = {
     setPropDone: (prop, hex, input) => { if (selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); pickerClosed(input); },
     resetProp: (prop) => { if (selected) setProp(prop, ""); },
     arrange: (kind) => { if (selected) arrange(kind); },
-    toggleSection: (id, wasOpen) => {
-        if (wasOpen) { ui.open.delete(id); ui.closed.add(id); } else { ui.open.add(id); ui.closed.delete(id); }
-        renderInspector();
-    },
+    toggleSection,
     setAttr: (name, value) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name, value: value === "" ? null : value }, `attr-${name}`); },
     // the classes, inline CSS and attributes below the element's code (classes-section.js)
     removeClass: (index) => { if (selected) setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== index).join(" ")); },
@@ -685,12 +685,19 @@ const panelActions = {
 };
 /** Draws the panel. Every part is a component that keeps its own typed text, so it can be redrawn at any time, whatever has focus. */
 function renderInspector() {
-    ui.frameBp = frameBp();
-    ui.elementCode = selected && ui.tab === "classes" ? sourceOf(selected.path) : null;
+    const ui = { ...panelStore.get(), frameBp: frameBp() }; // the panel's state, and the frame's breakpoint (worked out now)
+    const elementCode = selected && ui.tab === "classes" ? sourceOf(selected.path) : null;
     const top = insp.scrollTop;
-    renderPanel(insp, inspectorView(selected, selected ? null : pageInfo()), panelActions);
+    renderPanel(insp, inspectorView(selected, selected ? null : pageInfo(), elementCode), panelActions, ui);
     insp.scrollTop = top;
 }
+// a change to the panel's own state (its tab, the breakpoint, an open section...) redraws it, once however many changed
+let panelDrawQueued = false;
+panelStore.subscribe(() => {
+    if (panelDrawQueued) return;
+    panelDrawQueued = true;
+    queueMicrotask(() => { panelDrawQueued = false; renderInspector(); });
+});
 
 // ── The Code tab's element code (panel.js): the element's source, editable in place ──
 /** The element at `path` as written in the design: its code with its lines' common indentation taken off, and that indentation. */
@@ -760,7 +767,7 @@ function frameBp() {
  * breakpoint, unless the element has no class of that kind yet: then the base class, so smaller screens keep the value too.
  */
 function newVariant(classes, group) {
-    if (ui.bp || ui.st) return variant();
+    if (panelStore.get().bp || panelStore.get().st) return variant();
     if (!RESPONSIVE.has(group)) return "";
     const fam = familyOf(group).map((k) => GROUPS[k]);
     const has = String(classes || "").split(/\s+/).filter(Boolean).some((t) => fam.some((g) => g.re.test(parseToken(t).base)));
@@ -916,13 +923,6 @@ function setDevice(w) {
 }
 
 const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClasses", path: selected.path, value: next }); };
-
-insp.addEventListener("click", (e) => {
-    const t = e.target;
-    if (t.closest("[data-closepanel]")) return setPanel(false);
-    const tab = t.closest("[data-tab]");
-    if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
-});
 
 // ── Ask AI about the selected element (the AI tab) ───────────────────────────
 /** Changes the element at `path` (whose code is `outer`) as asked. Returns { ok, message? } for the AI tab to show. */
@@ -2246,7 +2246,6 @@ $("navMoreBtn").addEventListener("click", toggleDesignsMenu);
 $("designsMenu").addEventListener("click", (e) => e.stopPropagation());
 
 // Layers live in the left panel, opened from the toggle in the tools.
-ui.closeInTabs = true; // the right panel has no header of its own: its close button lives in the Design / Classes / AI row
 let leftOpen = false;
 function setLeft(open) {
     leftOpen = open;

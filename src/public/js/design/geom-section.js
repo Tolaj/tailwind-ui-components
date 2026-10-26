@@ -1,9 +1,10 @@
 // The Design tab's "Position and size" section as a component: X, Y, W, H and rotation, Free position, aligning and spreading
-// selected elements, grouping them, and the note that a flex parent decides an item's size. It draws what the old builders
-// geomBody and flexNote drew, and acts through `actions`, which the editor provides:
+// selected elements, grouping them, and the note that a flex parent decides an item's size. It acts through `actions`, which
+// the editor provides:
 //   setGeom(key, text) · freePosition(on) · align(mode) · group() · ungroup() · autoLayout() · sizeItMyself() · toggleSection(id, wasOpen)
 import { html } from "../vendor/preact-htm.js";
-import { ui, val } from "./inspector.js";
+import { val } from "./panel-model.js";
+import { useUi } from "./panel-state.js";
 import { Section, Two, Field, TextInput } from "./controls.js";
 
 /** A child that flex sizes along its axis ignores a width (or height) set on it: say so, with a one-click way out. */
@@ -23,12 +24,13 @@ function GeomField({ k, label, value, enabled, actions }) {
 }
 
 export function GeomSection({ s, actions }) {
+    const ui = useUi();
     const g = s.geom || {};
     const abs = Boolean(g.abs);
     const count = s.count || 1;
     const open = ui.open.has("geom");
     const align = (mode, label, title) => html`<${Btn} title=${title} onClick=${() => actions.align(mode)}>${label}</${Btn}>`;
-    return html`<${Section} title="Position and size" open=${open} set=${Boolean(val(s, "w"))} onToggle=${() => actions.toggleSection("geom", open)}>
+    return html`<${Section} title="Position and size" open=${open} set=${Boolean(val(s, "w", ui))} onToggle=${() => actions.toggleSection("geom", open)}>
         <${FlexNote} s=${s} actions=${actions} />
         <${Two}><${GeomField} k="x" label="X" value=${g.x} enabled=${abs} actions=${actions} /><${GeomField} k="y" label="Y" value=${g.y} enabled=${abs} actions=${actions} /></${Two}>
         <${Two}><${GeomField} k="w" label="W" value=${g.w} enabled=${true} actions=${actions} /><${GeomField} k="h" label="H" value=${g.h} enabled=${true} actions=${actions} /></${Two}>

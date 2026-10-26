@@ -1,7 +1,7 @@
 // @ts-check
-// The building blocks of the Design tab as components (see panel.js for the shell). Each draws the same markup and classes
-// the old HTML builders in inspector.js did, so the styles in canvas.handlebars apply unchanged; each keeps what is being
-// typed in its own state and reports changes through callbacks. None reads the page or the editor's state.
+// The building blocks of the Properties panel (see panel.js for the shell): text fields, dropdowns, button groups, sections
+// and a colour field. Each keeps what is being typed in its own state and reports changes through callbacks; none reads the
+// page or the editor's state. Their classes are the ones canvas.handlebars styles.
 import { html, useState, useRef } from "../vendor/preact-htm.js";
 import { HUES, SHADES, SPECIAL_COLORS } from "./class-groups.js";
 
