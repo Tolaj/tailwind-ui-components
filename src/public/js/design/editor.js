@@ -640,6 +640,21 @@ const panelActions = {
     setBreakpoint: (bp) => { ui.bp = bp; setDevice(BREAKPOINT_WIDTH[ui.bp]); renderInspector(); },
     setState: (st) => { ui.st = st; renderInspector(); },
     setText: (text) => { if (selected) cmd({ cmd: "setText", path: selected.path, text }, "text"); },
+    // position and size (geom-section.js)
+    setGeom: (key, text) => {
+        if (!selected) return;
+        const n = Number(text);
+        if (text.trim() === "" || !Number.isFinite(n)) return renderInspector(); // not a number: show the old value again
+        const prop = { w: "width", h: "height", x: "left", y: "top" }[key];
+        if (prop) setProp(prop, `${Math.round(prop === "width" || prop === "height" ? Math.max(1, n) : n)}px`);
+        else cmd({ cmd: "setGeom", path: selected.path, [key]: n });
+    },
+    freePosition: (on) => { if (selected) cmd({ cmd: "freePosition", path: selected.path, on }); },
+    align: (mode) => send({ cmd: "align", mode }),
+    group: () => { if (selected) send({ cmd: "group" }); },
+    ungroup: () => { if (selected) send({ cmd: "ungroup" }); },
+    autoLayout: () => { if (selected) send({ cmd: "autoLayout" }); },
+    sizeItMyself: () => { if (selected) sizeItMyself(); },
     // the property sections (prop-sections.js)
     setProp: (prop, value) => { if (selected) setProp(prop, value); },
     setPropLive: (prop, hex) => { if (selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
@@ -664,7 +679,7 @@ function renderInspector(soft = false) {
     const same = (v) => (v.design || v.code || {}).key;
     if (soft && lastView && kind(lastView) === kind(view) && same(lastView) === same(view)) {
         if (view.code) view = { ...lastView, code: { ...lastView.code, source: view.code.source } };
-        else if (view.design) view = { ...view, design: { ...view.design, before: lastView.design.before, after: lastView.design.after } }; // its HTML parts stay (a field in them has focus)
+        else if (view.design) view = { ...view, design: { ...view.design, after: lastView.design.after } }; // its HTML part stays (a field in it has focus)
         else view = lastView;
     }
     lastView = view;
@@ -918,27 +933,11 @@ insp.addEventListener("click", (e) => {
     if (cv && ui.palette) return applyColor(ui.palette, cv.dataset.cv);
     const rm = t.closest("[data-rm]");
     if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
-    const free = t.closest("[data-free]");
-    if (free && selected) return cmd({ cmd: "freePosition", path: selected.path, on: free.dataset.free === "on" });
-    const al = t.closest("[data-align]");
-    if (al) return send({ cmd: "align", mode: al.dataset.align });
-    const d = t.closest("[data-do]");
-    if (!d || !selected) return;
-    if (d.dataset.do === "group") return send({ cmd: "group" });
-    if (d.dataset.do === "flexnone") return sizeItMyself();
-    if (d.dataset.do === "autolayout") return send({ cmd: "autoLayout" });
-    if (d.dataset.do === "ungroup") return send({ cmd: "ungroup" });
 });
 
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
-    if (t.dataset.geom) {
-        const n = Number(t.value);
-        if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector();
-        const prop = { w: "width", h: "height", x: "left", y: "top" }[t.dataset.geom];
-        return prop ? setProp(prop, `${Math.round(prop === "width" || prop === "height" ? Math.max(1, n) : n)}px`) : cmd({ cmd: "setGeom", path: selected.path, [t.dataset.geom]: n });
-    }
     if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
     if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());
     if (t.dataset.cop !== undefined) {

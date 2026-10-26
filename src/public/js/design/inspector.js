@@ -258,7 +258,7 @@ export function tagRow(s) {
 export function designTab(s) {
     return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + designRest(s);
 }
-/** The Design tab below its top (HTML): position and size; then the property sections (components: prop-sections.js); then the Tailwind extras. */
+/** The Design tab below its top: position and size (geom-section.js) and the property sections (prop-sections.js) are components; only the Tailwind extras are still HTML. */
 export const designBefore = (s) => section(s, "geom", "Position and size", ["w"], geomBody);
 export const designAfter = (s) => section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
 export const designRest = (s) => designBefore(s) + propSections(s) + designAfter(s);
@@ -284,8 +284,8 @@ const CLOSE_BTN = (extra) => `<button type="button" data-closepanel title="Close
 /**
  * What the panel shows, for panel.js: { head } (HTML) and one of
  *  - body: HTML (the Design tab, the classes and attributes when there is no code to show);
- *  - design: { key, s, ctx, before, after }, the Design tab: its top (design-tab.js) and the property sections (prop-sections.js)
- *    are components, `before` and `after` the HTML above and below the property sections;
+ *  - design: { key, s, ctx, after }, the Design tab: its top (design-tab.js), position and size (geom-section.js) and the
+ *    property sections (prop-sections.js) are components, `after` the HTML below them (the Tailwind extras);
  *  - code: { key, path, source, indent, rest }, the Code tab: the element's own code (a component) and the HTML of the rest;
  *  - ai: { key, path, outer }, the AI tab (a component);
  *  - page: the page's info (pageInfo() in editor.js), the page panel (a component), when no element is selected.
@@ -297,6 +297,6 @@ export function inspectorView(s, page) {
     if (!s) return { head, body: `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>` };
     if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, rest: classesTab(s) } };
     if (ui.tab === "ai") return { head, ai: { key: s.path.join("."), path: s.path, outer: s.outer } };
-    if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s), before: designBefore(s), after: designAfter(s) } };
+    if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s), after: designAfter(s) } };
     return { head, body: classesTab(s) };
 }

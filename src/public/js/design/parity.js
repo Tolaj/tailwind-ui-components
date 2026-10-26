@@ -3,7 +3,7 @@
 // control with its value, options, classes and on/off state, in order. From the browser console on /design:
 //   const p = await import("/public/js/design/parity.js"); p.checkGroupControls();
 // Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2,
-// checkPropSections: step 3; checkAll runs them all); it goes with the old builders in step 7.
+// checkPropSections: step 3, checkGeomSection: step 4; checkAll runs them all); it goes with the old builders in step 7.
 import { html, render } from "../vendor/preact-htm.js";
 import { ui } from "./inspector.js";
 import { GROUPS } from "./class-groups.js";
@@ -11,6 +11,7 @@ import * as old from "./inspector.js";
 import { GroupCombo, GroupSelect, GroupSeg, GroupColor } from "./group-controls.js";
 import { DesignTop } from "./design-tab.js";
 import { PropSections } from "./prop-sections.js";
+import { GeomSection } from "./geom-section.js";
 import { CSS_SECTIONS } from "./css-props.js";
 
 const norm = (t) => String(t || "").replace(/\s+/g, " ").trim();
@@ -35,7 +36,11 @@ export function snapshot(root) {
         for (const c of el.children) {
             if (c.matches(CONTROLS)) out.push(describeControl(c));
             else if (c.matches(TEXTS) && !c.querySelector(CONTROLS)) out.push(`text|${classes(c)}|${norm(c.textContent)}`);
-            else walk(c);
+            else {
+                // a note with a button in it (the flex note): its own words first, then the button
+                if (c.matches("p") && c.querySelector(CONTROLS)) { const copy = c.cloneNode(true); copy.querySelectorAll(CONTROLS).forEach((x) => x.remove()); out.push(`text|${classes(c)}|${norm(copy.textContent)}`); }
+                walk(c);
+            }
         }
     };
     walk(root);
@@ -209,8 +214,45 @@ export function checkPropSections() {
     return { checked, failures };
 }
 
+// ── Position and size ────────────────────────────────────────────────────────
+const GEOM_SAMPLES = [
+    { what: "plain, one selected", geom: { x: 10, y: 20, w: 300, h: 40, rot: 0, abs: false }, count: 1 },
+    { what: "free", geom: { x: 10.5, y: -20, w: 300, h: 40, rot: 15, abs: true }, count: 1 },
+    { what: "free, two selected", geom: { x: 0, y: 0, w: 99, h: 12, rot: 0, abs: true }, count: 2 },
+    { what: "three selected", geom: { x: 0, y: 0, w: 99, h: 12, rot: 0, abs: false }, count: 3 },
+    { what: "free, five selected, flex item in a row", geom: { x: 1, y: 2, w: 3, h: 4, rot: 5, abs: true }, count: 5, flexItem: { sized: true, dir: "row" } },
+    { what: "flex item in a column", geom: { x: 0, y: 0, w: 120, h: 80, rot: 0, abs: false }, count: 1, flexItem: { sized: true, dir: "col" } },
+    { what: "flex item not sized by it", geom: { x: 0, y: 0, w: 120, h: 80, rot: 0, abs: false }, count: 1, flexItem: { sized: false, dir: "row" } },
+    { what: "with a width class", geom: { x: 0, y: 0, w: 50, h: 50, rot: 0, abs: false }, count: 1, classes: "w-1/2 p-4" },
+    { what: "the body (no geometry)", geom: undefined, count: undefined },
+];
+const geomActions = { setGeom: noop, freePosition: noop, align: noop, group: noop, ungroup: noop, autoLayout: noop, sizeItMyself: noop, toggleSection: noop };
+
+/** Position and size: the old section builder against GeomSection, for each kind of selection, open and closed. */
+export function checkGeomSection() {
+    const saved = ui.open;
+    const failures = [];
+    let checked = 0;
+    try {
+        for (const open of [true, false]) {
+            ui.open = new Set(open ? ["geom"] : []);
+            for (const g of GEOM_SAMPLES) {
+                const s = { tag: "div", classes: "", attrs: {}, crumbs: [], ...g };
+                const [a, b] = draw(old.designBefore(s), html`<${GeomSection} s=${s} actions=${geomActions} />`);
+                const r = compare(a, b);
+                checked++;
+                if (!r.same) failures.push({ what: `${g.what}${open ? "" : " (closed)"}`, diffs: r.diffs.slice(0, 3) });
+            }
+        }
+    } finally {
+        ui.open = saved;
+    }
+    if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
+    return { checked, failures };
+}
+
 /** Everything moved so far. */
 export function checkAll() {
-    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections()];
+    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections(), checkGeomSection()];
     return { checked: parts.reduce((n, p) => n + p.checked, 0), failures: parts.flatMap((p) => p.failures) };
 }

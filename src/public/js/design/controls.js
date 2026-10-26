@@ -35,11 +35,11 @@ function useTyped(value, onCommit, onInput, multiline) {
 
 /**
  * A text input typed in freely (see useTyped).
- * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, class?: string }} props
+ * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, disabled?: boolean, class?: string }} props
  */
-export function TextInput({ value, onCommit, onInput, placeholder, list, title, class: cls = "fi" }) {
+export function TextInput({ value, onCommit, onInput, placeholder, list, title, disabled, class: cls = "fi" }) {
     const t = useTyped(value, onCommit, onInput, false);
-    return html`<input class=${cls} value=${t.shown} placeholder=${placeholder || undefined} list=${list} title=${title} autocomplete="off"
+    return html`<input class=${cls} value=${t.shown} placeholder=${placeholder || undefined} list=${list} title=${title} disabled=${disabled || undefined} autocomplete="off"
         onFocus=${t.onFocus} onInput=${t.onInput} onBlur=${t.onBlur} onKeyDown=${t.onKeyDown} />`;
 }
 
@@ -79,8 +79,8 @@ export function Segmented({ value, items, onPick, off }) {
 
 /** A labelled row: <div class="row">. */
 export const Row = ({ label, title, children }) => html`<div class="row" title=${title}><span class="lbl">${label}</span>${children}</div>`;
-/** A labelled row whose control is an input, so the label is clickable: <label class="row"> (or a small <label class="cell">). */
-export const Field = ({ label, title, cell, children }) => html`<label class=${cell ? "cell" : "row"} title=${title}><span class=${cell ? "clbl" : "lbl"}>${label}</span>${children}</label>`;
+/** A labelled row whose control is an input, so the label is clickable: <label class="row"> (or a small <label class="cell">). `extra`: more classes (opacity-50 for a dimmed one). */
+export const Field = ({ label, title, cell, extra, children }) => html`<label class=${[cell ? "cell" : "row", extra].filter(Boolean).join(" ")} title=${title}><span class=${cell ? "clbl" : "lbl"}>${label}</span>${children}</label>`;
 /** Two or four controls side by side. */
 export const Two = ({ children }) => html`<div class="two">${children}</div>`;
 export const Four = ({ children }) => html`<div class="four">${children}</div>`;
