@@ -62,6 +62,12 @@ const componentSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        // the group a page belongs to in its project ("Public site", "Customer area"); empty for none
+        group: {
+            type: String,
+            default: "",
+            maxlength: 60
+        },
         profile: {
             type: mongoose.Schema.Types.Mixed,
             default: null

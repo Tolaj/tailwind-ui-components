@@ -3,10 +3,11 @@ import { buildProfile, enrichProfileWithAI } from "./profile.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
 import { parseDocument, splitSections } from "../public/js/shared/split-sections.js";
 import { tailwindWarning } from "./design-spec.service.js";
+import { normalizeGroup } from "../public/js/shared/pages.js";
 
 const MAX_HTML = 1_000_000;
 
-const buildDoc = (userId, { title, description, htmlCode, tags, project = null, kind = "component", parent = null, order = 0 }) => ({
+const buildDoc = (userId, { title, description, htmlCode, tags, project = null, kind = "component", parent = null, order = 0, group = "" }) => ({
         title: String(title).slice(0, 80) || "Imported design",
         description: String(description || `Imported design: ${title}`).slice(0, 200),
         category: "apps-general",
@@ -15,6 +16,7 @@ const buildDoc = (userId, { title, description, htmlCode, tags, project = null, 
         profile: buildProfile(htmlCode),
         createdBy: userId,
         project, kind, parent, order,
+        group: normalizeGroup(group),
         isPublished: false,
 });
 
@@ -55,7 +57,7 @@ async function existingPage(userId, { id, project, title }) {
  * sections are updated, added or removed to match. That save must say which version it started from (baseVersion):
  * if the page changed since (an edit in the editor), it is refused, so nothing is overwritten unseen, unless force.
  */
-export async function importDesign(userId, { title, html, description, tags = [], split = true, project = null, id = null, baseVersion, force = false, note }) {
+export async function importDesign(userId, { title, html, description, tags = [], split = true, project = null, id = null, baseVersion, force = false, note, group }) {
     if (!html || typeof html !== "string" || !html.trim()) throw new Error("html is required");
     if (html.length > MAX_HTML) throw new Error("html is too large (limit 1 MB per design)");
 
@@ -75,6 +77,7 @@ export async function importDesign(userId, { title, html, description, tags = []
         }
         updated = nextVersion(page, html, String(note || "Saved again from Claude").slice(0, 200));
         if (description) page.description = String(description).slice(0, 200);
+        if (group !== undefined) page.group = normalizeGroup(group);
         page.tags = [...new Set([...(page.tags || []), ...baseTags, "page"])];
         await page.save();
     } else {
@@ -83,7 +86,7 @@ export async function importDesign(userId, { title, html, description, tags = []
             description: description || doc.description || doc.heading,
             htmlCode: html,
             tags: [...baseTags, "page"],
-            project, kind: project ? "page" : "component",
+            project, kind: project ? "page" : "component", group,
         });
         created.push(page);
     }
@@ -139,7 +142,7 @@ export async function importDesign(userId, { title, html, description, tags = []
 
     const warning = tailwindWarning(html);
     return {
-        page: { id: String(page._id), title: page.title, version: page.version || 1, ...(isNew ? { created: true } : { updated, ...(updated ? {} : { note: "Same code as the saved version: nothing changed" }) }) },
+        page: { id: String(page._id), title: page.title, ...(page.group ? { group: page.group } : {}), version: page.version || 1, ...(isNew ? { created: true } : { updated, ...(updated ? {} : { note: "Same code as the saved version: nothing changed" }) }) },
         sections: sections.map((c) => ({ id: String(c._id), title: c.title, version: c.version || 1 })),
         ...(removedSections ? { removedSections } : {}),
         ...(warning ? { warning } : {}),

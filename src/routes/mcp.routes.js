@@ -9,8 +9,9 @@ import { normalizeTags } from "../controllers/component.controller.js";
 import { buildProfile, enrichProfileWithAI, profileToMarkdown, extractProfile } from "../services/profile.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
 import { importDesign } from "../services/import.service.js";
+import { withSharedHead } from "../public/js/shared/pages.js";
 import { specOf, patchDesign, tailwindWarning } from "../services/design-spec.service.js";
-import { resolveProject, listProjects, projectTree, getActiveProject, setActiveProject, projectContext } from "../services/project.service.js";
+import { resolveProject, orderPages, listProjects, projectTree, getActiveProject, setActiveProject, projectContext } from "../services/project.service.js";
 import Project from "../models/project.model.js";
 import { userIdForAccessToken } from "../services/oauth.service.js";
 import { publicBase } from "../utils/publicUrl.js";
@@ -96,6 +97,7 @@ const TOOLS = [
                 split: { type: "boolean", description: "Also save each stacked section as its own component. Default false." },
                 project: { type: "string", description: "Project name or id to file this under (created if new). Optional: defaults to the user's active project." },
                 id: { type: "string", description: "The saved page to replace with this version (optional: a page with the same title in the project is found anyway)" },
+                group: { type: "string", description: "The group this page belongs to in its project, e.g. \"Public site\" (optional)" },
                 baseVersion: { type: "number", description: "When saving an existing page again: the version you started from" },
                 force: { type: "boolean", description: "Replace the page even if it changed since baseVersion (only when the user says so)" },
                 note: { type: "string", description: "What changed, for the version history" },
@@ -105,20 +107,22 @@ const TOOLS = [
     },
     {
         name: "save_pages",
-        description: "Save SEVERAL pages or screens in one call, each as its own separate page component inside one project. Use this whenever the design has more than one page (for example Overview, Customers and Transactions). Pass each page as its own complete HTML document. Never combine pages into one HTML file. A page that already exists in the project (same title, or its id) is saved as its next version, not a copy: give its baseVersion (from get_context), and a page changed since then is refused rather than overwritten.",
+        description: "Save SEVERAL pages or screens in one call, each as its own separate page component inside one project. Use this whenever the design has more than one page (for example Overview, Customers and Transactions). Pass each page as its own complete HTML document. Never combine pages into one HTML file. A page that already exists in the project (same title, or its id) is saved as its next version, not a copy: give its baseVersion (from get_context), and a page changed since then is refused rather than overwritten.\n\nSHARED HEAD: what every page has in common (fonts, the Tailwind <script> and its tailwind.config, a shared <style>) goes ONCE in `shared`, not in each page: the server adds it to the top of every page's <head> (a page that already has it is left alone), so each page is saved complete and each pages[].html can be just its own markup. The project remembers it: later calls that leave `shared` out reuse it (so a page saved again keeps its fonts and Tailwind setup), a new `shared` replaces it, and an empty string removes it. ORDER: the pages appear in the project in the order you list them, and listing them again in another order reorders them (new pages go after the existing ones). GROUPS: give pages[].group (for example \"Public site\", \"Customer area\", \"Admin\") when the design has sections of an app; the board lays each group out as its own row and the page lists show the group's name.",
         inputSchema: {
             type: "object",
             properties: {
                 project: { type: "string", description: "Project name or id (created if new). Optional: defaults to the user's active project." },
+                shared: { type: "string", description: "HTML every page shares, sent once: <link> fonts, the Tailwind <script> and tailwind.config, a shared <style>. Added to the top of each page's <head>. The project remembers it: leave it out later to reuse it, send \"\" to remove it." },
                 pages: {
                     type: "array",
-                    description: "One entry per page, in order",
+                    description: "One entry per page, in the order they should appear",
                     items: {
                         type: "object",
                         properties: {
                             title: { type: "string", description: "Page name, e.g. 'Customers'" },
                             html: { type: "string", description: "Complete HTML of this one page" },
                             description: { type: "string", description: "One sentence about the page" },
+                            group: { type: "string", description: "The group this page belongs to, e.g. \"Public site\" (optional; up to 60 characters)" },
                             id: { type: "string", description: "The saved page this replaces (optional)" },
                             baseVersion: { type: "number", description: "For a page that already exists: the version you started from" },
                             force: { type: "boolean", description: "Replace it even if it changed since baseVersion (only when the user says so)" },
@@ -158,7 +162,7 @@ const TOOLS = [
     },
     {
         name: "get_project",
-        description: "Get a project's structure: its pages, and each page's sections, with ids you can pass to get_component.",
+        description: "Get a project's structure: its pages in order with their groups, each page's sections, ids you can pass to get_component, and the shared head save_pages adds to every page (if it has one).",
         inputSchema: { type: "object", properties: { project: { type: "string", description: "Project name or id" } }, required: ["project"] },
     },
     {
@@ -176,7 +180,7 @@ const INSTRUCTIONS = [
     "Use in an app: get_component with format html, react, vue or svelte to match the codebase. Fetch only what you will use.",
     "Change a saved design: for a small change, get_design_spec (each element with an id, a role and its classes as props per breakpoint and state), then apply_design_patch with small ops on those ids and the version you read. Only what you name changes. For a redesign, save the whole page again (below).",
     "Style with Tailwind: designs saved here should use Tailwind utility classes (the tokens in get_design_guide), not their own CSS classes and <style> rules, so they stay editable in the Windcraft editor and patchable by props. Use a <style> only for what Tailwind can't express.",
-    "Save: a new page with save_design (one screen) or save_pages (several, each its own HTML, never merged); a reusable piece with save_component. Saving an existing page again (same title in its project, or its id) makes its next version, not a copy: pass baseVersion (from get_context or get_component). If the user edited it since, the save is refused so their edits are not lost: read it again and work from that.",
+    "Save: a new page with save_design (one screen) or save_pages (several, each its own HTML, never merged; what they share, such as fonts and the Tailwind script and config, goes once in `shared`; list them in the order they should appear and give each a `group` when the design has sections like Public site and Customer area); a reusable piece with save_component. Saving an existing page again (same title in its project, or its id) makes its next version, not a copy: pass baseVersion (from get_context or get_component). If the user edited it since, the save is refused so their edits are not lost: read it again and work from that.",
 ].join("\n");
 
 const text = (value) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
@@ -266,8 +270,9 @@ async function callTool(userId, name, args = {}) {
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
                     tags: args.tags, split: args.split === true, project: proj ? proj._id : null,
-                    id: args.id, baseVersion: args.baseVersion, force: args.force === true, note: args.note,
+                    id: args.id, baseVersion: args.baseVersion, force: args.force === true, note: args.note, group: args.group,
                 });
+                if (proj && result.page.created) await orderPages(userId, proj._id, [{ id: result.page.id, created: true }]); // a new page goes after the others
                 const what = result.page.created ? "Saved" : result.page.updated ? `Saved v${result.page.version} of` : "No change to";
                 return text({ ...result, project: proj ? { id: String(proj._id), name: proj.name } : null, message: `${what} "${result.page.title}"${result.sections.length ? ` and ${result.sections.length} section component(s)` : ""}${result.removedSections ? ` (${result.removedSections} section(s) no longer on the page removed)` : ""} in your library (private)${proj ? ` in project "${proj.name}"` : ""}.` });
             } catch (e) {
@@ -280,20 +285,31 @@ async function callTool(userId, name, args = {}) {
             if (pagesIn.length > 30) return fail("Save at most 30 pages per call");
             const proj = await projectFor(userId, args.project);
             if (!proj) return fail("No project given and no active project. Pass project (a name) or call set_active_project first.");
+            // `shared` sent: used, and remembered by the project; left out: the project's last one is used (a page saved again
+            // without it would lose its fonts and Tailwind setup); "" clears it
+            if (typeof args.shared === "string" && args.shared.trim() !== (proj.sharedHead || "").trim()) {
+                if (args.shared.length > 20000) return fail("shared is too large (limit 20,000 characters): fonts, the Tailwind script and config and a stylesheet should fit");
+                proj.sharedHead = args.shared.trim();
+                await proj.save();
+            }
+            const shared = proj.sharedHead || "";
             const saved = [];
             const failed = [];
             for (const pg of pagesIn) {
                 try {
-                    const r = await importDesign(userId, { title: pg.title, html: pg.html, description: pg.description, tags: args.tags, split: false, project: proj._id, id: pg.id, baseVersion: pg.baseVersion, force: pg.force === true });
+                    const html = typeof pg.html === "string" ? withSharedHead(pg.html, shared) : pg.html;
+                    const r = await importDesign(userId, { title: pg.title, html, description: pg.description, tags: args.tags, split: false, project: proj._id, id: pg.id, baseVersion: pg.baseVersion, force: pg.force === true, group: pg.group });
                     saved.push(r.page);
                 } catch (e) {
                     failed.push({ title: pg && pg.title, error: e.message });
                 }
             }
+            // the pages that went in are put in the order they were listed (the ones that failed are not in it); a new page goes last
+            const order = saved.length > 1 || saved.some((p) => p.created) ? await orderPages(userId, proj._id, saved) : null;
             return text({
                 project: { id: String(proj._id), name: proj.name },
-                saved, failed,
-                message: `Saved ${saved.length} page(s) as separate components in project "${proj.name}"${failed.length ? `; ${failed.length} failed` : ""}.`,
+                saved: saved.map((p) => ({ ...p, ...(order ? { position: order.indexOf(p.id) + 1 } : {}) })), failed,
+                message: `Saved ${saved.length} page(s) as separate components in project "${proj.name}"${shared.trim() ? `, each with the project's shared head${typeof args.shared === "string" ? "" : " (the one saved earlier)"}` : ""}${order && saved.length > 1 ? ", in the order given" : ""}${failed.length ? `; ${failed.length} failed` : ""}.`,
             });
         }
         case "get_context": {
@@ -328,7 +344,7 @@ async function callTool(userId, name, args = {}) {
         case "get_project": {
             const p = await resolveProject(userId, args.project);
             if (!p) return fail(`No project named "${args.project}". Use list_projects to see them.`);
-            return text({ id: String(p._id), name: p.name, description: p.description, brief: p.brief || "", pages: await projectTree(userId, p._id) });
+            return text({ id: String(p._id), name: p.name, description: p.description, brief: p.brief || "", ...(p.sharedHead ? { sharedHead: p.sharedHead } : {}), pages: await projectTree(userId, p._id) });
         }
         case "get_design_guide": {
             const { markdown } = await buildDesignGuide(userId);

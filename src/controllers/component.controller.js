@@ -1,5 +1,6 @@
 import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
+import { normalizeGroup } from "../public/js/shared/pages.js";
 import { specOf } from "../services/design-spec.service.js";
 import { buildProfile, profileToMarkdown, enrichProfileWithAI } from "../services/profile.service.js";
 import { resolveProject } from "../services/project.service.js";
@@ -67,7 +68,7 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, tags, isPublished, project: projectRef } = req.body;
+        const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
 
         if (!title || !category || !description || !htmlCode) {
@@ -86,6 +87,7 @@ export const createComponent = async (req, res) => {
             profile: buildProfile(htmlCode),
             project: project ? project._id : null,
             kind: project ? "page" : "component",
+            group: project ? normalizeGroup(group) : "",
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
@@ -125,7 +127,7 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, isPublished, tags, note, useAsReference, project: projectRef, board } = req.body;
+        const { title, category, description, htmlCode, isPublished, tags, note, useAsReference, project: projectRef, board, group } = req.body;
         let codeChanged = false;
 
         if (board !== undefined) {
@@ -150,6 +152,7 @@ export const updateComponent = async (req, res) => {
             component.profile = buildProfile(htmlCode, component.profile);
             codeChanged = true;
         }
+        if (group !== undefined) component.group = normalizeGroup(group);
         if (title) component.title = title;
         if (category) component.category = category;
         if (description) component.description = description;

@@ -138,7 +138,7 @@ function buildFrames() {
         const wrap = document.createElement("div");
         wrap.className = `fwrap${it.id === selectedId ? " sel" : ""}`;
         wrap.dataset.id = it.id;
-        wrap.innerHTML = `<div class="flabel">${esc(it.title)}<span>${it.kind === "section" ? "section" : `v${it.version}`}</span></div><div class="frame"></div>`;
+        wrap.innerHTML = `<div class="flabel">${it.group ? `<i class="fgroup">${esc(it.group)} / </i>` : ""}${esc(it.title)}<span>${it.kind === "section" ? "section" : `v${it.version}`}</span></div><div class="frame"></div>`;
         world.appendChild(wrap);
         wraps.set(it.id, { wrap, frame: wrap.querySelector(".frame"), iframe: null });
         observer.observe(wrap);
@@ -251,9 +251,13 @@ function renderHeader() {
 }
 
 function renderOutline() {
+    let prev = ""; // a heading where the group changes ("Public site", then "Customer area")
     $("outline").innerHTML = pages().map((p) => {
+        const g = p.group || "";
+        const heading = g !== prev && (g || prev) ? `<div class="group-head">${esc(g || "No group")}</div>` : "";
+        prev = g;
         const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : "page"}</span><span class="truncate">${esc(it.title)}</span></div>`;
-        return row(p, 0) + sectionsOf(p.id).map((s) => row(s, 1)).join("");
+        return heading + row(p, 0) + sectionsOf(p.id).map((s) => row(s, 1)).join("");
     }).join("") || '<div class="p-3 text-neutral-500">No pages yet.</div>';
 }
 

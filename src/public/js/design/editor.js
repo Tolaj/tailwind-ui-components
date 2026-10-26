@@ -1,5 +1,6 @@
 import { parseComponentSource, buildPreviewDocument } from "../playground/component-source.js";
 import { computeLayout } from "../shared/board-layout.js";
+import { normalizeGroup } from "../shared/pages.js";
 import { agentMain } from "./agent.js";
 import { BREAKPOINT_WIDTH, BREAKPOINTS, setGroup, GROUPS, parseToken } from "./class-groups.js";
 import { variant, val, inspectorView, mountDatalists, modeFor, srcOf } from "./panel-model.js";
@@ -175,8 +176,11 @@ const curWidth = () => widthOf(docs.get(curKey));
 const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === curKey ? Math.max(MIN_H, frameHeight) : Math.max(MIN_H, d.height || 0));
 const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];
 
+/** The group a design belongs to in its project ("Public site"), or "". */
+const pageGroupOf = (key) => ((key === curKey ? data.group : (docs.get(key) || {}).meta?.group) || "");
+
 function positions() {
-    return computeLayout([...docs.values()].map((d) => ({ id: d.key, kind: d.kind, parent: d.parent, board: d.board })), { frameW: DEFAULT_W, widthOf: (it) => widthOf(docs.get(it.id)), heightOf: (it) => heightOfDoc(docs.get(it.id)) });
+    return computeLayout([...docs.values()].map((d) => ({ id: d.key, kind: d.kind, parent: d.parent, group: pageGroupOf(d.key), board: d.board })), { frameW: DEFAULT_W, widthOf: (it) => widthOf(docs.get(it.id)), heightOf: (it) => heightOfDoc(docs.get(it.id)) });
 }
 
 function applyView() {
@@ -471,6 +475,14 @@ $("pagesList").addEventListener("click", (e) => {
 $("leftProject").addEventListener("click", (e) => { if (!data.project) { e.preventDefault(); $("detailsBtn").click(); } });
 
 const PAGE_EDIT = '<button type="button" data-pedit class="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-white/70" title="Page details: name, category, tags, visibility"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>';
+/** A heading in a list of pages where the group changes ("Public site", then "Customer area"). `state.prev` is the group of the page before. */
+const headingState = { prev: "" };
+function groupHeading(d) {
+    const g = pageGroupOf(d.key);
+    const html = g !== headingState.prev && (g || headingState.prev) ? `<div class="group-head">${esc(g || "No group")}</div>` : "";
+    headingState.prev = g;
+    return html;
+}
 function renderPagesList() {
     const el = $("pagesList");
     if (!leftOpen) return;
@@ -478,12 +490,13 @@ function renderPagesList() {
     if (el.querySelector(".frename")) return; // not while a name is being typed
     const list = [...docs.values()];
     const tops = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
+    headingState.prev = "";
     const row = (d, depth) => {
         const active = d.key === curKey;
         const title = (active ? data.title : d.meta.title) || "Untitled page";
         return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}${active ? PAGE_EDIT : ""}</div>`;
     };
-    el.innerHTML = tops.map((d) => row(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => row(c, 1)).join("")).join("");
+    el.innerHTML = tops.map((d) => groupHeading(d) + row(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => row(c, 1)).join("")).join("");
 }
 $("pagesList").addEventListener("click", (e) => {
     const row = e.target.closest("[data-page]");
@@ -587,11 +600,12 @@ const insp = $("inspector");
 /** The selected page's own properties, for the panel. */
 function pageInfo() {
     const d = docs.get(curKey), p = positions()[curKey] || { x: 0, y: 0 };
-    return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), empty: model.markup.trim() === "", x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
+    return { name: data.title || "", group: data.group || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), empty: model.markup.trim() === "", x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
 }
 /** A page panel field (name, size, position) typed by the user: applied if it makes sense, otherwise the panel shows the old value again. */
 function setPageField(key, text) {
     const v = text.trim();
+    if (key === "group") return setPageGroup(curKey, v);
     if (key === "name") {
         const prev = data.title;
         if (v && v !== prev) renameFrame(curKey, v, prev); else renderInspector();
@@ -1467,7 +1481,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
 // ── Many designs on one plane ────────────────────────────────────────────────
 // One design is live (the iframe you edit). The others are previews in the same project; click one to switch to it.
 // Each design keeps its own history, so switching never loses edits. Save writes every changed design.
-const META_KEYS = ["id", "title", "version", "category", "description", "tags", "isPublished", "project"];
+const META_KEYS = ["id", "title", "version", "category", "description", "tags", "isPublished", "project", "group"];
 const takeMeta = () => Object.fromEntries(META_KEYS.map((k) => [k, data[k]]));
 const applyMeta = (m) => META_KEYS.forEach((k) => { data[k] = m[k]; });
 
@@ -1482,7 +1496,7 @@ docs.set(curKey, { key: curKey, meta: takeMeta(), kind: data.kind || (data.proje
     if (it.id === curKey) return;
     docs.set(it.id, {
         key: it.id, kind: it.kind, parent: it.parent, board: it.board, source: it.htmlCode, loaded: false, isNew: false, height: 0,
-        meta: { id: it.id, title: it.title, version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
+        meta: { id: it.id, title: it.title, group: it.group || "", version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
     });
 });
 
@@ -1583,7 +1597,8 @@ function refreshLabels() {
         const title = active ? data.title : d.meta.title;
         const ver = active ? data.version : d.meta.version;
         const state = (active ? isNew : d.isNew) ? "new" : d.kind === "section" ? "section" : `v${ver}`;
-        en.label.innerHTML = `${esc(title || "Untitled page")}<span>${state}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}`;
+        const group = pageGroupOf(key);
+        en.label.innerHTML = `${group ? `<i class="fgroup">${esc(group)} / </i>` : ""}${esc(title || "Untitled page")}<span>${state}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}`;
     });
 }
 
@@ -1602,6 +1617,7 @@ function buildWraps() {
 
 // the designs list
 function renderDesigns() {
+    headingState.prev = "";
     const list = [...docs.values()];
     const pages = list.filter((d) => d.kind !== "section" || !list.some((p) => p.key === d.parent));
     const row = (d, depth) => {
@@ -1615,7 +1631,7 @@ function renderDesigns() {
     $("designsCount").textContent = String(list.length);
     $("designsName").textContent = (data.project && data.project.name) || data.title || "Untitled page";
     placePills();
-    $("designs").innerHTML = pages.map((p) => row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
+    $("designs").innerHTML = pages.map((p) => groupHeading(p) + row(p, 0) + list.filter((s) => s.kind === "section" && s.parent === p.key).map((s) => row(s, 1)).join("")).join("");
 }
 $("designs").addEventListener("click", (e) => {
     if (e.target.closest("[data-pedit]")) { $("detailsBtn").click(); return; }
@@ -1846,6 +1862,24 @@ function startRename(key) {
     input.addEventListener("blur", () => finish(true));
 }
 
+/** Puts a design in a group of its project ("Public site"), or out of every group when empty. Saved designs keep it. */
+async function setPageGroup(key, text) {
+    const d = docs.get(key);
+    const next = normalizeGroup(text), prev = pageGroupOf(key);
+    const apply = (g) => { d.meta.group = g; if (key === curKey) data.group = g; refreshLabels(); renderDesigns(); layout(); renderInspector(); };
+    if (next === prev) return renderInspector();
+    apply(next);
+    const isNewDoc = key === curKey ? isNew : d.isNew;
+    if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its group when it is saved
+    try {
+        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ group: next }) });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message);
+    } catch (err) {
+        apply(prev);
+        alert(err.message || "Could not change the group");
+    }
+}
 async function renameFrame(key, name, previous) {
     const d = docs.get(key);
     const isNewDoc = key === curKey ? isNew : d.isNew;

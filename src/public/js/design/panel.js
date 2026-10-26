@@ -148,6 +148,7 @@ function PagePanel({ page: pg, actions }) {
     return html`
         <div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
             <${PageField} row label="Name" value=${pg.name} onCommit=${set("name")} />
+            <${PageField} row label="Group" value=${pg.group} placeholder="none" onCommit=${set("group")} />
             <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${pg.version}`}${pg.project ? ` · ${pg.project}` : ""}</span></div>
         </div></div>
         ${pg.empty && html`<${AskBox} title="Generate with AI" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan" rows=${3}
