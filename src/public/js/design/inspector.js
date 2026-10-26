@@ -137,13 +137,13 @@ const section = (s, id, title, keys, body) => {
 };
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
-const crumbs = (s) => s.crumbs.map((c, i) => `<button type="button" data-crumb="${(c.path || []).join(".")}" class="${i === s.crumbs.length - 1 ? "cur" : ""}">${c.tag}</button>`).join('<span class="sl">/</span>');
+export const crumbs = (s) => s.crumbs.map((c, i) => `<button type="button" data-crumb="${(c.path || []).join(".")}" class="${i === s.crumbs.length - 1 ? "cur" : ""}">${c.tag}</button>`).join('<span class="sl">/</span>');
 
-const actions = (s) => (s.tag === "body" ? "" : `<div class="acts"><button type="button" data-do="up" title="Move earlier">Up</button><button type="button" data-do="down" title="Move later">Down</button><button type="button" data-do="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button type="button" data-do="remove" class="danger" title="Delete">Delete</button></div>`);
+export const actions = (s) => (s.tag === "body" ? "" : `<div class="acts"><button type="button" data-do="up" title="Move earlier">Up</button><button type="button" data-do="down" title="Move later">Down</button><button type="button" data-do="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button type="button" data-do="remove" class="danger" title="Delete">Delete</button></div>`);
 
-const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">New Tailwind classes get <code>${variant()}</code></p>` : ui.frameBp ? `<p class="vnote">At this frame width, sizes and spacing get <code>${ui.frameBp}</code> (the base class if none is set yet)</p>` : ""}`;
+export const variantBar = () => `<div class="vbar"><select data-bp class="fi">${BREAKPOINTS.map((b) => `<option value="${b}" ${ui.bp === b ? "selected" : ""}>${b ? b + " and up" : "Base (all sizes)"}</option>`).join("")}</select><select data-st class="fi">${STATES.map((b) => `<option value="${b}" ${ui.st === b ? "selected" : ""}>${b || "Default state"}</option>`).join("")}</select></div>${variant() ? `<p class="vnote">New Tailwind classes get <code>${variant()}</code></p>` : ui.frameBp ? `<p class="vnote">At this frame width, sizes and spacing get <code>${ui.frameBp}</code> (the base class if none is set yet)</p>` : ""}`;
 
-const contentFields = (s) => {
+export const contentFields = (s) => {
     const fields = [];
     if (s.tag === "img") fields.push(["src", "Image URL"], ["alt", "Alt text"]);
     if (s.tag === "a") fields.push(["href", "Link"], ["target", "Target"]);
@@ -242,11 +242,11 @@ function propSections(s) {
     }).join("");
 }
 
-const legend = (s) => `<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
+export const legend = (s) => `<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
 // the tags the element can validly become (the frame works them out from where it sits and what it holds), grouped by kind
-const TAG_KINDS = [["Layout", /^(div|section|article|aside|header|footer|nav|main|form|figure|blockquote)$/], ["Text", /^(p|h[1-6]|span|label|strong|em|small|b|i|u|s|code|mark|pre)$/], ["Action", /^(a|button)$/], ["List", /^(ul|ol|li|menu)$/], ["Table", /^(td|th|thead|tbody|tfoot)$/], ["Definition", /^(dt|dd)$/]];
-function tagRow(s) {
+export const TAG_KINDS = [["Layout", /^(div|section|article|aside|header|footer|nav|main|form|figure|blockquote)$/], ["Text", /^(p|h[1-6]|span|label|strong|em|small|b|i|u|s|code|mark|pre)$/], ["Action", /^(a|button)$/], ["List", /^(ul|ol|li|menu)$/], ["Table", /^(td|th|thead|tbody|tfoot)$/], ["Definition", /^(dt|dd)$/]];
+export function tagRow(s) {
     const opts = s.tagOptions || [];
     if (opts.length < 2 || (s.count || 1) > 1) return "";
     const opt = (t) => `<option value="${t}" ${t === s.tag ? "selected" : ""}>&lt;${t}&gt;</option>`;
@@ -254,10 +254,14 @@ function tagRow(s) {
     return `<label class="row tagrow" title="Only tags that stay valid here are listed"><span class="lbl">Tag</span><select class="fi" data-tag>${groups.map(([label, ts]) => `<optgroup label="${label}">${ts.map(opt).join("")}</optgroup>`).join("")}</select></label>`;
 }
 
-function designTab(s) {
-    return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + section(s, "geom", "Position and size", ["w"], geomBody) +
-        propSections(s) + section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
+/** The whole Design tab as HTML: the top (crumbs...content) and the rest. Kept for parity.js; the top is a component now (design-tab.js). */
+export function designTab(s) {
+    return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + designRest(s);
 }
+/** The Design tab below its top: position and size, the property sections, the Tailwind extras (still HTML). */
+export const designRest = (s) => section(s, "geom", "Position and size", ["w"], geomBody) + propSections(s) + section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
+/** What the components at the top of the Design tab need besides the selection: the panel's breakpoint and state, and how new values are written. */
+export const designCtx = (s) => ({ bp: ui.bp, st: ui.st, variant: variant(), frameBp: ui.frameBp, mode: modeFor(s) });
 
 function classesTab(s) {
     const toks = s.classes.split(/\s+/).filter(Boolean);
@@ -278,6 +282,7 @@ const CLOSE_BTN = (extra) => `<button type="button" data-closepanel title="Close
 /**
  * What the panel shows, for panel.js: { head } (HTML) and one of
  *  - body: HTML (the Design tab, the classes and attributes when there is no code to show);
+ *  - design: { key, s, ctx, rest }, the Design tab: its top is components (design-tab.js) and `rest` the HTML below it;
  *  - code: { key, path, source, indent, rest }, the Code tab: the element's own code (a component) and the HTML of the rest;
  *  - ai: { key, path, outer }, the AI tab (a component);
  *  - page: the page's info (pageInfo() in editor.js), the page panel (a component), when no element is selected.
@@ -289,5 +294,6 @@ export function inspectorView(s, page) {
     if (!s) return { head, body: `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>` };
     if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, rest: classesTab(s) } };
     if (ui.tab === "ai") return { head, ai: { key: s.path.join("."), path: s.path, outer: s.outer } };
-    return { head, body: ui.tab === "design" ? designTab(s) : classesTab(s) };
+    if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s), rest: designRest(s) } };
+    return { head, body: classesTab(s) };
 }

@@ -6,16 +6,14 @@ import { html, useState, useRef } from "../vendor/preact-htm.js";
 import { HUES, SHADES, SPECIAL_COLORS } from "./class-groups.js";
 
 /**
- * A text input typed in freely. It shows `value` until it is focused, keeps what is typed in its own state, and hands the
- * text over on Enter or when it is left (`onCommit(text)`). Esc gives up. `onInput(text)` is called on every keystroke, for
- * fields that apply as you type. Whether the value changes is up to the caller: a refused entry shows the old value again.
- * Enter and Esc act at once rather than through blur, which a window without focus never sends.
- * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, class?: string }} props
+ * What a typed-in field needs: it shows `value` until it is focused, keeps what is typed in its own state (a redraw with the
+ * old value must not undo a keystroke), and hands the text over: `onInput(text)` on every keystroke, `onCommit(text)` on Enter
+ * (a single line) or when it is left. Esc gives up. Whether the value changes is up to the caller: a refused entry shows the
+ * old value again. Enter and Esc act at once rather than through blur, which a window without focus never sends.
  */
-export function TextInput({ value, onCommit, onInput, placeholder, list, title, class: cls = "fi" }) {
+function useTyped(value, onCommit, onInput, multiline) {
     const [draft, setDraft] = useState(/** @type {string | null} */ (null));
     const typed = useRef(/** @type {string | null} */ (null)); // the same text as `draft`, readable at once (a key can arrive before the redraw)
-    const shown = draft ?? String(value ?? "");
     const type = (/** @type {string} */ text, /** @type {boolean} */ live) => { typed.current = text; setDraft(text); if (live && onInput) onInput(text); };
     const finish = (/** @type {boolean} */ commit) => {
         const text = typed.current;
@@ -23,19 +21,49 @@ export function TextInput({ value, onCommit, onInput, placeholder, list, title, 
         setDraft(null);
         if (commit && text !== null && text !== String(value ?? "") && onCommit) onCommit(text);
     };
-    return html`<input class=${cls} value=${shown} placeholder=${placeholder || ""} list=${list} title=${title} autocomplete="off"
-        onFocus=${(e) => type(e.target.value, false)} onInput=${(e) => type(e.target.value, true)} onBlur=${() => finish(true)}
-        onKeyDown=${(e) => { if (e.key === "Enter") { finish(true); e.target.blur(); } else if (e.key === "Escape") { finish(false); e.target.blur(); } }} />`;
+    return {
+        shown: draft ?? String(value ?? ""),
+        onFocus: (/** @type {any} */ e) => type(e.target.value, false),
+        onInput: (/** @type {any} */ e) => type(e.target.value, true),
+        onBlur: () => finish(true),
+        onKeyDown: (/** @type {any} */ e) => {
+            if (e.key === "Enter" && !multiline) { finish(true); e.target.blur(); }
+            else if (e.key === "Escape") { finish(false); e.target.blur(); }
+        },
+    };
 }
 
 /**
- * A dropdown. `options` are [value, label]; `onChange(value)` when another is picked. A `blank` option ("-") comes first when given.
- * @param {{ value?: string, options: string[][], onChange: (value: string) => void, blank?: string, title?: string, class?: string }} props
+ * A text input typed in freely (see useTyped).
+ * @param {{ value?: string | number | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, list?: string, title?: string, class?: string }} props
  */
-export function SelectInput({ value, options, onChange, blank, title, class: cls = "fi" }) {
+export function TextInput({ value, onCommit, onInput, placeholder, list, title, class: cls = "fi" }) {
+    const t = useTyped(value, onCommit, onInput, false);
+    return html`<input class=${cls} value=${t.shown} placeholder=${placeholder || undefined} list=${list} title=${title} autocomplete="off"
+        onFocus=${t.onFocus} onInput=${t.onInput} onBlur=${t.onBlur} onKeyDown=${t.onKeyDown} />`;
+}
+
+/**
+ * A multi-line text box typed in freely (see useTyped); Enter is a new line.
+ * @param {{ value?: string | null, onCommit?: (text: string) => void, onInput?: (text: string) => void, placeholder?: string, rows?: number, class?: string }} props
+ */
+export function TextArea({ value, onCommit, onInput, placeholder, rows = 3, class: cls = "fi area" }) {
+    const t = useTyped(value, onCommit, onInput, true);
+    return html`<textarea class=${cls} rows=${rows} placeholder=${placeholder || undefined} value=${t.shown}
+        onFocus=${t.onFocus} onInput=${t.onInput} onBlur=${t.onBlur} onKeyDown=${t.onKeyDown}></textarea>`;
+}
+
+/**
+ * A dropdown. `options` are [value, label]; `onChange(value)` when another is picked. A `blank` option ("-") comes first when
+ * given. `groups` ([label, options][]) instead of `options` draws <optgroup>s.
+ * @param {{ value?: string, options?: string[][], groups?: [string, string[][]][], onChange: (value: string) => void, blank?: string, title?: string, class?: string }} props
+ */
+export function SelectInput({ value, options, groups, onChange, blank, title, class: cls = "fi" }) {
+    const opt = (/** @type {string[]} */ [v, l]) => html`<option value=${v} selected=${value === v}>${l}</option>`;
     return html`<select class=${cls} title=${title} onChange=${(e) => onChange(e.target.value)}>
         ${blank !== undefined && html`<option value="" selected=${!value}>${blank}</option>`}
-        ${options.map(([v, l]) => html`<option value=${v} selected=${value === v}>${l}</option>`)}
+        ${options && options.map(opt)}
+        ${groups && groups.map(([label, list]) => html`<optgroup label=${label}>${list.map(opt)}</optgroup>`)}
     </select>`;
 }
 

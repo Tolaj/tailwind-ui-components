@@ -631,6 +631,16 @@ const panelActions = {
     setDevice: (w) => setDevice(w),
     fit: () => { viewTouched = true; fitTo([curKey]); },
     details: () => $("detailsBtn").click(),
+    // the top of the Design tab (design-tab.js)
+    select: (path) => send({ cmd: "select", path }),
+    move: (dir) => { if (selected) cmd({ cmd: "move", path: selected.path, dir }); },
+    duplicate: () => { if (selected) cmd({ cmd: "duplicate", path: selected.path }); },
+    remove: () => { if (selected) cmd({ cmd: "remove", path: selected.path }); },
+    setTag: (tag) => { if (selected) cmd({ cmd: "setTag", path: selected.path, tag }); },
+    setBreakpoint: (bp) => { ui.bp = bp; setDevice(BREAKPOINT_WIDTH[ui.bp]); renderInspector(); },
+    setState: (st) => { ui.st = st; renderInspector(); },
+    setText: (text) => { if (selected) cmd({ cmd: "setText", path: selected.path, text }, "text"); },
+    setAttr: (name, value) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name, value: value === "" ? null : value }, `attr-${name}`); },
 };
 /**
  * Draws the panel. `soft` (a field is being typed in): the HTML parts are left as they are, since redrawing them would take
@@ -640,9 +650,12 @@ function renderInspector(soft = false) {
     ui.frameBp = frameBp();
     ui.elementCode = selected && ui.tab === "classes" ? sourceOf(selected.path) : null;
     let view = inspectorView(selected, selected ? null : pageInfo());
-    const kind = (v) => (v.code ? "code" : v.ai ? "ai" : v.page ? "page" : "body");
-    if (soft && lastView && kind(lastView) === kind(view) && (!view.code || lastView.code.key === view.code.key)) {
-        view = view.code ? { ...lastView, code: { ...lastView.code, source: view.code.source } } : lastView;
+    const kind = (v) => (v.design ? "design" : v.code ? "code" : v.ai ? "ai" : v.page ? "page" : "body");
+    const same = (v) => (v.design || v.code || {}).key;
+    if (soft && lastView && kind(lastView) === kind(view) && same(lastView) === same(view)) {
+        if (view.code) view = { ...lastView, code: { ...lastView.code, source: view.code.source } };
+        else if (view.design) view = { ...view, design: { ...view.design, rest: lastView.design.rest } }; // its HTML parts stay (a field in them has focus)
+        else view = lastView;
     }
     lastView = view;
     const top = insp.scrollTop;
@@ -899,8 +912,6 @@ insp.addEventListener("click", (e) => {
     if (pal) { ui.palette = ui.palette === pal.dataset.pal ? null : pal.dataset.pal; return renderInspector(); }
     const cv = t.closest("[data-cv]");
     if (cv && ui.palette) return applyColor(ui.palette, cv.dataset.cv);
-    const crumb = t.closest("[data-crumb]");
-    if (crumb) return send({ cmd: "select", path: parsePath(crumb.dataset.crumb) });
     const rm = t.closest("[data-rm]");
     if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
     const free = t.closest("[data-free]");
@@ -913,17 +924,11 @@ insp.addEventListener("click", (e) => {
     if (d.dataset.do === "flexnone") return sizeItMyself();
     if (d.dataset.do === "autolayout") return send({ cmd: "autoLayout" });
     if (d.dataset.do === "ungroup") return send({ cmd: "ungroup" });
-    const path = selected.path;
-    if (d.dataset.do === "up") cmd({ cmd: "move", path, dir: -1 });
-    if (d.dataset.do === "down") cmd({ cmd: "move", path, dir: 1 });
-    if (d.dataset.do === "duplicate") cmd({ cmd: "duplicate", path });
-    if (d.dataset.do === "remove") cmd({ cmd: "remove", path });
 });
 
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
-    if (t.dataset.tag !== undefined) return cmd({ cmd: "setTag", path: selected.path, tag: t.value });
     if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
     if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) {
@@ -939,8 +944,6 @@ insp.addEventListener("change", (e) => {
         return name ? applyColor(t.dataset.cop, name, t.value.trim()) : renderInspector();
     }
     if (t.dataset.ccustom !== undefined) { applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`)); return pickerClosed(t); }
-    if (t.matches("[data-bp]")) { ui.bp = t.value; setDevice(BREAKPOINT_WIDTH[ui.bp]); return renderInspector(); }
-    if (t.matches("[data-st]")) { ui.st = t.value; return renderInspector(); }
     const stRow = t.closest("[data-stylerow]");
     if (stRow) {
         const css = [...insp.querySelectorAll("[data-stylerow]")]
@@ -962,9 +965,7 @@ insp.addEventListener("input", (e) => {
     const t = e.target;
     if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`));
     if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`));
-    if (t.dataset.field === "text") cmd({ cmd: "setText", path: selected.path, text: t.value }, "text");
-    else if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
-    else if (t.dataset.attr) cmd({ cmd: "setAttr", path: selected.path, name: t.dataset.attr, value: t.value === "" ? null : t.value }, `attr-${t.dataset.attr}`);
+    if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
 });
 
 insp.addEventListener("keydown", (e) => {

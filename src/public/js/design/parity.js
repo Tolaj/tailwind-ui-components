@@ -2,16 +2,18 @@
 // components, this draws both for the same input and compares what a person would see and be able to do: every label, every
 // control with its value, options, classes and on/off state, in order. From the browser console on /design:
 //   const p = await import("/public/js/design/parity.js"); p.checkGroupControls();
-// Each step of the move extends it with the part it moves; it goes with the old builders in step 7.
+// Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2, checkAll runs
+// them all); it goes with the old builders in step 7.
 import { html, render } from "../vendor/preact-htm.js";
 import { ui } from "./inspector.js";
 import { GROUPS } from "./class-groups.js";
 import * as old from "./inspector.js";
 import { GroupCombo, GroupSelect, GroupSeg, GroupColor } from "./group-controls.js";
+import { DesignTop } from "./design-tab.js";
 
 const norm = (t) => String(t || "").replace(/\s+/g, " ").trim();
 const CONTROLS = "input, select, textarea, button";
-const TEXTS = ".lbl, .clbl, .t, .stag, .pct, .bml, .sub, .car, .legend, .muted, p";
+const TEXTS = ".lbl, .clbl, .t, .stag, .pct, .bml, .sub, .car, .sl, .legend, .muted, p";
 const classes = (el) => [...el.classList].sort().join(".");
 // a style is compared as the browser reads it (background:#f00 and background: rgb(255, 0, 0); are the same)
 const attr = (el, names) => names.map((n) => (!el.hasAttribute(n) ? "" : n === "style" ? `style=${el.style.cssText}` : `${n}=${norm(el.getAttribute(n))}`)).filter(Boolean).join(" ");
@@ -104,4 +106,52 @@ export function checkGroupControls() {
     }
     if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
     return { checked, failures };
+}
+
+// ── The top of the Design tab ────────────────────────────────────────────────
+const trail = (tags) => tags.map((tag, i) => ({ tag, path: Array(i).fill(0) }));
+const TAGS_TEXT = ["div", "section", "article", "p", "h1", "h2", "h3", "span", "a", "button", "ul"];
+/** Selections like the editor's describe(): one of each kind the top of the tab treats differently. */
+const ELEMENTS = [
+    { tag: "h2", leaf: true, text: "Hello  there <b>", classes: "text-xl font-bold", attrs: {}, crumbs: trail(["body", "main", "h2"]), tagOptions: TAGS_TEXT, count: 1 },
+    { tag: "img", leaf: false, text: null, classes: "w-full", attrs: { src: "a.png", alt: "A \"photo\"" }, crumbs: trail(["body", "div", "img"]), tagOptions: [], count: 1 },
+    { tag: "a", leaf: true, text: "Buy", classes: "px-4 bg-black", attrs: { href: "/buy", target: "_blank" }, crumbs: trail(["body", "main", "section", "a"]), tagOptions: ["a", "button", "div", "span"], count: 1 },
+    { tag: "input", leaf: true, text: "", classes: "border", attrs: { placeholder: "Your email", type: "email", value: "" }, crumbs: trail(["body", "form", "input"]), tagOptions: [], count: 1 },
+    { tag: "textarea", leaf: true, text: "", classes: "", attrs: { placeholder: "Message", type: "", value: "hi" }, crumbs: trail(["body", "textarea"]), tagOptions: [], count: 1 },
+    { tag: "div", leaf: false, text: null, classes: "flex gap-4", attrs: { id: "x" }, crumbs: trail(["body", "div"]), tagOptions: ["div", "section", "ul"], count: 1 },
+    { tag: "body", leaf: false, text: null, classes: "", attrs: {}, crumbs: trail(["body"]), tagOptions: [], count: 1 },
+    { tag: "p", leaf: true, text: "two selected", classes: "mt-2", attrs: {}, crumbs: trail(["body", "p"]), tagOptions: TAGS_TEXT, count: 2 },
+    { tag: "span", leaf: true, text: "new", classes: "", added: true, attrs: {}, crumbs: trail(["body", "span"]), tagOptions: ["span", "strong"], count: 1 },
+    { tag: "div", leaf: false, text: null, classes: "my-card other-class", attrs: {}, crumbs: trail(["body", "div"]), tagOptions: ["div", "section"], count: 1 },
+];
+const STATE_SETS = [["", "", ""], ["md", "", ""], ["", "hover", ""], ["lg", "focus", "md"], ["", "", "lg"]];
+const topActions = { select: noop, move: noop, duplicate: noop, remove: noop, setTag: noop, setBreakpoint: noop, setState: noop, setText: noop, setAttr: noop };
+
+/** The top of the Design tab: the old builders against DesignTop, for every kind of element and breakpoint/state. */
+export function checkDesignTop() {
+    const saved = { bp: ui.bp, st: ui.st, frameBp: ui.frameBp };
+    const failures = [];
+    let checked = 0;
+    try {
+        for (const [bp, st, frameBp] of STATE_SETS) {
+            Object.assign(ui, { bp, st, frameBp });
+            for (const s of ELEMENTS) {
+                const oldHtml = `<div class="crumbs">${old.crumbs(s)}</div>` + old.tagRow(s) + old.actions(s) + old.legend(s) + old.variantBar() + old.contentFields(s);
+                const [a, b] = draw(oldHtml, html`<${DesignTop} s=${s} ctx=${old.designCtx(s)} actions=${topActions} />`);
+                const r = compare(a, b);
+                checked++;
+                if (!r.same) failures.push({ what: `${s.tag}${s.count > 1 ? " x2" : ""} @${bp || "base"}${st ? ":" + st : ""}${frameBp ? " frame " + frameBp : ""}`, diffs: r.diffs.slice(0, 3) });
+            }
+        }
+    } finally {
+        Object.assign(ui, saved);
+    }
+    if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
+    return { checked, failures };
+}
+
+/** Everything moved so far. */
+export function checkAll() {
+    const a = checkGroupControls(), b = checkDesignTop();
+    return { checked: a.checked + b.checked, failures: [...a.failures, ...b.failures] };
 }
