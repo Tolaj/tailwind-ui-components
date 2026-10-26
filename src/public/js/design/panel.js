@@ -3,7 +3,7 @@
 // It is moved over piece by piece. What is not a component yet is still an HTML string from inspector.js, shown by <Raw>:
 // the editor's click/input handlers keep working on it through the data attributes. What is a component keeps its own
 // state (what is being typed, the cursor, errors) across renders, so the editor can redraw the panel whenever it likes.
-// Moved so far: the Code tab's element code.
+// Moved so far: the Code tab's element code, the AI tab, and the page panel (shown when no element is selected).
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { highlight, checkTags } from "./code-view.js";
 
@@ -98,13 +98,98 @@ function CodeTab({ path, source, indent, rest, onApply }) {
         <${Raw} html=${rest} />`;
 }
 
-/** The panel: its head (tabs), then either a component or HTML from inspector.js. */
-function Panel({ view, actions }) {
+/** A box for asking the AI something: its own text, status and busy state. `run(prompt)` returns { ok, message? }. */
+function AskBox({ title, placeholder, rows, button, help, empty, done, run }) {
+    const [prompt, setPrompt] = useState("");
+    const [note, setNote] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const go = async () => {
+        if (!prompt.trim()) return setNote({ text: empty, bad: true });
+        setBusy(true);
+        setNote({ text: "Working..." });
+        const res = await run(prompt.trim());
+        setBusy(false);
+        if (res.ok) { setPrompt(""); setNote(done ? { text: done } : null); } else setNote({ text: res.message || "Something went wrong.", bad: true });
+    };
     return html`
-        <${Raw} html=${view.head} />
-        ${view.code
-        ? html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} rest=${view.code.rest} onApply=${actions.applyElement} />`
-        : html`<${Raw} html=${view.body} />`}`;
+        <div class="sec"><div class="secb nopad">
+            <p class="sub first">${title}</p>
+            <textarea class="fi area" rows=${rows} placeholder=${placeholder} value=${prompt} onInput=${(e) => setPrompt(e.target.value)}></textarea>
+            <button type="button" class="primary" disabled=${busy} onClick=${go}>${button}</button>
+            ${note && html`<p class=${`text-[11px] ${note.bad ? "text-red-700" : "text-neutral-500"}`}>${note.text}</p>`}
+            <p class="muted">${help}</p>
+        </div></div>`;
+}
+
+/** The AI tab: change the selected element. Keyed by the element, so a request still running applies to the one it was made for. */
+function AiTab({ path, outer, actions }) {
+    return html`<${AskBox} title="Ask AI about this element" placeholder="e.g. make this a dark card with a larger title" rows=${4}
+        button="Apply to this element" help="Changes only the selected element. Undo with Ctrl/Cmd+Z." empty="Describe the change first."
+        done="Applied. Undo with Ctrl/Cmd+Z." run=${(prompt) => actions.askAI(path, outer, prompt)} />`;
+}
+
+/**
+ * A text field typed in freely: it shows the value until it is focused, keeps what is typed in its own state, and hands it
+ * over on Enter or when it is left (`onCommit(text)`). Esc gives up. Whether the value changes is up to the editor: a
+ * refused entry simply shows the old value again.
+ */
+function Field({ label, value, placeholder, onCommit, row }) {
+    const [draft, setDraft] = useState(null);
+    const typed = useRef(null); // the same text as `draft`, readable at once (a key can arrive before the redraw)
+    const shown = draft ?? String(value ?? "");
+    const type = (text) => { typed.current = text; setDraft(text); };
+    const finish = (commit) => {
+        const text = typed.current;
+        typed.current = null;
+        setDraft(null);
+        if (commit && text !== null && text !== String(value ?? "")) onCommit(text);
+    };
+    const onKeyDown = (e) => {
+        if (e.key === "Enter") { finish(true); e.target.blur(); }
+        else if (e.key === "Escape") { finish(false); e.target.blur(); }
+    };
+    return html`
+        <label class=${row ? "row" : "cell"}><span class=${row ? "lbl" : "clbl"}>${label}</span>
+            <input class="fi" value=${shown} placeholder=${placeholder || ""} autocomplete="off"
+                onFocus=${(e) => type(e.target.value)} onInput=${(e) => type(e.target.value)} onBlur=${() => finish(true)} onKeyDown=${onKeyDown} />
+        </label>`;
+}
+
+/** The page's own panel (no element selected): name, version, size, position, and a draft box while the page is empty. */
+function PagePanel({ page: pg, actions }) {
+    const dev = (w, l) => html`<button type="button" onClick=${() => actions.setDevice(w)}
+        class=${`flex-1 rounded border py-1 text-[10px] ${pg.w === w ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 hover:bg-neutral-50"}`}>${l}</button>`;
+    const btn = (l, fn) => html`<button type="button" onClick=${fn} class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
+    const set = (key) => (text) => actions.setPageField(key, text);
+    return html`
+        <div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
+            <${Field} row label="Name" value=${pg.name} onCommit=${set("name")} />
+            <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${pg.version}`}${pg.project ? ` · ${pg.project}` : ""}</span></div>
+        </div></div>
+        ${pg.empty && html`<${AskBox} title="Generate with AI" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan" rows=${3}
+            button="Generate" help="Or draw with the tools, add blocks from +, or paste code in the code panel." empty="Describe what you want first."
+            run=${actions.draftPage} />`}
+        <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
+            <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
+            <div class="two"><${Field} label="W" value=${pg.w} onCommit=${set("w")} /><${Field} label="H" value=${pg.auto ? "" : pg.h} placeholder="auto" onCommit=${set("h")} /></div>
+            <p class="text-[10px] text-neutral-500">Leave the height empty and it follows the content.</p>
+        </div></div>
+        <div class="sec"><div class="secb nopad"><p class="sub first">Position on the canvas</p>
+            <div class="two"><${Field} label="X" value=${pg.x} onCommit=${set("x")} /><${Field} label="Y" value=${pg.y} onCommit=${set("y")} /></div>
+        </div></div>
+        <div class="sec"><div class="secb nopad"><div class="flex gap-1">${btn("Zoom to fit", actions.fit)}${btn("Details…", actions.details)}</div>
+            <p class="text-[10px] text-neutral-500">Click an element in the page to edit it.</p>
+        </div></div>`;
+}
+
+/** The panel: its head (tabs), then a component or HTML from inspector.js. */
+function Panel({ view, actions }) {
+    let body;
+    if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} rest=${view.code.rest} onApply=${actions.applyElement} />`;
+    else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
+    else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />`;
+    else body = html`<${Raw} html=${view.body} />`;
+    return html`<${Raw} html=${view.head} />${body}`;
 }
 
 /** Draws the panel into its element. `view` comes from inspectorView (inspector.js). */

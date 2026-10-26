@@ -272,40 +272,21 @@ function classesTab(s) {
         <div class="sec"><div class="secb nopad"><p class="sub first">Attributes</p>${[...attrRows, ["", ""]].map(aRow).join("")}</div></div>`;
 }
 
-function aiTab() {
-    return `<div class="sec"><div class="secb nopad"><p class="sub first">Ask AI about this element</p><textarea id="aiInput" class="fi area" rows="4" placeholder="e.g. make this a dark card with a larger title"></textarea><button type="button" data-do="ai" class="primary">Apply to this element</button><p id="aiNote" class="hidden"></p><p class="muted">Changes only the selected element. Undo with Ctrl/Cmd+Z.</p></div></div>`;
-}
-
-/** What the panel shows when a page is selected but no element in it: the page's own name, size, position and details. */
-function pageHtml(pg) {
-    const cell = (k, label, v, ph = "") => `<label class="cell"><span class="clbl">${label}</span><input class="fi" data-pg="${k}" value="${esc(v ?? "")}" placeholder="${ph}" autocomplete="off"></label>`;
-    const dev = (w, l) => `<button type="button" data-pgw="${w}" class="flex-1 rounded border py-1 text-[10px] ${pg.w === w ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 hover:bg-neutral-50"}">${l}</button>`;
-    const btn = (act, l) => `<button type="button" data-pgact="${act}" class="flex-1 rounded border border-neutral-200 py-1 text-[10px] hover:bg-neutral-50">${l}</button>`;
-    return `<div class="sec"><div class="secb nopad"><p class="sub first">Page</p>
-            <label class="row"><span class="lbl">Name</span><input class="fi" data-pg="name" value="${esc(pg.name)}" autocomplete="off"></label>
-            <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${esc(pg.version)}`}${pg.project ? ` · ${esc(pg.project)}` : ""}</span></div></div></div>
-        ${pg.empty ? `<div class="sec"><div class="secb nopad"><p class="sub first">Generate with AI</p><textarea id="pageAi" class="fi area" rows="3" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan"></textarea><button type="button" data-pgact="draft" class="primary">Generate</button><p id="pageAiNote" class="hidden"></p><p class="muted">Or draw with the tools, add blocks from +, or paste code in the code panel.</p></div></div>` : ""}
-        <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
-            <div class="flex gap-1">${dev(1280, "Desktop")}${dev(768, "Tablet")}${dev(390, "Mobile")}</div>
-            ${two(cell("w", "W", pg.w), cell("h", "H", pg.auto ? "" : pg.h, "auto"))}
-            <p class="text-[10px] text-neutral-500">Leave the height empty and it follows the content.</p></div></div>
-        <div class="sec"><div class="secb nopad"><p class="sub first">Position on the canvas</p>
-            ${two(cell("x", "X", pg.x), cell("y", "Y", pg.y))}</div></div>
-        <div class="sec"><div class="secb nopad"><div class="flex gap-1">${btn("fit", "Zoom to fit")}${btn("details", "Details…")}</div>
-            <p class="text-[10px] text-neutral-500">Click an element in the page to edit it.</p></div></div>`;
-}
-
 const CLOSE_BTN = (extra) => `<button type="button" data-closepanel title="Close" style="padding:0;${extra}" class="flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
 
 /**
- * What the panel shows, for panel.js: { head, body } (HTML), or { head, code } when the Code tab shows an element, where
- * `code` is { key, path, source, indent, rest }: the element's own code (a component) and the HTML of the rest of the tab.
- * The editor sets ui.elementCode ({ source, indent }) for the selected element when that tab is open.
+ * What the panel shows, for panel.js: { head } (HTML) and one of
+ *  - body: HTML (the Design tab, the classes and attributes when there is no code to show);
+ *  - code: { key, path, source, indent, rest }, the Code tab: the element's own code (a component) and the HTML of the rest;
+ *  - ai: { key, path, outer }, the AI tab (a component);
+ *  - page: the page's info (pageInfo() in editor.js), the page panel (a component), when no element is selected.
+ * The editor sets ui.elementCode ({ source, indent }) for the selected element when the Code tab is open.
  */
 export function inspectorView(s, page) {
-    if (!s && page) return { head: `<div class="itabs"><span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>${ui.closeInTabs ? CLOSE_BTN("margin-left:auto") : ""}</div>`, body: pageHtml(page) };
+    if (!s && page) return { head: `<div class="itabs"><span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>${ui.closeInTabs ? CLOSE_BTN("margin-left:auto") : ""}</div>`, page };
     const head = `<div class="itabs">${[["design", "Design"], ["classes", "Code"], ["ai", "AI"]].map(([k, l]) => `<button type="button" data-tab="${k}" class="${ui.tab === k ? "on" : ""}">${l}</button>`).join("")}${ui.closeInTabs ? CLOSE_BTN("margin-left:auto") : ""}</div>`;
     if (!s) return { head, body: `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>` };
     if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, rest: classesTab(s) } };
-    return { head, body: ui.tab === "design" ? designTab(s) : ui.tab === "classes" ? classesTab(s) : aiTab() };
+    if (ui.tab === "ai") return { head, ai: { key: s.path.join("."), path: s.path, outer: s.outer } };
+    return { head, body: ui.tab === "design" ? designTab(s) : classesTab(s) };
 }

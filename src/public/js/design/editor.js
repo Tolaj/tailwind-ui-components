@@ -245,7 +245,7 @@ function fitTo(keys, maxZ = 1) {
 
 /** Sizes and places every frame. The live frame and the previews all follow the same positions. */
 function layout() {
-    if (!selected && !pageEditing()) setTimeout(renderInspector, 0); // the page panel (shown while no element is selected) follows its size and position
+    if (!selected) setTimeout(renderInspector, 0); // the page panel (shown while no element is selected) follows its size and position
     const pos = positions();
     docs.forEach((d, key) => {
         const en = wraps.get(key);
@@ -593,6 +593,27 @@ function pageInfo() {
     const d = docs.get(curKey), p = positions()[curKey] || { x: 0, y: 0 };
     return { name: data.title || "", w: widthOf(d), h: heightOfDoc(d), auto: !(d.board && d.board.h), empty: model.markup.trim() === "", x: Math.round(p.x), y: Math.round(p.y), version: data.version, isNew, project: data.project && data.project.name };
 }
+/** A page panel field (name, size, position) typed by the user: applied if it makes sense, otherwise the panel shows the old value again. */
+function setPageField(key, text) {
+    const v = text.trim();
+    if (key === "name") {
+        const prev = data.title;
+        if (v && v !== prev) renameFrame(curKey, v, prev); else renderInspector();
+        return;
+    }
+    if (key === "h" && v === "") {
+        const d = docs.get(curKey), b = { ...(d.board || {}) };
+        delete b.h;
+        d.board = { x: positions()[curKey].x, y: positions()[curKey].y, ...b };
+        queueBoardSave(curKey);
+        layout();
+        return renderInspector();
+    }
+    const n = Number(v);
+    if (v === "" || !Number.isFinite(n)) return renderInspector();
+    setPageBox({ [key]: key === "w" ? clampSize(n, 8000) : key === "h" ? clampSize(n, 20000) : Math.round(n) });
+    renderInspector();
+}
 function setPageBox(patch) {
     const d = docs.get(curKey), p = positions()[curKey];
     d.board = { x: p.x, y: p.y, ...(d.board || {}), ...patch };
@@ -600,8 +621,17 @@ function setPageBox(patch) {
     queueBoardSave(curKey);
     layout();
 }
-const pageEditing = () => Boolean(document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pg], #pageAi") && $("inspector").contains(document.activeElement));
 let lastView = null;
+/** What the panel's components ask of the editor (panel.js). */
+const panelActions = {
+    applyElement: applyElementCode,
+    askAI: (path, outer, prompt) => askAI(path, outer, prompt),
+    draftPage: (prompt) => draftPage(prompt),
+    setPageField,
+    setDevice: (w) => setDevice(w),
+    fit: () => { viewTouched = true; fitTo([curKey]); },
+    details: () => $("detailsBtn").click(),
+};
 /**
  * Draws the panel. `soft` (a field is being typed in): the HTML parts are left as they are, since redrawing them would take
  * the field from under the cursor, and only what is a component (the element's code) is brought up to date.
@@ -610,12 +640,13 @@ function renderInspector(soft = false) {
     ui.frameBp = frameBp();
     ui.elementCode = selected && ui.tab === "classes" ? sourceOf(selected.path) : null;
     let view = inspectorView(selected, selected ? null : pageInfo());
-    if (soft && lastView && Boolean(lastView.code) === Boolean(view.code) && (!view.code || lastView.code.key === view.code.key)) {
+    const kind = (v) => (v.code ? "code" : v.ai ? "ai" : v.page ? "page" : "body");
+    if (soft && lastView && kind(lastView) === kind(view) && (!view.code || lastView.code.key === view.code.key)) {
         view = view.code ? { ...lastView, code: { ...lastView.code, source: view.code.source } } : lastView;
     }
     lastView = view;
     const top = insp.scrollTop;
-    renderPanel(insp, view, { applyElement: applyElementCode });
+    renderPanel(insp, view, panelActions);
     insp.scrollTop = top;
 }
 
@@ -847,10 +878,6 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 insp.addEventListener("click", (e) => {
     const t = e.target;
     if (t.closest("[data-closepanel]")) return setPanel(false);
-    const pw = t.closest("[data-pgw]");
-    if (pw) return setDevice(Number(pw.dataset.pgw));
-    const pa = t.closest("[data-pgact]");
-    if (pa) return pa.dataset.pgact === "fit" ? (viewTouched = true, fitTo([curKey])) : pa.dataset.pgact === "draft" ? draftPage(pa) : $("detailsBtn").click();
     const arr = t.closest("[data-arrange]");
     if (arr && selected) return arrange(arr.dataset.arrange);
     const rst = t.closest("[data-propreset]");
@@ -891,20 +918,10 @@ insp.addEventListener("click", (e) => {
     if (d.dataset.do === "down") cmd({ cmd: "move", path, dir: 1 });
     if (d.dataset.do === "duplicate") cmd({ cmd: "duplicate", path });
     if (d.dataset.do === "remove") cmd({ cmd: "remove", path });
-    if (d.dataset.do === "ai") askAI();
 });
 
 insp.addEventListener("change", (e) => {
     const t = e.target;
-    if (t.dataset.pg) {
-        const k = t.dataset.pg, v = t.value.trim();
-        if (k === "name") { const prev = data.title; return v && v !== prev ? renameFrame(curKey, v, prev) : renderInspector(); }
-        if (k === "h" && v === "") { const d = docs.get(curKey); const b = { ...(d.board || {}) }; delete b.h; d.board = { x: positions()[curKey].x, y: positions()[curKey].y, ...b }; queueBoardSave(curKey); layout(); return renderInspector(); }
-        const n = Number(v);
-        if (v === "" || !Number.isFinite(n)) return renderInspector();
-        setPageBox({ [k]: k === "w" ? clampSize(n, 8000) : k === "h" ? clampSize(n, 20000) : Math.round(n) });
-        return renderInspector();
-    }
     if (!selected) return;
     if (t.dataset.tag !== undefined) return cmd({ cmd: "setTag", path: selected.path, tag: t.value });
     if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
@@ -961,49 +978,20 @@ insp.addEventListener("keydown", (e) => {
     }
 });
 
-// ── Ask AI about the selected element ────────────────────────────────────────
-async function askAI() {
-    const input = $("aiInput");
-    const note = $("aiNote");
-    const prompt = input.value.trim();
-    const say = (msg, bad) => { note.textContent = msg; note.className = `text-[11px] ${bad ? "text-red-700" : "text-neutral-500"}`; };
-    if (!prompt) return say("Describe the change first.", true);
-    const path = selected.path;
-    say("Working...");
+// ── Ask AI about the selected element (the AI tab) ───────────────────────────
+/** Changes the element at `path` (whose code is `outer`) as asked. Returns { ok, message? } for the AI tab to show. */
+async function askAI(path, outer, prompt) {
     try {
-        const res = await fetch("/api/ai/generate-stream", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                prompt: `${prompt}\n\nReturn ONLY the full modified HTML of this single element, keeping the same root tag. No explanation and no code fences.`,
-                currentHtml: selected.outer,
-                useLibrary: false,
-            }),
+        const html = await streamAI({
+            prompt: `${prompt}\n\nReturn ONLY the full modified HTML of this single element, keeping the same root tag. No explanation and no code fences.`,
+            currentHtml: outer,
+            useLibrary: false,
         });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "AI request failed");
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "", out = "";
-        for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split("\n\n");
-            buffer = parts.pop();
-            for (const part of parts) {
-                if (!part.startsWith("data:")) continue;
-                let ev; try { ev = JSON.parse(part.slice(5)); } catch { continue; }
-                if (ev.type === "delta") out += ev.text;
-                if (ev.type === "error") throw new Error(ev.message);
-            }
-        }
-        const html = out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
         if (!html.startsWith("<")) throw new Error("The AI didn't return HTML. Try rephrasing.");
         cmd({ cmd: "replaceOuter", path, html });
-        input.value = "";
-        say("Applied. Undo with Ctrl/Cmd+Z.");
+        return { ok: true };
     } catch (err) {
-        say(err.message, true);
+        return { ok: false, message: err.message };
     }
 }
 
@@ -1433,13 +1421,8 @@ async function streamAI(body, onText) {
     return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
 }
 
-async function draftPage(btn) {
-    const input = $("pageAi"), note = $("pageAiNote");
-    const prompt = input.value.trim();
-    const say = (msg, bad) => { note.textContent = msg; note.className = `text-[11px] ${bad ? "text-red-700" : "text-neutral-500"}`; };
-    if (!prompt) return say("Describe what you want first.", true);
-    btn.disabled = true;
-    say("Drafting...");
+/** Drafts the whole (empty) page from a description. Returns { ok, message? } for the page panel to show. */
+async function draftPage(prompt) {
     try {
         const html = await streamAI({ prompt, useLibrary: true });
         if (!html.startsWith("<")) throw new Error("The AI didn't return HTML. Try rephrasing.");
@@ -1449,9 +1432,9 @@ async function draftPage(btn) {
         if (!data.title) data.title = prompt.slice(0, 60);
         updateChrome();
         renderInspector();
+        return { ok: true };
     } catch (err) {
-        say(err.message, true);
-        btn.disabled = false;
+        return { ok: false, message: err.message };
     }
 }
 
@@ -1920,7 +1903,7 @@ function startRename(key) {
 async function renameFrame(key, name, previous) {
     const d = docs.get(key);
     const isNewDoc = key === curKey ? isNew : d.isNew;
-    const apply = (t) => { d.meta.title = t; if (key === curKey) data.title = t; updateChrome(); };
+    const apply = (t) => { d.meta.title = t; if (key === curKey) { data.title = t; renderInspector(inspectorEditing()); } updateChrome(); }; // the page panel shows the name
     apply(name);
     if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its name when it is
     try {
