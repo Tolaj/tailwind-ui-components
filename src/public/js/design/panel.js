@@ -4,11 +4,12 @@
 // the editor's click/input handlers keep working on it through the data attributes. What is a component keeps its own
 // state (what is being typed, the cursor, errors) across renders, so the editor can redraw the panel whenever it likes.
 // Moved so far: the Code tab's element code, the AI tab, the page panel (shown when no element is selected), and the top of
-// the Design tab (design-tab.js); controls.js and group-controls.js hold the blocks the rest of the Design tab will be made of.
+// the Design tab (design-tab.js) and its property sections (prop-sections.js); controls.js and group-controls.js hold the blocks the rest of the Design tab will be made of.
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
+import { PropSections } from "./prop-sections.js";
 
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
 const PageField = ({ label, value, placeholder, onCommit, row }) => html`<${Field} label=${label} cell=${!row}><${TextInput} value=${value} placeholder=${placeholder} onCommit=${onCommit} /></${Field}>`;
@@ -165,7 +166,10 @@ function PagePanel({ page: pg, actions }) {
 /** The panel: its head (tabs), then a component or HTML from inspector.js. */
 function Panel({ view, actions }) {
     let body;
-    if (view.design) body = html`<${DesignTop} key=${view.design.key} s=${view.design.s} ctx=${view.design.ctx} actions=${actions} /><${Raw} html=${view.design.rest} />`;
+    if (view.design) {
+        const d = view.design;
+        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${Raw} html=${d.before} /><${PropSections} s=${d.s} actions=${actions} /><${Raw} html=${d.after} />`;
+    }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} rest=${view.code.rest} onApply=${actions.applyElement} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
     else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />`;

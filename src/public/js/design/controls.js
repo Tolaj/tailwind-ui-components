@@ -68,12 +68,13 @@ export function SelectInput({ value, options, groups, onChange, blank, title, cl
 }
 
 /**
- * A row of buttons where one can be on. `items` are [value, label, title]; clicking the one that is on sends "" (off), another sends its value.
- * @param {{ value?: string, items: string[][], onPick: (value: string) => void, off?: boolean }} props `off`: clicking the one that is on sends its value again (a fixed choice, not a toggle)
+ * A row of buttons where one can be on. `items` are [value, label, title]; the title is the label when it is left out, and none
+ * when it is null. Clicking the one that is on sends "" (off), another sends its value.
+ * @param {{ value?: string, items: (string | null)[][], onPick: (value: string) => void, off?: boolean }} props `off`: clicking the one that is on sends its value again (a fixed choice, not a toggle)
  */
 export function Segmented({ value, items, onPick, off }) {
-    return html`<div class="seg2">${items.map(([v, l, t]) => html`<button type="button" title=${t || l} class=${value === v ? "on" : ""}
-        onClick=${() => onPick(value === v && !off ? "" : v)}>${l}</button>`)}</div>`;
+    return html`<div class="seg2">${items.map(([v, l, t]) => html`<button type="button" title=${t === null ? undefined : t || l} class=${value === v ? "on" : ""}
+        onClick=${() => onPick(value === v && !off ? "" : /** @type {string} */ (v))}>${l}</button>`)}</div>`;
 }
 
 /** A labelled row: <div class="row">. */
@@ -86,10 +87,11 @@ export const Four = ({ children }) => html`<div class="four">${children}</div>`;
 
 /**
  * A collapsible section with a header; a dot shows that something in it is set. `open` is what is shown, `onToggle` flips it.
- * @param {{ title: string, open: boolean, set?: boolean, onToggle: () => void, id?: string, children?: any }} props
+ * (It has no data-sec: the editor's delegated handler for the sections still in HTML would toggle it a second time.)
+ * @param {{ title: string, open: boolean, set?: boolean, onToggle: () => void, children?: any }} props
  */
-export function Section({ title, open, set, onToggle, id, children }) {
-    return html`<div class="sec"><button type="button" class="sech" data-sec=${id} data-open=${String(open)} onClick=${onToggle}>
+export function Section({ title, open, set, onToggle, children }) {
+    return html`<div class="sec"><button type="button" class="sech" onClick=${onToggle}>
         <span class="car">${open ? "▾" : "▸"}</span><span class="t">${title}</span>${set && html`<i class="dot"></i>`}</button>
         ${open && html`<div class="secb">${children}</div>`}</div>`;
 }
@@ -113,4 +115,17 @@ export function ColorField({ label, name, opacity, swatchClass, swatchStyle, cus
                 <button type="button" class="clear" onClick=${() => onPick("")}>None</button></div>
             ${HUES.map((h) => html`<div class="palrow">${SHADES.map((s) => cell(`${h}-${s}`, `bg-${h}-${s}`))}</div>`)}
         </div>`}`;
+}
+
+/**
+ * A colour input. While it is being dragged it shows what is picked (the redraws that follow each change carry the old value
+ * until the page reports the new one). `onLive(hex)` on every move, `onDone(hex, input)` when it is released or closed.
+ * `hook` is extra attributes, such as { "data-propcolor": prop }, which the editor's colour picker uses to find the field again.
+ * @param {{ value: string, title?: string, class?: string, hook?: Record<string, string>, onLive: (hex: string) => void, onDone: (hex: string, input: HTMLInputElement) => void }} props
+ */
+export function ColorInput({ value, title, class: cls = "cinp", hook, onLive, onDone }) {
+    const [draft, setDraft] = useState(/** @type {string | null} */ (null));
+    return html`<input type="color" class=${cls} value=${draft ?? value} title=${title} ...${hook || {}}
+        onInput=${(e) => { setDraft(e.target.value); onLive(e.target.value); }}
+        onChange=${(e) => { setDraft(null); onDone(e.target.value, e.target); }} />`;
 }

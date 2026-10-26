@@ -640,6 +640,16 @@ const panelActions = {
     setBreakpoint: (bp) => { ui.bp = bp; setDevice(BREAKPOINT_WIDTH[ui.bp]); renderInspector(); },
     setState: (st) => { ui.st = st; renderInspector(); },
     setText: (text) => { if (selected) cmd({ cmd: "setText", path: selected.path, text }, "text"); },
+    // the property sections (prop-sections.js)
+    setProp: (prop, value) => { if (selected) setProp(prop, value); },
+    setPropLive: (prop, hex) => { if (selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
+    setPropDone: (prop, hex, input) => { if (selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); pickerClosed(input); },
+    resetProp: (prop) => { if (selected) setProp(prop, ""); },
+    arrange: (kind) => { if (selected) arrange(kind); },
+    toggleSection: (id, wasOpen) => {
+        if (wasOpen) { ui.open.delete(id); ui.closed.add(id); } else { ui.open.add(id); ui.closed.delete(id); }
+        renderInspector();
+    },
     setAttr: (name, value) => { if (selected) cmd({ cmd: "setAttr", path: selected.path, name, value: value === "" ? null : value }, `attr-${name}`); },
 };
 /**
@@ -654,7 +664,7 @@ function renderInspector(soft = false) {
     const same = (v) => (v.design || v.code || {}).key;
     if (soft && lastView && kind(lastView) === kind(view) && same(lastView) === same(view)) {
         if (view.code) view = { ...lastView, code: { ...lastView.code, source: view.code.source } };
-        else if (view.design) view = { ...view, design: { ...view.design, rest: lastView.design.rest } }; // its HTML parts stay (a field in them has focus)
+        else if (view.design) view = { ...view, design: { ...view.design, before: lastView.design.before, after: lastView.design.after } }; // its HTML parts stay (a field in them has focus)
         else view = lastView;
     }
     lastView = view;
@@ -891,12 +901,6 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 insp.addEventListener("click", (e) => {
     const t = e.target;
     if (t.closest("[data-closepanel]")) return setPanel(false);
-    const arr = t.closest("[data-arrange]");
-    if (arr && selected) return arrange(arr.dataset.arrange);
-    const rst = t.closest("[data-propreset]");
-    if (rst && selected) return setProp(rst.dataset.propreset, "");
-    const pseg = t.closest("[data-propseg]");
-    if (pseg && selected) return setProp(pseg.dataset.propseg, pseg.dataset.v);
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
     const sec = t.closest("[data-sec]");
@@ -929,8 +933,6 @@ insp.addEventListener("click", (e) => {
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
-    if (t.dataset.propcolor) { setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`)); return pickerClosed(t); }
-    if (t.dataset.prop) return setProp(t.dataset.prop, t.value);
     if (t.dataset.geom) {
         const n = Number(t.value);
         if (t.value.trim() === "" || !Number.isFinite(n)) return renderInspector();
@@ -963,7 +965,6 @@ insp.addEventListener("change", (e) => {
 insp.addEventListener("input", (e) => {
     if (!selected) return;
     const t = e.target;
-    if (t.dataset.propcolor) return setProp(t.dataset.propcolor, t.value, undefined, liveKey(`p-${t.dataset.propcolor}`));
     if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`));
     if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
 });

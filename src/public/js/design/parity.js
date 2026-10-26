@@ -2,18 +2,20 @@
 // components, this draws both for the same input and compares what a person would see and be able to do: every label, every
 // control with its value, options, classes and on/off state, in order. From the browser console on /design:
 //   const p = await import("/public/js/design/parity.js"); p.checkGroupControls();
-// Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2, checkAll runs
-// them all); it goes with the old builders in step 7.
+// Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2,
+// checkPropSections: step 3; checkAll runs them all); it goes with the old builders in step 7.
 import { html, render } from "../vendor/preact-htm.js";
 import { ui } from "./inspector.js";
 import { GROUPS } from "./class-groups.js";
 import * as old from "./inspector.js";
 import { GroupCombo, GroupSelect, GroupSeg, GroupColor } from "./group-controls.js";
 import { DesignTop } from "./design-tab.js";
+import { PropSections } from "./prop-sections.js";
+import { CSS_SECTIONS } from "./css-props.js";
 
 const norm = (t) => String(t || "").replace(/\s+/g, " ").trim();
 const CONTROLS = "input, select, textarea, button";
-const TEXTS = ".lbl, .clbl, .t, .stag, .pct, .bml, .sub, .car, .sl, .legend, .muted, p";
+const TEXTS = ".lbl, .clbl, .t, .stag, .pct, .bml, .bc, .dot, .arrange > span, .sub, .car, .sl, .legend, .muted, p";
 const classes = (el) => [...el.classList].sort().join(".");
 // a style is compared as the browser reads it (background:#f00 and background: rgb(255, 0, 0); are the same)
 const attr = (el, names) => names.map((n) => (!el.hasAttribute(n) ? "" : n === "style" ? `style=${el.style.cssText}` : `${n}=${norm(el.getAttribute(n))}`)).filter(Boolean).join(" ");
@@ -150,8 +152,65 @@ export function checkDesignTop() {
     return { checked, failures };
 }
 
+// ── The property sections ────────────────────────────────────────────────────
+const PROP_LIST = CSS_SECTIONS.flatMap(([, , c]) => (c === "box" ? ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"].map((p) => ({ p })) : c));
+// a Tailwind class for some properties, so the rows show a class's own value (64, 1/2, red-500) and a TW tag
+const TOKENS = { width: "w-1/2", height: "h-[30px]", "min-width": "min-w-0", "padding-top": "pt-4", "padding-left": "md:pl-8", "margin-left": "-ml-2", "margin-bottom": "mb-6", "font-size": "text-xl", "font-weight": "font-bold", color: "text-red-500", "background-color": "bg-blue-500/50", display: "flex", position: "relative", gap: "gap-x-4", "border-top-color": "border-gray-300", "border-radius": "rounded-lg", "z-index": "z-10", opacity: "opacity-75", top: "top-0", "text-align": "text-center", "flex-direction": "flex-col", "box-shadow": "shadow-lg" };
+const SOURCE_KINDS = ["tailwind", "inline", "design", "parent", "tie", "default"];
+/** A value the row can show for this kind of control: the first option, one the list doesn't have, nothing, a colour, a length. */
+const computedFor = (c, n) => {
+    const pick = n % 4;
+    if (c.t === "select") return pick === 0 ? c.o[0] : pick === 1 ? c.o[c.o.length - 1] : pick === 2 ? "unusual-value" : "";
+    if (c.t === "seg") return ["left", "start", "center", ""][pick];
+    if (c.t === "color") return ["rgb(10, 20, 30)", "rgba(0, 0, 0, 0)", "", "rgba(255, 0, 0, 0.5)"][pick];
+    return ["12px", "auto", "", "50%"][pick];
+};
+/** A selection like the editor's describe(), with a source and a computed value for every property, rotated by `seed`. */
+const propSample = (seed, extra = {}) => {
+    const sources = {}, computed = {};
+    PROP_LIST.forEach((c, n) => {
+        const kind = SOURCE_KINDS[(n + seed) % SOURCE_KINDS.length];
+        computed[c.p] = computedFor(c, n + seed);
+        sources[c.p] = kind === "tailwind" || kind === "tie" ? (TOKENS[c.p] ? { source: kind, token: TOKENS[c.p] } : { source: "inline" })
+            : kind === "design" ? { source: "design", selector: ".card > h2" } : kind === "parent" ? { source: "parent", token: "text-center" } : { source: kind };
+    });
+    return { tag: "div", classes: "", attrs: {}, crumbs: [], sources, computed, geom: { abs: false }, arrange: null, ...extra };
+};
+const OPEN_SETS = [
+    ["default", null],
+    ["all closed", new Set()],
+    ["all open", new Set(CSS_SECTIONS.map(([id]) => id))],
+];
+const propActions = { setProp: noop, setPropLive: noop, setPropDone: noop, resetProp: noop, arrange: noop, toggleSection: noop };
+
+/** The property sections: the old builder against PropSections, for sources of every kind, assorted values, open and closed. */
+export function checkPropSections() {
+    const saved = { open: ui.open, closed: ui.closed };
+    const failures = [];
+    let checked = 0;
+    try {
+        for (const [name, open] of OPEN_SETS) {
+            for (const closedOffsets of [false, true]) {
+                if (open) ui.open = open; else ui.open = saved.open;
+                ui.closed = new Set(closedOffsets ? ["css-offsets"] : []);
+                for (let seed = 0; seed < SOURCE_KINDS.length; seed++) for (const extra of [{}, { geom: { abs: true } }, { arrange: { count: 3 }, tag: "section" }]) {
+                    const s = propSample(seed, extra);
+                    const [a, b] = draw(old.propSections(s), html`<${PropSections} s=${s} actions=${propActions} />`);
+                    const r = compare(a, b);
+                    checked++;
+                    if (!r.same) failures.push({ what: `${name}${closedOffsets ? ", offsets closed" : ""} seed ${seed} ${Object.keys(extra).join("+") || "plain"}`, diffs: r.diffs.slice(0, 3) });
+                }
+            }
+        }
+    } finally {
+        Object.assign(ui, saved);
+    }
+    if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
+    return { checked, failures };
+}
+
 /** Everything moved so far. */
 export function checkAll() {
-    const a = checkGroupControls(), b = checkDesignTop();
-    return { checked: a.checked + b.checked, failures: [...a.failures, ...b.failures] };
+    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections()];
+    return { checked: parts.reduce((n, p) => n + p.checked, 0), failures: parts.flatMap((p) => p.failures) };
 }
