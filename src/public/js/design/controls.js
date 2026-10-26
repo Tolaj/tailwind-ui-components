@@ -99,7 +99,7 @@ export function Section({ title, open, set, onToggle, children }) {
 /**
  * A colour as a row: a swatch that opens the palette, the colour's name (typed), its opacity, and (when open) the palette:
  * the special colours, a custom colour picker, None, and every hue and shade.
- * @param {{ label: string, name: string, opacity: string, swatchClass?: string, swatchStyle?: string, customValue?: string, paletteOpen: boolean, onPalette: () => void, onName: (text: string) => void, onOpacity: (text: string) => void, onPick: (value: string) => void, onCustom: (hex: string, done: boolean, input: HTMLInputElement) => void, customKey?: string }} props
+ * @param {{ label: string, name: string, opacity: string, swatchClass?: string, swatchStyle?: string, customValue?: string, paletteOpen: boolean, onPalette: () => void, onName: (text: string) => void, onOpacity: (text: string) => void, onPick: (value: string) => void, onCustom: (hex: string, done: boolean, input: HTMLInputElement | null) => void, customKey?: string }} props
  */
 export function ColorField({ label, name, opacity, swatchClass, swatchStyle, customValue, paletteOpen, onPalette, onName, onOpacity, onPick, onCustom, customKey }) {
     const cell = (/** @type {string} */ v, /** @type {string} */ cls) => html`<button type="button" title=${v} class=${`sw2 ${cls} ${name === v ? "on" : ""}`} onClick=${() => onPick(v)}></button>`;
@@ -110,8 +110,8 @@ export function ColorField({ label, name, opacity, swatchClass, swatchStyle, cus
             <${TextInput} class="fi op" value=${opacity} placeholder="100" title="Opacity %" onCommit=${onOpacity} /><span class="pct">%</span></div>
         ${paletteOpen && html`<div class="pal">
             <div class="palrow">${SPECIAL_COLORS.map((c) => cell(c, c === "black" ? "bg-black" : c === "white" ? "bg-white" : "swatch-t"))}
-                <label class="sw2 custom" title="Custom color"><input type="color" data-ccustom=${customKey} value=${customValue || "#111"}
-                    onInput=${(e) => onCustom(e.target.value, false, e.target)} onChange=${(e) => onCustom(e.target.value, true, e.target)} /></label>
+                <label class="sw2 custom" title="Custom color"><${ColorInput} class="" value=${customValue || "#111"} hook=${{ "data-ccustom": customKey }}
+                    onLive=${(hex) => onCustom(hex, false, null)} onDone=${(hex, input) => onCustom(hex, true, input)} /></label>
                 <button type="button" class="clear" onClick=${() => onPick("")}>None</button></div>
             ${HUES.map((h) => html`<div class="palrow">${SHADES.map((s) => cell(`${h}-${s}`, `bg-${h}-${s}`))}</div>`)}
         </div>`}`;

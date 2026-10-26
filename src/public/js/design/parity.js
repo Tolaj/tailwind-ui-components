@@ -3,7 +3,7 @@
 // control with its value, options, classes and on/off state, in order. From the browser console on /design:
 //   const p = await import("/public/js/design/parity.js"); p.checkGroupControls();
 // Each step of the move extends it with the part it moves (checkGroupControls: step 1, checkDesignTop: step 2,
-// checkPropSections: step 3, checkGeomSection: step 4; checkAll runs them all); it goes with the old builders in step 7.
+// checkPropSections: step 3, checkGeomSection: step 4, checkExtrasSection: step 5; checkAll runs them all); it goes with the old builders in step 7.
 import { html, render } from "../vendor/preact-htm.js";
 import { ui } from "./inspector.js";
 import { GROUPS } from "./class-groups.js";
@@ -12,6 +12,7 @@ import { GroupCombo, GroupSelect, GroupSeg, GroupColor } from "./group-controls.
 import { DesignTop } from "./design-tab.js";
 import { PropSections } from "./prop-sections.js";
 import { GeomSection } from "./geom-section.js";
+import { ExtrasSection } from "./extras-section.js";
 import { CSS_SECTIONS } from "./css-props.js";
 
 const norm = (t) => String(t || "").replace(/\s+/g, " ").trim();
@@ -251,8 +252,40 @@ export function checkGeomSection() {
     return { checked, failures };
 }
 
+// ── The Tailwind extras ──────────────────────────────────────────────────────
+const extrasActions = { applyValue: noop, applyColor: noop, togglePalette: noop, customColor: noop, redraw: noop, toggleSection: noop };
+
+/** The Tailwind extras: the old section builder against ExtrasSection, for several class lists, breakpoints and states, a palette open on each colour, open and closed. */
+export function checkExtrasSection() {
+    const saved = { bp: ui.bp, st: ui.st, palette: ui.palette, open: ui.open };
+    const failures = [];
+    let checked = 0;
+    try {
+        for (const open of [true, false]) {
+            ui.open = new Set(open ? ["tw-extras"] : []);
+            for (const [bp, st] of VARIANTS) {
+                ui.bp = bp; ui.st = st;
+                for (const classesText of [...SAMPLES, "space-x-4 grid-rows-2 col-span-2 order-last self-center flex-1 grow line-clamp-3 rotate-45 scale-95 -translate-x-1/2 translate-y-2 transition duration-300 delay-75 ease-in-out blur-sm backdrop-blur-md brightness-110 grayscale select-none ring-2 ring-offset-2 ring-green-600/25 bg-gradient-to-br from-indigo-500 via-white to-pink-400"]) {
+                    for (const palette of [null, "gradFrom", "gradVia", "gradTo", "ringColor"]) {
+                        ui.palette = palette;
+                        const s = sample(classesText);
+                        const [a, b] = draw(old.designAfter(s), html`<${ExtrasSection} s=${s} actions=${extrasActions} />`);
+                        const r = compare(a, b);
+                        checked++;
+                        if (!r.same) failures.push({ what: `${classesText.slice(0, 22)}… @${bp || "base"}${st ? ":" + st : ""}${palette ? " palette " + palette : ""}${open ? "" : " (closed)"}`, diffs: r.diffs.slice(0, 3) });
+                    }
+                }
+            }
+        }
+    } finally {
+        Object.assign(ui, saved);
+    }
+    if (failures.length) console.warn(`${failures.length} of ${checked} differ`, failures.slice(0, 5));
+    return { checked, failures };
+}
+
 /** Everything moved so far. */
 export function checkAll() {
-    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections(), checkGeomSection()];
+    const parts = [checkGroupControls(), checkDesignTop(), checkPropSections(), checkGeomSection(), checkExtrasSection()];
     return { checked: parts.reduce((n, p) => n + p.checked, 0), failures: parts.flatMap((p) => p.failures) };
 }

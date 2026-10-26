@@ -4,13 +4,14 @@
 // the editor's click/input handlers keep working on it through the data attributes. What is a component keeps its own
 // state (what is being typed, the cursor, errors) across renders, so the editor can redraw the panel whenever it likes.
 // Moved so far: the Code tab's element code, the AI tab, the page panel (shown when no element is selected), and the top of
-// the Design tab (design-tab.js) its position and size (geom-section.js) and its property sections (prop-sections.js); controls.js and group-controls.js hold the blocks the rest of the Design tab will be made of.
+// the Design tab (design-tab.js) its position and size (geom-section.js), its property sections (prop-sections.js) and its Tailwind extras (extras-section.js): the whole Design tab; controls.js and group-controls.js hold the blocks the rest of the Design tab will be made of.
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
 import { GeomSection } from "./geom-section.js";
 import { PropSections } from "./prop-sections.js";
+import { ExtrasSection } from "./extras-section.js";
 
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
 const PageField = ({ label, value, placeholder, onCommit, row }) => html`<${Field} label=${label} cell=${!row}><${TextInput} value=${value} placeholder=${placeholder} onCommit=${onCommit} /></${Field}>`;
@@ -169,7 +170,7 @@ function Panel({ view, actions }) {
     let body;
     if (view.design) {
         const d = view.design;
-        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${GeomSection} s=${d.s} actions=${actions} /><${PropSections} s=${d.s} actions=${actions} /><${Raw} html=${d.after} />`;
+        body = html`<${DesignTop} key=${d.key} s=${d.s} ctx=${d.ctx} actions=${actions} /><${GeomSection} s=${d.s} actions=${actions} /><${PropSections} s=${d.s} actions=${actions} /><${ExtrasSection} s=${d.s} actions=${actions} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} rest=${view.code.rest} onApply=${actions.applyElement} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;

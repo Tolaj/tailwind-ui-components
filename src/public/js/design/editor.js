@@ -655,6 +655,16 @@ const panelActions = {
     ungroup: () => { if (selected) send({ cmd: "ungroup" }); },
     autoLayout: () => { if (selected) send({ cmd: "autoLayout" }); },
     sizeItMyself: () => { if (selected) sizeItMyself(); },
+    // the class-group controls (group-controls.js): the Tailwind extras
+    applyValue: (key, value) => { if (selected) applyValue(key, value); },
+    applyColor: (key, name, op, undoKey) => { if (selected) applyColor(key, name, op, undoKey); },
+    togglePalette: (key) => { ui.palette = ui.palette === key ? null : key; renderInspector(); },
+    customColor: (key, hex, done, input) => {
+        if (!selected) return;
+        applyColor(key, hex, undefined, liveKey(`c-${key}`));
+        if (done) pickerClosed(input);
+    },
+    redraw: () => renderInspector(),
     // the property sections (prop-sections.js)
     setProp: (prop, value) => { if (selected) setProp(prop, value); },
     setPropLive: (prop, hex) => { if (selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
@@ -679,8 +689,7 @@ function renderInspector(soft = false) {
     const same = (v) => (v.design || v.code || {}).key;
     if (soft && lastView && kind(lastView) === kind(view) && same(lastView) === same(view)) {
         if (view.code) view = { ...lastView, code: { ...lastView.code, source: view.code.source } };
-        else if (view.design) view = { ...view, design: { ...view.design, after: lastView.design.after } }; // its HTML part stays (a field in it has focus)
-        else view = lastView;
+        else if (!view.design) view = lastView; // (the Design tab is all components: they keep their own typed text, so it just redraws)
     }
     lastView = view;
     const top = insp.scrollTop;
@@ -918,19 +927,6 @@ insp.addEventListener("click", (e) => {
     if (t.closest("[data-closepanel]")) return setPanel(false);
     const tab = t.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; return renderInspector(); }
-    const sec = t.closest("[data-sec]");
-    if (sec) {
-        const id = sec.dataset.sec;
-        // data-open is what is shown (a section can open by itself), so a click always flips what you see
-        if (sec.dataset.open === "true" || (sec.dataset.open === undefined && ui.open.has(id))) { ui.open.delete(id); ui.closed.add(id); } else { ui.open.add(id); ui.closed.delete(id); }
-        return renderInspector();
-    }
-    const sg = t.closest("[data-seg]");
-    if (sg) return applyValue(sg.dataset.seg, sg.dataset.v);
-    const pal = t.closest("[data-pal]");
-    if (pal) { ui.palette = ui.palette === pal.dataset.pal ? null : pal.dataset.pal; return renderInspector(); }
-    const cv = t.closest("[data-cv]");
-    if (cv && ui.palette) return applyColor(ui.palette, cv.dataset.cv);
     const rm = t.closest("[data-rm]");
     if (rm && selected) return setClassString(selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== Number(rm.dataset.rm)).join(" "));
 });
@@ -938,13 +934,6 @@ insp.addEventListener("click", (e) => {
 insp.addEventListener("change", (e) => {
     const t = e.target;
     if (!selected) return;
-    if (t.matches("[data-g]")) return applyValue(t.dataset.g, t.value.trim());
-    if (t.dataset.cname !== undefined) return applyColor(t.dataset.cname, t.value.trim());
-    if (t.dataset.cop !== undefined) {
-        const name = val(selected, t.dataset.cop).replace(/\/\d+$/, "");
-        return name ? applyColor(t.dataset.cop, name, t.value.trim()) : renderInspector();
-    }
-    if (t.dataset.ccustom !== undefined) { applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`)); return pickerClosed(t); }
     const stRow = t.closest("[data-stylerow]");
     if (stRow) {
         const css = [...insp.querySelectorAll("[data-stylerow]")]
@@ -964,7 +953,6 @@ insp.addEventListener("change", (e) => {
 insp.addEventListener("input", (e) => {
     if (!selected) return;
     const t = e.target;
-    if (t.dataset.ccustom !== undefined) return applyColor(t.dataset.ccustom, t.value, undefined, liveKey(`c-${t.dataset.ccustom}`));
     if (t.dataset.field === "classes") { selected.classes = t.value.trim(); cmd({ cmd: "setClasses", path: selected.path, value: selected.classes }, "classes"); }
 });
 

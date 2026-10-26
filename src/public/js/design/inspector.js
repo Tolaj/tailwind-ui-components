@@ -120,7 +120,7 @@ const box = (sel) => {
 
 // Tailwind-only controls with no single CSS property of their own (a gradient, a ring, space between children...). Everything
 // that is one CSS property lives in the property rows below, which edit wherever the value comes from.
-const EXTRA_KEYS = ["bgImage", "gradFrom", "gradVia", "gradTo", "ring", "ringColor", "spaceX", "spaceY", "gridRows", "colSpan", "rowSpan", "order", "self", "flexNum", "grow", "lineClamp", "rotate", "scale", "translateX", "translateY", "transition", "duration", "delay", "ease", "blur", "backdropBlur", "brightness", "grayscale", "userSelect"];
+export const EXTRA_KEYS = ["bgImage", "gradFrom", "gradVia", "gradTo", "ring", "ringColor", "spaceX", "spaceY", "gridRows", "colSpan", "rowSpan", "order", "self", "flexNum", "grow", "lineClamp", "rotate", "scale", "translateX", "translateY", "transition", "duration", "delay", "ease", "blur", "backdropBlur", "brightness", "grayscale", "userSelect"];
 const extrasBody = (s) =>
     `<p class="sub first">Gradient</p>` + select(s, "bgImage", "Direction") + colorRow(s, "gradFrom", "From") + colorRow(s, "gradVia", "Via") + colorRow(s, "gradTo", "To") +
     `<p class="sub">Ring</p>` + two(combo(s, "ring", "Width", true), "<span></span>") + colorRow(s, "ringColor", "Color") +
@@ -258,7 +258,7 @@ export function tagRow(s) {
 export function designTab(s) {
     return `<div class="crumbs">${crumbs(s)}</div>` + tagRow(s) + actions(s) + legend(s) + variantBar() + contentFields(s) + designRest(s);
 }
-/** The Design tab below its top: position and size (geom-section.js) and the property sections (prop-sections.js) are components; only the Tailwind extras are still HTML. */
+/** The Design tab below its top, as HTML. Every part is a component now (geom-section.js, prop-sections.js, extras-section.js); this is kept for parity.js. */
 export const designBefore = (s) => section(s, "geom", "Position and size", ["w"], geomBody);
 export const designAfter = (s) => section(s, "tw-extras", "Tailwind extras", EXTRA_KEYS, extrasBody);
 export const designRest = (s) => designBefore(s) + propSections(s) + designAfter(s);
@@ -284,8 +284,8 @@ const CLOSE_BTN = (extra) => `<button type="button" data-closepanel title="Close
 /**
  * What the panel shows, for panel.js: { head } (HTML) and one of
  *  - body: HTML (the Design tab, the classes and attributes when there is no code to show);
- *  - design: { key, s, ctx, after }, the Design tab: its top (design-tab.js), position and size (geom-section.js) and the
- *    property sections (prop-sections.js) are components, `after` the HTML below them (the Tailwind extras);
+ *  - design: { key, s, ctx }, the Design tab, all components: its top (design-tab.js), position and size (geom-section.js),
+ *    the property sections (prop-sections.js) and the Tailwind extras (extras-section.js);
  *  - code: { key, path, source, indent, rest }, the Code tab: the element's own code (a component) and the HTML of the rest;
  *  - ai: { key, path, outer }, the AI tab (a component);
  *  - page: the page's info (pageInfo() in editor.js), the page panel (a component), when no element is selected.
@@ -297,6 +297,6 @@ export function inspectorView(s, page) {
     if (!s) return { head, body: `<div class="empty">Select an element on the canvas, or in Layers, to edit it.</div>` };
     if (ui.tab === "classes" && ui.elementCode) return { head, code: { key: s.path.join("."), path: s.path, source: ui.elementCode.source, indent: ui.elementCode.indent, rest: classesTab(s) } };
     if (ui.tab === "ai") return { head, ai: { key: s.path.join("."), path: s.path, outer: s.outer } };
-    if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s), after: designAfter(s) } };
+    if (ui.tab === "design") return { head, design: { key: s.path.join("."), s, ctx: designCtx(s) } };
     return { head, body: classesTab(s) };
 }
