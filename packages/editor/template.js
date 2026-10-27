@@ -138,6 +138,10 @@ export const editorHtml = `<div class="flex h-screen flex-col">
             </div>
 
             <main id="canvas" class="relative min-h-0 flex-1 overflow-hidden" style="touch-action:none">
+                <div id="boot" role="status" aria-live="polite" class="absolute inset-0 z-[40] hidden flex-col items-center justify-center gap-3 bg-neutral-100 text-[13px] text-neutral-500">
+                    <span class="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-800"></span>
+                    <span>Opening your design…</span>
+                </div>
                 <div id="plane" class="absolute left-0 top-0" style="transform-origin:0 0">
                     <div id="frames"></div>
                     <iframe id="frame" aria-label="Design canvas" sandbox="allow-scripts" class="block bg-white"

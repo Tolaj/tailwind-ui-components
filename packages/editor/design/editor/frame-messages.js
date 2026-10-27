@@ -1,6 +1,6 @@
 import { closeColorPicker } from "../color-picker.js";
 import { CSS_PROP_LIST } from "../css-props.js";
-import { S, frame, model, send } from "./base.js";
+import { S, data, frame, model, send } from "./base.js";
 import { docs, scheduleLayout, selectFrame, wraps } from "./designs.js";
 import { pathKey, renderLayers } from "./layers.js";
 import { FLOAT_ACTIONS, ftb, renderFloat, renderSel } from "./frame-handles.js";
@@ -13,8 +13,14 @@ import { updateCodeHighlight } from "./code-panel.js";
 let pendingKey = "";
 export const cmd = (msg, key = "") => { pendingKey = key; send(key ? { key, ...msg } : msg); };
 
+// A design takes a moment to load into the canvas (its Tailwind styling, its pictures): until it does, the canvas shows a loading
+// message instead of an empty frame in a corner. It goes at the first "ready" from the frame, or after 15 seconds whatever happens.
+function hideBoot() { const b = document.getElementById("boot"); if (b) { b.classList.add("hidden"); b.classList.remove("flex"); } }
+
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
 export function init() {
+    const boot = document.getElementById("boot");
+    if (boot && (data.htmlCode || data.id)) { boot.classList.remove("hidden"); boot.classList.add("flex"); setTimeout(hideBoot, 15000); }
 
     // ── Messages from the frame ──────────────────────────────────────────────────
     window.addEventListener("message", (e) => {
@@ -64,6 +70,7 @@ export function init() {
             if (!S.viewTouched) fitTo([S.curKey]);
             S.sentZoom = 0;
             applyView();
+            setTimeout(hideBoot, 150); // the first paint of the fitted design, then the loading message goes
             send({ cmd: "tool", tool: S.tool });
             send({ cmd: "cssProps", props: CSS_PROP_LIST });
             renderFloat();
