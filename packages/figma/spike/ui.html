@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    body { font: 12px/1.4 Inter, system-ui, sans-serif; margin: 12px; color: #222; }
+    h1 { font-size: 13px; margin: 0 0 6px; }
+    p { margin: 0 0 8px; color: #555; }
+    #verdict { font-weight: 600; margin: 8px 0; padding: 8px; background: #f3f4f6; border-radius: 6px; }
+    textarea { width: 100%; height: 340px; box-sizing: border-box; font: 11px/1.4 ui-monospace, monospace; }
+    button { font: inherit; padding: 6px 10px; margin-right: 6px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+</style>
+</head>
+<body>
+    <h1>Windcraft Auto Layout spike</h1>
+    <p>Select frames drawn <b>without</b> Auto Layout, press Run, then copy the report.</p>
+    <button class="primary" id="run">Run</button><button id="copy">Copy report</button><span id="sel"></span>
+    <div id="verdict">Waiting…</div>
+    <textarea id="out" readonly></textarea>
+<script>
+    const $ = (id) => document.getElementById(id);
+    $("run").onclick = () => parent.postMessage({ pluginMessage: { type: "run" } }, "*");
+    $("copy").onclick = () => { $("out").select(); document.execCommand("copy"); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy report"), 1200); };
+    onmessage = (e) => {
+        const m = e.data.pluginMessage;
+        if (!m) return;
+        if (m.type === "selection") $("sel").textContent = ` ${m.count} selected`;
+        if (m.type === "report") { $("verdict").textContent = m.report.verdict; $("out").value = JSON.stringify(m.report, null, 2); }
+    };
+</script>
+</body>
+</html>

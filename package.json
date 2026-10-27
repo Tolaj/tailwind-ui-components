@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test test/ packages/core/test/ packages/editor/test/ packages/ai/test/ packages/mcp/test/",
+    "test": "node --test test/ packages/core/test/ packages/editor/test/ packages/ai/test/ packages/mcp/test/ packages/figma/test/",
     "licenses": "node scripts/check-licenses.js",
     "demo": "node packages/editor/demo/serve.js",
     "typecheck": "tsc -p tsconfig.json",
