@@ -84,6 +84,7 @@ export function init() {
             else commit(m.html, m.key || pendingKey);
             pendingKey = "";
             if (m.info) S.selected = m.info;
+            if (m.body) S.pageBody = m.body;
             renderLayers();
             renderInspector();
             renderFloat();
@@ -123,6 +124,9 @@ export function init() {
             renderLayers();
             renderInspector();
             renderFloat();
+        } else if (m.type === "body") {
+            S.pageBody = m.info; // the page's styling (its body), shown under the page panel
+            if (!S.selected) renderInspector();
         } else if (m.type === "frameClick") {
             selectFrame(); // the empty part of the design was clicked: the frame, with its handles and the page panel
         } else if (m.type === "hoverFrame") {

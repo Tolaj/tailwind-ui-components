@@ -118,12 +118,24 @@ const panelActions = {
     setStyle: (css) => { if (S.selected) cmd({ cmd: "setAttr", path: S.selected.path, name: "style", value: css }); },
     setAttribute: (name, value) => { if (S.selected) cmd({ cmd: "setAttr", path: S.selected.path, name, value }); },
 };
+/**
+ * The page panel's styling sections edit the page's body. They use the same actions as an element's sections, run with the body
+ * standing in as the selection for that one call, so every property works the same way on the page (classes or CSS, at its source).
+ */
+const bodyActions = Object.fromEntries(Object.entries(panelActions).map(([k, f]) => [k, typeof f !== "function" ? f : (...a) => {
+    if (S.selected || !S.pageBody) return undefined;
+    S.selected = S.pageBody;
+    try { return f(...a); } finally { S.selected = null; }
+}]));
 /** Draws the panel. Every part is a component that keeps its own typed text, so it can be redrawn at any time, whatever has focus. */
 export function renderInspector() {
     const ui = { ...panelStore.get(), frameBp: frameBp() }; // the panel's state, and the frame's breakpoint (worked out now)
-    const elementCode = S.selected && ui.tab === "classes" ? sourceOf(S.selected.path) : null;
+    const sel = S.selected && S.selected === S.pageBody ? null : S.selected; // drawn while a body action runs: still the page
+    const elementCode = sel && ui.tab === "classes" ? sourceOf(sel.path) : null;
     const top = insp.scrollTop;
-    renderPanel(insp, inspectorView(S.selected, S.selected ? null : pageInfo(), elementCode), panelActions, ui);
+    const view = inspectorView(sel, sel ? null : pageInfo(), elementCode);
+    if (view.page && S.pageBody) view.pageBody = { s: S.pageBody, actions: bodyActions };
+    renderPanel(insp, view, panelActions, ui);
     insp.scrollTop = top;
 }
 // a change to the panel's own state (its tab, the breakpoint, an open section...) redraws it, once however many changed

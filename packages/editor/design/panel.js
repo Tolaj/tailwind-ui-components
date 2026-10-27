@@ -189,7 +189,9 @@ function Panel({ view, tab, actions }) {
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
-    else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />`;
+    else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />${view.pageBody && html`
+        <div class="sec"><div class="secb nopad"><p class="sub first">Page styling</p><p class="text-[10px] text-neutral-500">The page's own background, text and spacing (its body).</p></div></div>
+        <${PropSections} key="page-body" s=${view.pageBody.s} actions=${view.pageBody.actions} />`}`;
     return html`<${Head} page=${view.page} tab=${tab} actions=${actions} />${body}`;
 }
 

@@ -495,7 +495,9 @@ export function agentMain() {
 
     function changed(silent, key) {
         redraw();
-        post({ type: "changed", silent: Boolean(silent), key: key || "", html: serialize(), tree: tree(), info: primary() && alive(primary()) ? describe(primary()) : null });
+        const info = primary() && alive(primary()) ? describe(primary()) : null;
+        // with nothing selected the editor shows the page, and the page's styling is the body's: it gets the body's fresh values
+        post({ type: "changed", silent: Boolean(silent), key: key || "", html: serialize(), tree: tree(), info, body: info ? null : describe(document.body) });
     }
     function setSelection(list, quiet) {
         sels = list.filter(Boolean);
@@ -1804,7 +1806,11 @@ export function agentMain() {
     new MutationObserver(() => {
         redraw();
         clearTimeout(infoTimer);
-        infoTimer = setTimeout(() => { if (primary() && alive(primary()) && !gesture) post({ type: "info", info: describe(primary()) }); }, 150);
+        infoTimer = setTimeout(() => {
+            if (gesture) return;
+            if (primary() && alive(primary())) post({ type: "info", info: describe(primary()) });
+            else post({ type: "body", info: describe(document.body) }); // nothing selected: the page panel's styling of the body
+        }, 150);
     }).observe(document.head, { childList: true, subtree: true, characterData: true });
     window.addEventListener("scroll", redraw, { passive: true });
     window.addEventListener("resize", redraw);
@@ -1909,7 +1915,7 @@ export function agentMain() {
             return;
         }
         if (m.cmd === "select") { if (Array.isArray(m.paths)) setSelection(m.paths.map(elAt).filter(Boolean)); else select(elAt(m.path)); return; } // paths: several at once
-        if (m.cmd === "deselect") { editing = null; setSelection([], true); return; }
+        if (m.cmd === "deselect") { editing = null; setSelection([], true); post({ type: "body", info: describe(document.body) }); return; } // the page's styling, for the page panel
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
         if (m.cmd === "cssProps") { cssProps = m.props || []; return; }
@@ -1959,4 +1965,8 @@ export function agentMain() {
     });
 
     post({ type: "ready", html: serialize(), tree: tree() });
+    // the page panel shows the page's styling from the start: sent again once the styles have loaded, when the values are real
+    const postBody = () => { if (!primary()) post({ type: "body", info: describe(document.body) }); };
+    postBody();
+    if (document.readyState === "complete") setTimeout(postBody, 300); else window.addEventListener("load", () => setTimeout(postBody, 100));
 }
