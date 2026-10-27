@@ -526,6 +526,10 @@ export function agentMain() {
     // ── Groups ── A group (Ctrl+G) is a box made around a few elements, marked data-wc-group so it is saved with the design. On the page
     // it acts as one thing, as in Figma: a click picks the whole group, a double-click goes inside it (then what is in it can be picked
     // and moved), and picking something outside it or Esc comes back out. The Layers panel can still pick anything.
+    /** The group `el` is in, if any (not `el` itself). What is in a group stays in it until it is ungrouped. */
+    const groupAround = (el) => (el && el.parentElement ? el.parentElement.closest("[data-wc-group]") : null);
+    /** May `el` be put inside `parent`? Only within the group it is in, if it is in one. */
+    const staysInGroup = (el, parent) => { const gp = groupAround(el); return !gp || (!!parent && gp.contains(parent)); };
     /** What a click on `t` picks: the outermost group around it that has not been gone into, or else `t` itself. */
     function pickable(t) {
         if (!t || t === document.body) return t;
@@ -1151,7 +1155,7 @@ export function agentMain() {
         g.holding = null;
         if (left >= BLOCK.area) {
             const t = dropTarget(g.el, e.clientX, e.clientY); // the margins moved only this element, so what is under the pointer is real
-            if (!sameSlot(g.el, t)) {
+            if (!sameSlot(g.el, t) && staysInGroup(g.el, t.container)) {
                 const time = now - g.still.t;
                 held = time >= BLOCK.hold;
                 if (time >= BLOCK.rest) g.holding = { t, share: Math.min(1, time / BLOCK.hold) };
@@ -1177,17 +1181,19 @@ export function agentMain() {
         dropBox.style.opacity = "";
         restoreNudge(g); // the drop place is worked out on the layout as it really is, not the one the nudge had shifted
         const t = dropTarget(g.el, e.clientX, e.clientY);
-        g.same = sameSlot(g.el, t);
+        // an element in a group stays in it: a drop outside the group changes nothing (ungroup to take it out)
+        const held = !staysInGroup(g.el, t.container);
+        g.same = held || sameSlot(g.el, t);
         g.target = t.ref || t.container;
         g.pos = t.ref ? (t.before ? "before" : "after") : "inside";
         // the box that follows the pointer
         const gx = g.rect.x + (e.clientX - g.sx), gy = g.rect.y + (e.clientY - g.sy);
         Object.assign(ghostBox.style, { display: "block", left: `${gx}px`, top: `${gy}px`, width: `${g.rect.w}px`, height: `${g.rect.h}px` });
         // the container it would land in
-        const cr = pageRect(t.container);
+        const cr = pageRect(held ? groupAround(g.el) : t.container); // held in a group: the group it stays in is outlined
         Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px` });
         const tag = t.container === document.body ? "page" : t.container.tagName.toLowerCase();
-        dropHint.textContent = g.same ? "Back where it was" : `${t.ref ? "Insert in" : "Drop into"} ${tag} · ${layoutOf(t.container)}`;
+        dropHint.textContent = held ? "In a group · ungroup to take it out" : g.same ? "Back where it was" : `${t.ref ? "Insert in" : "Drop into"} ${tag} · ${layoutOf(t.container)}`;
         Object.assign(dropHint.style, { display: "block", left: `${cr.x}px`, top: `${Math.max(0, cr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
         if (!t.ref || g.same) { insertLine.style.display = "none"; return; } // no line where letting go changes nothing
         // the line sits in the gap between the two children it goes between, and never outside the container
@@ -1864,6 +1870,7 @@ export function agentMain() {
         moveTo: (el, m) => {
             const t = elAt(m.targetPath);
             if (!t || el.contains(t) || el === t) return;
+            if (!staysInGroup(el, m.position === "inside" ? t : t.parentElement)) return; // in a group: it stays there until ungrouped
             if (m.position === "before") t.before(el);
             else if (m.position === "after") t.after(el);
             else t.appendChild(el);
