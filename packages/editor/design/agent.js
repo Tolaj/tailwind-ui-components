@@ -20,7 +20,8 @@ export function agentMain() {
     const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
-    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    const gridLayer = mk("position:absolute;left:0;top:0;pointer-events:none;"); // Figma's layout grids, when switched on
+    overlay.append(gridLayer, hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -1160,6 +1161,86 @@ export function agentMain() {
         askConvert([gestureItem(box, {}, ["position", "left", "top", "display", "flex-direction", "align-items", "gap"])]);
     }
 
+    /**
+     * Draws the layout grids the design has in Figma (columns, rows, a square grid) over the page, as guides: pass null to clear.
+     * Figma's rules: with STRETCH alignment the columns share the width between the margins (offset) with the gutter between them;
+     * otherwise each is sectionSize wide and the set sits at the start, middle or end.
+     */
+    function drawLayoutGrids(grids) {
+        gridLayer.innerHTML = "";
+        if (!grids || !grids.length) return;
+        const b = document.body.getBoundingClientRect();
+        const W = b.width, H = Math.max(b.height, document.body.scrollHeight);
+        const o = originOf(document.body);
+        for (const g of grids) {
+            const c = g.color || { r: 1, g: 0, b: 0, a: 0.1 };
+            const colour = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${c.a ?? 0.1})`;
+            if (g.pattern === "GRID" && g.sectionSize > 0) {
+                gridLayer.appendChild(mk(`position:absolute;left:${o.x}px;top:${o.y}px;width:${W}px;height:${H}px;background-image:linear-gradient(to right,${colour} 1px,transparent 1px),linear-gradient(to bottom,${colour} 1px,transparent 1px);background-size:${g.sectionSize}px ${g.sectionSize}px;`));
+                continue;
+            }
+            const horizontal = g.pattern === "COLUMNS", total = horizontal ? W : H;
+            const count = Number.isFinite(g.count) && g.count > 0 ? g.count : 0, gutter = g.gutterSize || 0, offset = g.offset || 0;
+            if (!count) continue;
+            const stretch = g.alignment === "STRETCH" || !g.sectionSize;
+            const size = stretch ? (total - 2 * offset - (count - 1) * gutter) / count : g.sectionSize;
+            const used = count * size + (count - 1) * gutter;
+            const start = stretch ? offset : g.alignment === "CENTER" ? (total - used) / 2 : g.alignment === "MAX" ? total - offset - used : offset;
+            for (let i = 0; i < count; i++) {
+                const at = start + i * (size + gutter);
+                gridLayer.appendChild(mk(horizontal
+                    ? `position:absolute;left:${o.x + at}px;top:${o.y}px;width:${size}px;height:${H}px;background:${colour};`
+                    : `position:absolute;left:${o.x}px;top:${o.y + at}px;width:${W}px;height:${size}px;background:${colour};`));
+            }
+        }
+    }
+
+    /**
+     * Shift+G: free elements that sit in a matrix (every column in line, every row in line, a cell each) become a grid: columns as wide as
+     * their widest cell, the gaps they have most often, in a free box where they were, like Shift+A does for a row or column. Anything that
+     * is not a clean matrix is left alone.
+     */
+    function gridLayout() {
+        const items = sels.filter((el) => isAbs(el) && el.parentElement && !isLocked(el));
+        if (items.length < 4) return;
+        const par = items[0].parentElement;
+        if (items.some((el) => el.parentElement !== par)) return;
+        const rs = items.map((el) => ({ el, r: pageRect(el) }));
+        const T = 3; // pixels of slack
+        const cluster = (values) => {
+            const out = [];
+            [...values].sort((a, b) => a - b).forEach((v) => { const l = out[out.length - 1]; if (l && v - l.max <= T) { l.max = v; l.sum += v; l.n++; } else out.push({ max: v, sum: v, n: 1 }); });
+            return out.map((c) => c.sum / c.n);
+        };
+        const xs = cluster(rs.map((i) => i.r.x)), ys = cluster(rs.map((i) => i.r.y));
+        if (xs.length < 2 || ys.length < 2 || xs.length * ys.length !== rs.length) return;
+        const cell = Array.from({ length: ys.length }, () => Array(xs.length).fill(null));
+        for (const i of rs) {
+            const c = xs.findIndex((x) => Math.abs(x - i.r.x) <= T), r = ys.findIndex((y) => Math.abs(y - i.r.y) <= T);
+            if (c < 0 || r < 0 || cell[r][c]) return;
+            cell[r][c] = i;
+        }
+        const colW = xs.map((_, c) => Math.max(...cell.map((row) => row[c].r.w)));
+        const rowH = ys.map((_, r) => Math.max(...cell[r].map((i) => i.r.h)));
+        const median = (list) => { const s = list.map((g) => Math.max(0, Math.round(g))).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+        const gapX = median(xs.slice(1).map((x, c) => x - (xs[c] + colW[c]))), gapY = median(ys.slice(1).map((y, r) => y - (ys[r] + rowH[r])));
+        const o = originOf(par);
+        const box = document.createElement("div");
+        Object.assign(box.style, { position: "absolute", display: "grid", alignItems: "start", justifyItems: "start", columnGap: `${gapX}px`, rowGap: `${gapY}px`, gridTemplateColumns: colW.map((w) => `${Math.round(w)}px`).join(" ") });
+        setPx(box, "left", xs[0] - o.x); setPx(box, "top", ys[0] - o.y);
+        par.insertBefore(box, rs[0].el);
+        made.add(box);
+        cell.flat().forEach(({ el }) => {
+            [...el.classList].filter((t) => POSITION_TOKEN.test(t)).forEach((t) => el.classList.remove(t));
+            if (!el.classList.length) el.removeAttribute("class");
+            ["position", "left", "top", "right", "bottom", "transform"].forEach((p) => el.style.removeProperty(p));
+            tidyStyle(el);
+            box.appendChild(el);
+        });
+        setSelection([box], true);
+        askConvert([gestureItem(box, {}, ["position", "left", "top", "display", "grid-template-columns", "align-items", "justify-items", "column-gap", "row-gap"])]);
+    }
+
     function ungroup() {
         const el = primary();
         if (!el || el === document.body || !isAbs(el) || !el.children.length || !el.parentElement) return;
@@ -1274,6 +1355,7 @@ export function agentMain() {
         if (meta && e.shiftKey && k === "l") { e.preventDefault(); toggleLockSelection(); return; }
         if (meta && e.shiftKey && k === "h") { e.preventDefault(); toggleHiddenSelection(); return; }
         if (e.shiftKey && !meta && k === "a") { e.preventDefault(); autoLayout(); return; }
+        if (e.shiftKey && !meta && k === "g") { e.preventDefault(); gridLayout(); return; }
         if (meta && k === "d") { e.preventDefault(); duplicate(); return; }
         if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelection(); return; }
         if (e.key.startsWith("Arrow") && sels.length) {
@@ -1405,7 +1487,7 @@ export function agentMain() {
             if (primary()) post({ type: "selected", info: describe(primary()) });
             return;
         }
-        if (m.cmd === "select") { select(elAt(m.path)); return; }
+        if (m.cmd === "select") { if (Array.isArray(m.paths)) setSelection(m.paths.map(elAt).filter(Boolean)); else select(elAt(m.path)); return; } // paths: several at once
         if (m.cmd === "deselect") { editing = null; setSelection([], true); return; }
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
@@ -1439,6 +1521,8 @@ export function agentMain() {
             return;
         }
         if (m.cmd === "autoLayout") { autoLayout(); return; }
+        if (m.cmd === "gridLayout") { gridLayout(); return; }
+        if (m.cmd === "layoutGrids") { drawLayoutGrids(m.on ? m.grids : null); return; }
         if (m.cmd === "setProp") {
             const el = elAt(m.path);
             if (el) setProp(el, m).then(() => { changed(false, m.key); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });

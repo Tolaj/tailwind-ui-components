@@ -59,9 +59,15 @@ export async function savePage(userId, { title, html, project, mode, width, base
     return { status: 409, body: { ok: false, message: "Too many pages with that name in this project." } };
 }
 
+/** The layout grids of the design's top frame that are switched on, trimmed to what the editor draws. */
+export const gridsOf = (snapshot) => ((snapshot.meta && snapshot.meta.layoutGrids) || [])
+    .filter((g) => g && g.visible !== false && ["COLUMNS", "ROWS", "GRID"].includes(g.pattern))
+    .slice(0, 4)
+    .map(({ pattern, color, alignment, gutterSize, count, sectionSize, offset }) => ({ pattern, color, alignment, gutterSize, count, sectionSize, offset }));
+
 /** Keeps the layer data (as received, gzipped) next to a saved page: one per page, a new save replaces it. */
 export async function keepSource(userId, componentId, gz, snapshot, result) {
     await FigmaSource.findOneAndUpdate({ component: componentId }, {
-        userId, converter: result.converter, rulesVersion: result.rulesVersion, width: snapshot.width, height: snapshot.height, snapshotGz: gz,
+        userId, converter: result.converter, rulesVersion: result.rulesVersion, width: snapshot.width, height: snapshot.height, grids: gridsOf(snapshot), snapshotGz: gz,
     }, { upsert: true });
 }

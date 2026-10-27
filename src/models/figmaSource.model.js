@@ -10,6 +10,7 @@ const figmaSourceSchema = new mongoose.Schema(
         rulesVersion: { type: String, default: "" },
         width: { type: Number, default: null },
         height: { type: Number, default: null },
+        grids: { type: Array, default: undefined }, // the page frame's layout grids (columns, rows, square grid), drawn by the editor as guides
         snapshotGz: { type: Buffer, required: true },
     },
     { timestamps: true }

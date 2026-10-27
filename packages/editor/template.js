@@ -120,6 +120,9 @@ export const editorHtml = `<div class="flex h-screen flex-col">
                 <button id="figmaBtn" type="button"
                     class="ml-1 hidden h-8 rounded-lg border border-neutral-200 px-3 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
                     title="Convert this design again from the Figma data kept with it">Update from Figma</button>
+                <button id="gridBtn" type="button"
+                    class="ml-1 hidden h-8 rounded-lg border border-neutral-200 px-3 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100"
+                    title="Show the layout grid this design has in Figma">Grid</button>
                 <span id="saveState" class="hidden"></span>
                 <select id="zoomSel"
                     class="h-8 rounded-lg border-0 bg-transparent pl-1 pr-0 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100 focus:outline-none"

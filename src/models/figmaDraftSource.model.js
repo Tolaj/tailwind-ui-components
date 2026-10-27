@@ -9,6 +9,7 @@ const figmaDraftSourceSchema = new mongoose.Schema({
     rulesVersion: { type: String, default: "" },
     width: { type: Number, default: null },
     height: { type: Number, default: null },
+    grids: { type: Array, default: undefined },
     snapshotGz: { type: Buffer, required: true },
     expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
 });

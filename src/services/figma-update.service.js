@@ -5,14 +5,21 @@ import FigmaDraft from "../models/figmaDraft.model.js";
 import Component from "../models/component.model.js";
 import { importDesign } from "./import.service.js";
 import { withFonts } from "./fonts.service.js";
+import { gridsOf } from "./figma-save.service.js";
 import { convertDesign, CONVERTER_VERSION } from "../../packages/figma/src/convert.js";
 import { DEFAULT_RULES } from "../../packages/figma/src/rules.js";
 
 /** What is kept for a page, and whether the converter has moved on since, or null when nothing is kept. */
 export async function figmaSourceInfo(componentId) {
-    const s = await FigmaSource.findOne({ component: componentId }).select("converter rulesVersion").lean();
+    const s = await FigmaSource.findOne({ component: componentId }).select("converter rulesVersion grids").lean();
     if (!s) return null;
-    return { converter: s.converter, rulesVersion: s.rulesVersion, latest: CONVERTER_VERSION, outdated: s.converter !== CONVERTER_VERSION || s.rulesVersion !== DEFAULT_RULES.version };
+    let grids = s.grids;
+    if (!grids) { // kept before grids were: read them from the data once and remember
+        const full = await FigmaSource.findOne({ component: componentId });
+        try { grids = gridsOf(JSON.parse(zlib.gunzipSync(full.snapshotGz).toString("utf8"))); } catch { grids = []; }
+        full.grids = grids; await full.save();
+    }
+    return { grids, converter: s.converter, rulesVersion: s.rulesVersion, latest: CONVERTER_VERSION, outdated: s.converter !== CONVERTER_VERSION || s.rulesVersion !== DEFAULT_RULES.version };
 }
 
 /**
@@ -26,7 +33,7 @@ export async function adoptDraftSource(userId, draftId, componentId) {
     if (draft && Number.isFinite(draft.width)) await Component.updateOne({ _id: componentId, createdBy: userId }, { frameW: Math.round(draft.width) });
     const kept = await FigmaDraftSource.findOneAndDelete({ draft: draftId, userId });
     if (!kept) return null;
-    await FigmaSource.findOneAndUpdate({ component: componentId }, { userId, converter: kept.converter, rulesVersion: kept.rulesVersion, width: kept.width, height: kept.height, snapshotGz: kept.snapshotGz }, { upsert: true });
+    await FigmaSource.findOneAndUpdate({ component: componentId }, { userId, converter: kept.converter, rulesVersion: kept.rulesVersion, width: kept.width, height: kept.height, grids: kept.grids, snapshotGz: kept.snapshotGz }, { upsert: true });
     return figmaSourceInfo(componentId);
 }
 

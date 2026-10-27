@@ -39,7 +39,8 @@ router.get("/new", async (req, res) => {
     // a design sent from Figma "to edit only": it fills the new page, and is saved to the library only when the user saves it here
     const draft = mongoose.isValidObjectId(req.query.draft) ? await FigmaDraft.findOne({ _id: req.query.draft, userId: req.session.user.id }).lean() : null;
     renderEditor(res, {
-        id: null, draftId: draft ? String(draft._id) : null, title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
+        id: null, draftId: draft ? String(draft._id) : null, frameW: draft && draft.width ? draft.width : null, // the frame opens at the width it has in Figma
+         title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
         project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id),
     }, "New component");
 });
