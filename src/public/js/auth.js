@@ -1,3 +1,8 @@
+// where to go after signing in: the link's returnTo, kept across sign-up and the email code (those pages do not carry it)
+const returnToFromLink = new URLSearchParams(window.location.search).get("returnTo");
+try { if (returnToFromLink && returnToFromLink.startsWith("/") && !returnToFromLink.startsWith("//")) sessionStorage.setItem("returnTo", returnToFromLink); } catch { /* storage blocked: the link's own value is used */ }
+const savedReturnTo = () => { try { return sessionStorage.getItem("returnTo"); } catch { return null; } };
+
 const handleSignIn = (event) => {
     event.preventDefault();
     const email = event.target.email.value.trim();
@@ -26,10 +31,11 @@ const handleSignIn = (event) => {
 
             showToast("Login successful! Redirecting...", "success");
 
-            const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+            const returnTo = new URLSearchParams(window.location.search).get("returnTo") || savedReturnTo();
             const safeReturn = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
 
             setTimeout(() => {
+                try { sessionStorage.removeItem("returnTo"); } catch { /* ignore */ }
                 window.location.href = safeReturn;
             }, 1200);
         })

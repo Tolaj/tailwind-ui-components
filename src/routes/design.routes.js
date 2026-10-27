@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Component from "../models/component.model.js";
 import { categories } from "./home.routes.js";
 import Project from "../models/project.model.js";
+import FigmaDraft from "../models/figmaDraft.model.js";
 import { resolveProject } from "../services/project.service.js";
 
 const router = express.Router();
@@ -33,8 +34,10 @@ const notFound = (req, res) =>
 
 router.get("/new", async (req, res) => {
     const p = req.query.project ? await resolveProject(req.session.user.id, req.query.project) : null;
+    // a design sent from Figma "to edit only": it fills the new page, and is saved to the library only when the user saves it here
+    const draft = mongoose.isValidObjectId(req.query.draft) ? await FigmaDraft.findOne({ _id: req.query.draft, userId: req.session.user.id }).lean() : null;
     renderEditor(res, {
-        id: null, title: "", version: 0, htmlCode: "", category: "", description: "", tags: [], isPublished: true,
+        id: null, title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
         project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id),
     }, "New component");
 });

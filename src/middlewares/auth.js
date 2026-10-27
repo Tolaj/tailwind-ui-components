@@ -1,6 +1,8 @@
 const ensureAuth = (req, res, next) => {
     if (!req.session.user) {
-        return res.redirect("/auth/sign-in");
+        // a page asked for by link (the editor, for one) is opened after signing in
+        const back = req.method === "GET" && req.originalUrl.startsWith("/") ? `?returnTo=${encodeURIComponent(req.originalUrl)}` : "";
+        return res.redirect(`/auth/sign-in${back}`);
     }
     next();
 };

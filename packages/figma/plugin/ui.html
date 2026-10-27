@@ -2,68 +2,386 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-    body { font: 12px/1.4 Inter, system-ui, sans-serif; margin: 12px; color: #222; }
-    h1 { font-size: 13px; margin: 0 0 4px; }
-    p { margin: 0 0 8px; color: #555; }
-    button { font: inherit; padding: 6px 10px; margin-right: 6px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
-    button.primary { background: #111; color: #fff; border-color: #111; }
-    #tabs button.on { background: #eef2ff; border-color: #6366f1; }
-    #stats { margin: 8px 0; padding: 8px; background: #f3f4f6; border-radius: 6px; }
-    #warn { margin: 0 0 8px; padding-left: 16px; color: #92400e; max-height: 110px; overflow: auto; }
-    textarea { width: 100%; height: 260px; box-sizing: border-box; font: 11px/1.4 ui-monospace, monospace; }
-    .hidden { display: none; }
+    :root {
+        --page: var(--figma-color-bg, #fff);
+        --card: var(--figma-color-bg, #fff);
+        --soft: var(--figma-color-bg, #fff);
+        --text: var(--figma-color-text, #111);
+        --muted: var(--figma-color-text-secondary, #6b6b6b);
+        --line: var(--figma-color-border, #e5e5e5);
+        --accent: #111; --accent-text: #fff;
+        --ok: #15803d; --bad: #b91c1c;
+        --shadow: 0 0 0 1px var(--line);
+    }
+    .figma-dark { --accent: #fff; --accent-text: #111; --ok: #4ade80; --bad: #f87171; --shadow: 0 0 0 1px var(--line); }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 12px/1.45 Inter, system-ui, sans-serif; color: var(--text); background: var(--page); -webkit-font-smoothing: antialiased; }
+    .wrap { padding: 14px 14px 24px; display: grid; gap: 12px; }
+    .grid { display: grid; gap: 12px; }
+    .hidden { display: none !important; }
+
+    /* soft, rounded blocks on a grey page: each part of the screen is its own card, like the header */
+    .card { background: var(--card); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); }
+    button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 10px; padding: 10px 16px; font-weight: 500; }
+    button:hover { border-color: var(--text); }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+    button.primary:hover { filter: none; opacity: .88; }
+    button.block { width: 100%; height: 48px; font-size: 13px; }
+    button.link { background: none; border: 0; color: var(--muted); padding: 2px 0; font-weight: 400; border-radius: 0; }
+    button.link:hover { filter: none; color: var(--text); text-decoration: underline; }
+    input[type=text], input[type=password], select { width: 100%; font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+    input:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    header { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 44px; }
+    .tile { width: 44px; height: 44px; border-radius: 15px; background: var(--card); box-shadow: var(--shadow); display: grid; place-items: center; }
+    /* the logo file is the swirl and the word on white: only the swirl (the left part) is shown, and the white is blended away */
+    .logo { width: 30px; height: 28px; object-fit: cover; object-position: left center; mix-blend-mode: multiply; }
+    .figma-dark .logo { filter: invert(1); mix-blend-mode: screen; }
+    .who { display: flex; align-items: center; gap: 8px; height: 44px; min-width: 0; padding: 0 16px 0 6px; background: var(--card); border-radius: 999px; box-shadow: var(--shadow); }
+    .who .av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-size: 12px; font-weight: 600; flex: none; }
+    .who b { font-weight: 500; min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .who button.link { color: var(--muted); padding: 0 0 0 8px; margin-left: 2px; border-left: 1px solid var(--line); line-height: 16px; text-decoration: none; flex: none; }
+    #topSignin { height: 44px; padding: 0 20px; }
+
+    .title { font-size: 15px; font-weight: 600; margin: 0; }
+    .muted { color: var(--muted); }
+    .frame { display: flex; justify-content: space-between; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; margin-top: 12px; }
+    .frame b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .empty { text-align: center; padding: 22px 8px; margin-top: 12px; border: 1px dashed var(--line); border-radius: 14px; }
+
+    .done-head { display: flex; gap: 12px; align-items: center; }
+    .tick { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-size: 16px; flex: none; }
+    .tick.off { background: var(--card); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+    .stack { display: grid; gap: 10px; }
+    .row { display: flex; gap: 8px; }
+    .row > button { flex: 1; padding-left: 8px; padding-right: 8px; }
+    .links { display: flex; justify-content: space-between; margin-top: 12px; }
+
+    .seg { display: flex; gap: 4px; padding: 4px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); overflow: auto; }
+    .seg button { background: none; border: 0; border-radius: 9px; padding: 7px 14px; white-space: nowrap; }
+    .seg button.on { background: var(--accent); color: var(--accent-text); }
+
+    .banner { border-radius: 16px; padding: 12px 14px; background: var(--card); box-shadow: var(--shadow); }
+    .banner.err { color: var(--bad); }
+    .banner.ok { color: var(--ok); }
+    #conflict { background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+
+    details.card { padding: 14px 18px; }
+    details > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 3px 0; font-size: 12px; font-weight: 400; color: var(--muted); }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::after { content: ""; flex: none; width: 6px; height: 6px; margin-right: 4px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+    details[open] > summary::after { transform: rotate(45deg) translateY(-2px); }
+    details > summary:hover { color: var(--text); }
+    details > summary:hover::after { border-color: var(--text); }
+    details[open] > summary { margin-bottom: 8px; }
+    details ul { margin: 4px 0 0; padding-left: 16px; color: var(--muted); }
+    details li { margin-bottom: 4px; }
+    .fontrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+    .fontrow .name { flex: 1; min-width: 0; }
+    .fontrow small { color: var(--muted); display: block; }
+    .pick { border: 1px solid var(--line); border-radius: 10px; padding: 7px 14px; cursor: pointer; white-space: nowrap; font-weight: 500; }
+    .pick:hover { border-color: var(--text); }
+    .pick input { display: none; }
+    .tag { display: inline-block; margin: 6px 4px 0 0; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--ok); }
+    .check { display: flex; gap: 6px; align-items: flex-start; color: var(--muted); margin: 10px 0 0; }
+    .check input { margin-top: 2px; }
+    .tokenbox { display: grid; gap: 10px; margin-top: 12px; }
+    .tokenbox details { margin-top: 0; }
+    .foot { text-align: center; }
+    .spin { display: inline-block; width: 12px; height: 12px; margin-left: 8px; vertical-align: -2px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-    <h1>Windcraft: Figma to code</h1>
-    <p id="hint">Select one or more frames. Everything happens in Figma on your computer; nothing is sent anywhere.</p>
-    <div id="bar"><button class="primary" id="run">Convert selection</button><button id="copy" class="hidden">Copy HTML</button><button id="save" class="hidden">Download .html</button><button id="send" class="hidden">Send to Windcraft</button></div>
-    <details id="dest" class="hidden" style="margin-top:8px"><summary>Windcraft account</summary>
-        <p style="margin-top:6px">Make a token on Windcraft's Connect page and paste it here. It is kept on this computer only.</p>
-        <input id="server" placeholder="https://your-windcraft.example.com" style="width:100%;box-sizing:border-box;margin-bottom:4px">
-        <input id="token" type="password" placeholder="Token (twl_…)" style="width:100%;box-sizing:border-box;margin-bottom:4px">
-        <input id="project" placeholder="Project (optional)" style="width:100%;box-sizing:border-box">
-    </details>
-    <p id="sent" class="hidden"></p>
-    <div id="tabs" style="margin-top:8px"></div>
-    <div id="stats" class="hidden"></div>
-    <ul id="warn" class="hidden"></ul>
-    <textarea id="out" readonly class="hidden"></textarea>
-    <p id="next" class="hidden">Paste it into Windcraft (Add component, or the code panel of a design), or save it with the MCP tool <code>save_design</code>.</p>
+<div class="wrap">
+    <header>
+        <div class="tile"><img class="logo" src="__LOGO__" alt="Windcraft"></div>
+        <div id="who" class="who hidden"><span class="av" id="av"></span><b id="name"></b><button class="link" id="signout">Sign out</button></div>
+        <button id="topSignin" class="hidden">Sign in</button>
+    </header>
+
+    <section id="idle" class="grid">
+        <div class="card">
+            <p class="title">Turn a frame into code</p>
+            <div class="muted" style="margin-top:2px">Select a frame in Figma, then press the button.</div>
+            <div id="frames"></div>
+            <div id="none" class="empty muted">No frame selected</div>
+        </div>
+        <button id="run" class="primary block" disabled>Convert to code</button>
+        <div id="hint" class="muted" style="text-align:center"></div>
+    </section>
+
+    <div id="banner" class="banner hidden"></div>
+
+    <section id="done" class="hidden grid">
+        <div id="tabs" class="seg hidden"></div>
+        <div class="card">
+            <div class="done-head">
+                <div class="tick" id="tick">✓</div>
+                <div style="min-width:0"><p class="title" id="status"></p><div class="muted" id="sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="sheet" class="stack hidden">
+                <div><b>Save in project</b><span id="loadingProjects" class="spin hidden"></span><div class="muted">Pages live inside a project. Pick one or start a new one.</div></div>
+                <select id="projectSel"></select>
+                <input id="newProject" type="text" placeholder="New project name" class="hidden">
+                <div id="conflict" class="hidden banner">
+                    <div id="conflictText"></div>
+                    <div class="row" style="margin-top:10px"><button id="replace" class="primary">Save as new version</button><button id="keepBoth">Keep both</button></div>
+                </div>
+                <div class="row"><button id="doSave" class="primary">Save</button><button id="cancelSave">Cancel</button></div>
+            </div>
+            <div class="stack" id="actions">
+                <button id="primary" class="primary block"></button>
+                <div class="row"><button id="edit" title="Open it in the Windcraft editor without saving it to your library">Edit</button><button id="copy">Copy HTML</button><button id="save">Download</button></div>
+            </div>
+            <div class="links"><button class="link" id="again">Save again</button><button class="link" id="another">Convert another</button></div>
+        </div>
+
+        <details id="fonts" class="card"><summary id="fontsTitle">Fonts</summary>
+            <div class="muted" id="fontsIntro"></div>
+            <div id="fontRows"></div>
+            <div id="inLibrary"></div>
+            <label class="check hidden" id="shareRow"><input type="checkbox" id="canShare"><span>I have the right to share these files with other Windcraft users. Once added, nobody needs to upload them again.</span></label>
+        </details>
+        <details id="notes" class="card"><summary id="notesTitle"></summary><ul id="warn"></ul></details>
+    </section>
+
+    <section id="tokenCard" class="card hidden">
+        <p class="title">Use a token</p>
+        <div class="muted" style="margin-top:2px">Skip signing in: make a token on Windcraft's Connect page and paste it. It stays on this computer.</div>
+        <div class="tokenbox">
+            <input id="token" type="password" placeholder="Token (twl_…)">
+            <div class="row"><button id="useToken" class="primary">Use token</button><button id="closeToken">Cancel</button></div>
+            <details><summary>Windcraft address</summary><input id="server" type="text" style="margin-top:8px"></details>
+        </div>
+    </section>
+
+    <div class="foot" id="foot"><button class="link" id="tokenLink">Use a token instead of signing in</button></div>
+</div>
 <script>
     const $ = (id) => document.getElementById(id);
-    let pages = [], current = 0;
-    const show = (i) => {
-        current = i;
-        const p = pages[i];
-        $("out").value = p.html;
-        $("stats").textContent = `${p.layers} layers: ${p.stats.flex} Auto Layout frames became flex boxes, ${p.stats.absolute} items placed at exact positions, ${p.stats.text} texts, ${p.stats.assets} vectors/pictures inlined. Size ${Math.round(p.size / 1024)} KB. Fonts: ${p.fonts.join(", ") || "none"} (a font that is not on Google Fonts falls back to a similar one).`;
-        $("warn").innerHTML = p.warnings.map((w) => `<li>${w.replace(/</g, "&lt;")}</li>`).join("");
-        $("warn").classList.toggle("hidden", !p.warnings.length);
-        [...$("tabs").children].forEach((b, n) => b.classList.toggle("on", n === i));
+    // where Windcraft lives: this is only the first guess; the server tells the plugin its current address, so it can move later
+    const DEFAULT_SERVER = "https://windcraft.swapniljadhav.com";
+    const MAX_BYTES = 1000000; // what Windcraft saves per design
+    let cfg = { server: DEFAULT_SERVER, token: "", user: null, project: "" };
+    let pages = [], current = 0, frames = [], busy = false, projects = [], progress = "";
+    const lastUrl = new Map(); // page index -> where it was saved
+    const post = (m) => parent.postMessage({ pluginMessage: m }, "*");
+    const save = () => post({ type: "save-settings", settings: cfg });
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+    const api = (path, opts = {}) => fetch(`${cfg.server}/api/figma${path}`, { ...opts, headers: { "Content-Type": "application/json", ...(cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {}), ...(opts.headers || {}) } });
+    const signed = () => Boolean(cfg.token && cfg.user);
+    function say(text, kind = "") { const b = $("banner"); b.className = `banner ${kind}`; b.textContent = text; b.classList.toggle("hidden", !text); }
+
+    function render() {
+        const s = signed();
+        $("who").classList.toggle("hidden", !s);
+        $("topSignin").classList.toggle("hidden", s);
+        $("foot").classList.toggle("hidden", s);
+        if (s) { const who = cfg.user.name || cfg.user.email || "You"; $("name").textContent = who; $("av").textContent = who.trim()[0].toUpperCase(); }
+        $("server").value = cfg.server;
+        const converted = pages.length > 0;
+        $("idle").classList.toggle("hidden", converted);
+        $("done").classList.toggle("hidden", !converted);
+        // idle
+        $("frames").innerHTML = frames.map((f) => `<div class="frame"><b>${esc(f.name)}</b><span class="muted">${Math.round(f.width)} × ${Math.round(f.height)}</span></div>`).join("");
+        $("none").classList.toggle("hidden", frames.length > 0);
+        $("run").disabled = busy || frames.length === 0;
+        $("run").textContent = busy ? "Converting…" : "Convert to code";
+        $("hint").innerHTML = busy ? `<span class="spin" style="margin:0 6px 0 0"></span>${esc(progress)}` : "Nothing is saved until you choose to.";
+        if (!converted) return;
+        // done
+        const p = pages[current], url = lastUrl.get(current), over = p.size > MAX_BYTES;
+        $("tabs").classList.toggle("hidden", pages.length < 2);
+        $("tabs").innerHTML = pages.map((q, n) => `<button data-i="${n}" class="${n === current ? "on" : ""}">${esc(q.title)}</button>`).join("");
+        $("tick").className = `tick${url ? "" : " off"}`;
+        $("tick").textContent = url ? "✓" : "•";
+        $("status").textContent = url ? "Saved to Windcraft" : "Converted";
+        $("sub").textContent = `${p.title} · ${kb(p.size)}${over ? " (over the 1 MB limit: use fewer or smaller pictures)" : ""}`;
+        $("primary").textContent = url ? "Edit in Windcraft" : s ? "Save to Windcraft" : "Sign in to save to Windcraft";
+        $("primary").disabled = busy;
+        $("again").classList.toggle("hidden", !url);
+        $("edit").classList.toggle("hidden", Boolean(url));
+        const n = p.warnings.length;
+        $("notes").classList.toggle("hidden", !n);
+        $("notesTitle").textContent = `${n} note${n === 1 ? "" : "s"} about this conversion`;
+        $("warn").innerHTML = p.warnings.map((w) => `<li>${esc(w)}</li>`).join("");
+    }
+    $("tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { current = Number(b.dataset.i); render(); showFonts(pages[current].missing || []); } };
+
+    $("run").onclick = () => { busy = true; progress = "Reading your design…"; say(""); render(); post({ type: "run" }); };
+    $("another").onclick = () => { pages = []; lastUrl.clear(); say(""); $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); render(); };
+    $("again").onclick = () => openSheet();
+    $("primary").onclick = () => { const url = lastUrl.get(current); if (url) return post({ type: "open", url }); if (!signed()) return signIn(); openSheet(); };
+    $("edit").onclick = async () => { // opens the editor with this design, without putting it in the library
+        if (!signed()) return signIn();
+        $("edit").disabled = true; $("edit").textContent = "Opening…";
+        try {
+            const res = await api("/draft", { method: "POST", body: JSON.stringify({ title: pages[current].title, html: pages[current].html }) });
+            const body = await res.json().catch(() => ({}));
+            if (res.ok && body.ok) post({ type: "open", url: body.url }); else say(body.message || "Could not open the editor.", "err");
+        } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }
+        $("edit").disabled = false; $("edit").textContent = "Edit";
     };
-    $("run").onclick = () => { $("hint").textContent = "Converting…"; parent.postMessage({ pluginMessage: { type: "run" } }, "*"); };
-    $("copy").onclick = () => { $("out").select(); document.execCommand("copy"); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy HTML"), 1200); };
+    $("copy").onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(pages[current].html).catch(copyFallback) : copyFallback(); };
+    function copyFallback() { const t = document.createElement("textarea"); t.value = pages[current].html; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+    $("copy").addEventListener("click", () => { $("copy").textContent = "Copied ✓"; setTimeout(() => ($("copy").textContent = "Copy HTML"), 1200); });
     $("save").onclick = () => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([pages[current].html], { type: "text/html" }));
         a.download = (pages[current].title || "design").replace(/[^\w-]+/g, "-") + ".html";
         a.click();
     };
-    $("send").onclick = async () => {
-        const server = $("server").value.trim().replace(/\/+$/, ""), token = $("token").value.trim(), project = $("project").value.trim();
-        if (!server || !token) { $("dest").open = true; $("sent").classList.remove("hidden"); $("sent").textContent = "Fill in the Windcraft address and token first."; return; }
-        parent.postMessage({ pluginMessage: { type: "save-settings", settings: { server, token, project } } }, "*");
-        $("send").disabled = true; $("sent").classList.remove("hidden"); $("sent").textContent = "Sending…";
+
+    const NEW = "__new__";
+    // the project list is fetched ahead of time (when a conversion finishes or you sign in), so the panel usually opens with it ready
+    let projectsLoaded = false, projectsLoading = null;
+    function preloadProjects() {
+        if (!signed()) return Promise.resolve();
+        projectsLoading = (async () => {
+            try { projects = (await (await api("/projects")).json()).projects || []; projectsLoaded = true; } catch (err) { /* the panel asks again when opened */ }
+            projectsLoading = null;
+        })();
+        return projectsLoading;
+    }
+    function fillProjects() {
+        $("projectSel").innerHTML = projects.map((p) => `<option value="${esc(p.name)}">${esc(p.name)} (${p.pages} page${p.pages === 1 ? "" : "s"})</option>`).join("") + `<option value="${NEW}">＋ New project…</option>`;
+        $("projectSel").value = projects.some((p) => p.name === cfg.project) ? cfg.project : projects.length ? projects[0].name : NEW;
+        pickProject();
+    }
+    async function openSheet() {
+        $("sheet").classList.remove("hidden"); $("actions").classList.add("hidden"); $("conflict").classList.add("hidden"); $("doSave").classList.remove("hidden");
+        if (!projectsLoaded) { // not there yet: show that it is loading, and keep Save off until it is
+            $("loadingProjects").classList.remove("hidden");
+            $("projectSel").innerHTML = "<option>Loading your projects…</option>"; $("projectSel").disabled = true; $("doSave").disabled = true; $("newProject").classList.add("hidden");
+            await (projectsLoading || preloadProjects());
+            $("loadingProjects").classList.add("hidden"); $("projectSel").disabled = false; $("doSave").disabled = false;
+        }
+        fillProjects();
+        preloadProjects().then(() => { if (!$("sheet").classList.contains("hidden") && $("projectSel").value !== NEW) { const keep = $("projectSel").value; fillProjects(); if (projects.some((p) => p.name === keep)) $("projectSel").value = keep; } }); // quietly refresh the counts
+    }
+    function pickProject() {
+        const isNew = $("projectSel").value === NEW;
+        $("newProject").classList.toggle("hidden", !isNew);
+        if (isNew && !$("newProject").value) $("newProject").value = "Figma designs";
+        if (isNew) $("newProject").select();
+        $("conflict").classList.add("hidden"); $("doSave").classList.remove("hidden");
+    }
+    $("projectSel").onchange = pickProject;
+    $("cancelSave").onclick = () => { $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); };
+    $("doSave").onclick = () => sendPage(current);
+    $("replace").onclick = () => sendPage(current, "replace");
+    $("keepBoth").onclick = () => sendPage(current, "copy");
+    async function sendPage(index, mode) {
+        const project = $("projectSel").value === NEW ? $("newProject").value.trim() : $("projectSel").value;
+        if (!project) return say("Give the new project a name.", "err");
+        say(""); busy = true; $("doSave").disabled = true; $("doSave").textContent = "Saving…";
         try {
-            const res = await fetch(`${server}/api/figma/send`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ title: pages[current].title, html: pages[current].html, project: project || undefined }) });
+            const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[index].title, html: pages[index].html, project, mode }) });
             const body = await res.json().catch(() => ({}));
-            $("sent").textContent = res.ok && body.ok ? `Sent. ${body.message}` : `Not sent: ${body.message || res.status}`;
-            if (res.ok && body.ok && body.url) { const a = document.createElement("a"); a.href = body.url; a.target = "_blank"; a.textContent = " Open it"; $("sent").appendChild(a); }
-        } catch (err) { $("sent").textContent = "Could not reach that address. Check it, and that the server is running."; }
-        $("send").disabled = false;
+            if (res.ok && body.ok) { lastUrl.set(index, body.url); cfg.project = body.project || project; save(); $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); }
+            else if (body.conflict) { $("conflictText").textContent = `"${body.title}" is already in this project. Save over it as a new version, or keep both?`; $("conflict").classList.remove("hidden"); $("doSave").classList.add("hidden"); } // the choices below answer it: pressing Save again would only ask again
+            else say(res.status === 401 ? "Your sign-in ended. Sign in again." : `Not saved: ${body.message || res.status}`, "err");
+        } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }
+        busy = false; $("doSave").disabled = false; $("doSave").textContent = "Save"; render();
+    }
+
+    async function loadAccount() {
+        for (const base of [cfg.server, DEFAULT_SERVER]) { // the saved address, then the default if that no longer answers
+            try {
+                const body = await (await fetch(`${base}/api/figma/config`)).json();
+                if (body.ok) { if (body.server && body.server !== cfg.server) { cfg.server = body.server; save(); } break; }
+            } catch (err) { /* try the next address */ }
+        }
+        if (cfg.token) {
+            try {
+                const res = await api("/me");
+                if (res.status === 401) { cfg.token = ""; cfg.user = null; save(); say("Your Windcraft sign-in ended. Sign in again to save.", "err"); }
+                else { cfg.user = (await res.json()).user; save(); }
+            } catch (err) { cfg.user = cfg.user || { name: "Offline" }; }
+        }
+        render(); preloadProjects();
+    }
+
+    let polling = 0;
+    async function signIn() {
+        clearInterval(polling);
+        try {
+            const body = await (await api("/link", { method: "POST", body: "{}" })).json();
+            post({ type: "open", url: body.url });
+            say("Finish signing in or signing up in your browser. This window updates by itself.");
+            const until = Date.now() + 10 * 60 * 1000;
+            polling = setInterval(async () => {
+                if (Date.now() > until) { clearInterval(polling); say("That sign-in link expired. Press Sign in again.", "err"); return; }
+                try {
+                    const r = await (await api("/link/poll", { method: "POST", body: JSON.stringify({ code: body.code, secret: body.secret }) })).json();
+                    if (r.status === "ok") { clearInterval(polling); cfg.token = r.token; cfg.user = r.user; save(); say(""); render(); preloadProjects(); if (pages.length) showFonts(pages[current].missing || []); }
+                    if (r.status === "expired") { clearInterval(polling); say("That sign-in link expired. Press Sign in again.", "err"); }
+                } catch (err) { /* keep trying */ }
+            }, 2000);
+        } catch (err) { say("Could not reach Windcraft. Check your connection, or use a token.", "err"); }
+    }
+    $("topSignin").onclick = signIn;
+    $("tokenLink").onclick = () => { $("tokenCard").classList.remove("hidden"); $("token").focus(); };
+    $("closeToken").onclick = () => $("tokenCard").classList.add("hidden");
+    $("useToken").onclick = async () => {
+        cfg.server = $("server").value.trim().replace(/\/+$/, "") || cfg.server; cfg.token = $("token").value.trim();
+        if (!cfg.token) return say("Paste a token first.", "err");
+        try {
+            const res = await api("/me");
+            if (!res.ok) { cfg.token = ""; return say("That token was not accepted.", "err"); }
+            cfg.user = (await res.json()).user; save(); $("tokenCard").classList.add("hidden"); say(""); render(); preloadProjects();
+            if (pages.length) showFonts(pages[current].missing || []);
+        } catch (err) { cfg.token = ""; say("Could not reach that address.", "err"); }
     };
+    $("signout").onclick = async () => {
+        try { await api("/signout", { method: "POST", body: "{}" }); } catch (err) { /* signed out here anyway */ }
+        cfg.token = ""; cfg.user = null; save(); lastUrl.clear(); projects = []; projectsLoaded = false; say(""); render();
+    };
+
+    async function uploadFont(family, weight, file, status) {
+        if (!signed()) { status.textContent = "Sign in first"; return; }
+        if (!$("canShare").checked) { status.textContent = "Tick the box below"; return; }
+        if (file.size > 1024 * 1024) { status.textContent = "Over 1 MB: use .woff2"; return; }
+        status.textContent = "Uploading…";
+        try {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+            const res = await api("/fonts", { method: "POST", body: JSON.stringify({ family, weight, base64: btoa(bin), shareConfirmed: $("canShare").checked }) });
+            const body = await res.json().catch(() => ({}));
+            status.textContent = res.ok && body.ok ? "Added ✓" : (body.message || res.status);
+        } catch (err) { status.textContent = "Could not reach Windcraft"; }
+    }
+    async function showFonts(missing) {
+        $("fontRows").innerHTML = ""; $("inLibrary").innerHTML = ""; $("shareRow").classList.add("hidden");
+        $("fonts").classList.toggle("hidden", !missing.length);
+        if (!missing.length) return;
+        let have = [];
+        if (signed()) { // what the shared library already has is used on save: no upload needed
+            try { have = (await (await api("/fonts/have", { method: "POST", body: JSON.stringify({ families: missing.map((m) => m.family) }) })).json()).have || []; } catch (err) { /* offline: show every font */ }
+        }
+        const got = new Set(have.map((h) => `${h.family}:${h.weight}`));
+        const todo = missing.map((m) => ({ family: m.family, weights: m.weights.filter((w) => !got.has(`${m.family}:${w}`)) })).filter((m) => m.weights.length);
+        $("fontsTitle").textContent = todo.length ? `${todo.length} font${todo.length === 1 ? "" : "s"} shown with a close match` : "Fonts are ready";
+        $("fontsIntro").textContent = todo.length ? "These fonts are not on Google Fonts. Add your copy once (.woff2 is smallest): it is kept for everyone, so nobody uploads it again." : "The real font files are used automatically.";
+        $("inLibrary").innerHTML = [...new Set(have.map((h) => h.family))].map((n) => `<span class="tag">${esc(n)} ✓</span>`).join("");
+        if (todo.length) $("shareRow").classList.remove("hidden");
+        for (const { family, weights } of todo) for (const weight of weights) {
+            const row = document.createElement("div"); row.className = "fontrow";
+            row.innerHTML = `<div class="name"><b>${esc(family)}</b><small>weight ${weight}</small></div><span class="muted st"></span><label class="pick">Choose file<input type="file" accept=".woff2,.woff,.ttf,.otf"></label>`;
+            const status = row.querySelector(".st"), input = row.querySelector("input");
+            input.onchange = () => input.files[0] && uploadFont(family, weight, input.files[0], status);
+            $("fontRows").appendChild(row);
+        }
+    }
+
     // the plugin sandbox has no canvas: it sends a picture here to be drawn at the size it is shown at and saved small (WebP keeps transparency)
     async function shrink({ id, bytes, width, height, cover, quality = 0.7, maxPixels = 900000 }) {
         let dataUri = null;
@@ -80,24 +398,23 @@
             dataUri = canvas.toDataURL("image/webp", quality);
             if (!dataUri.startsWith("data:image/webp")) dataUri = canvas.toDataURL("image/png"); // a browser without WebP: PNG
         } catch (err) { dataUri = null; }
-        parent.postMessage({ pluginMessage: { type: "compressed", id, dataUri } }, "*");
+        post({ type: "compressed", id, dataUri });
     }
     onmessage = (e) => {
         const m = e.data.pluginMessage;
         if (!m) return;
         if (m.type === "compress") return shrink(m);
-        if (m.type === "settings") { $("server").value = m.saved.server || ""; $("token").value = m.saved.token || ""; $("project").value = m.saved.project || ""; return; }
-        if (m.type === "empty") $("hint").textContent = "Select one or more frames, then press Convert.";
-        if (m.type === "progress") $("hint").textContent = `Reading ${m.name}${m.count ? ` (${m.count} layers)` : ""}…`;
-        if (m.type === "error") $("hint").textContent = "Something went wrong: " + m.message;
+        if (m.type === "settings") { cfg = { ...cfg, ...m.saved, server: m.saved.server || DEFAULT_SERVER }; render(); loadAccount(); return; }
+        if (m.type === "selection") { frames = m.frames || []; render(); return; }
+        if (m.type === "empty") { busy = false; say("Select a frame (not just a shape) and try again.", "err"); render(); }
+        if (m.type === "progress") { progress = `Reading ${m.name}${m.count ? ` · ${m.count} layers` : ""}…`; render(); }
+        if (m.type === "error") { busy = false; say("Something went wrong: " + m.message, "err"); render(); }
         if (m.type === "result") {
-            pages = m.pages; $("hint").textContent = `Converted ${pages.length} ${pages.length === 1 ? "frame" : "frames"}.`;
-            $("tabs").innerHTML = pages.map((p, i) => `<button data-i="${i}">${p.title.replace(/</g, "&lt;")}</button>`).join("");
-            $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) show(Number(b.dataset.i)); };
-            ["copy", "save", "send", "dest", "stats", "out", "next"].forEach((id) => $(id).classList.remove("hidden"));
-            show(0);
+            busy = false; pages = m.pages; current = 0; lastUrl.clear(); say(""); preloadProjects();
+            render(); showFonts(pages[0].missing || []);
         }
     };
+    render();
 </script>
 </body>
 </html>
