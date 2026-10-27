@@ -117,7 +117,9 @@ See `.env.example`. Key vars: `MONGO_URI`, `SESSION_SECRET`, `PORT`, `ANTHROPIC_
 - `npm start` — production (uses --env-file=.env)
 
 ## Packages
-`packages/core` (`@windcraft/core`) holds the pure code shared by the browser and the server: the design spec, Tailwind class tables, exporters, page and board helpers. No dependencies and no DOM. The server imports it by name (npm workspaces link it); the browser gets the same name through an import map in the layouts, served from `/core`. The editor reaches the app only through a host (`design/host.js`, the app's own in `app-host.js`), and `design/editor/` holds its parts, one per section of the old editor.js.
+- `packages/core` (`@windcraft/core`): pure code shared by the browser and the server: the design spec, Tailwind class tables, exporters, page and board helpers. No dependencies, no DOM.
+- `packages/editor` (`@windcraft/editor`): the visual editor. `mountEditor(root, { host, data })` (index.js) puts its page (template.js, styles.css) in `root` and starts it; `design/` holds its code (`design/editor/` one file per part), `playground/component-source.js` builds preview documents, `vendor/` the bundled Preact. It reaches the app only through the host (`design/host.js`); Windcraft's own is `src/public/js/app-host.js` and the page entry is `src/public/js/design-main.js`. `npm run demo` runs it with no backend (`demo/`).
+- The server imports them by name (npm workspaces link them); the browser gets the same names from an import map in the layouts, served at `/core` and `/editor`. Not yet packages: the MCP tools (routes/mcp.routes.js), the AI code (routes/ai.routes.js, playground-ai.js).
 
 ## Licences
 Only permissive code goes in (MIT, ISC, BSD, Apache-2.0...). `npm run licenses` fails the build on GPL/AGPL/SSPL or an unreadable licence in the production dependencies. Code copied into the repo is listed in `THIRD_PARTY_LICENSES.md`. Never copy code from GPL tools such as FigmaToCode; build from their ideas and public docs only.

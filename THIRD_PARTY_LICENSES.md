@@ -7,7 +7,7 @@ this repository** or **loaded by the pages**. Packages installed with npm keep t
 ## Copied into the repository
 
 ### Preact 10.24.3 (MIT)
-Bundled with htm in `src/public/js/vendor/preact-htm.js`.
+Bundled with htm in `packages/editor/vendor/preact-htm.js`.
 
 ```
 The MIT License (MIT)
@@ -34,7 +34,7 @@ SOFTWARE.
 ```
 
 ### htm 3.1.1 (Apache-2.0)
-Copyright 2018 Google Inc. Bundled with Preact in `src/public/js/vendor/preact-htm.js`. Licensed under the Apache License,
+Copyright 2018 Google Inc. Bundled with Preact in `packages/editor/vendor/preact-htm.js`. Licensed under the Apache License,
 Version 2.0; the full text is at <https://www.apache.org/licenses/LICENSE-2.0> and in `node_modules/htm/LICENSE`.
 
 ## Loaded by the pages from a CDN (not copied here)

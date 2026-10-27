@@ -22,6 +22,7 @@ const __dirname = path.dirname(__filename);
 // middlewares
 app.use("/public", express.static(path.join(__dirname, "public")));
 // @windcraft/core as the browser sees it (the layouts map the package name to this path with an import map)
+app.use("/editor", express.static(path.join(__dirname, "..", "packages", "editor"), { index: false }));
 app.use("/core", express.static(path.join(__dirname, "..", "packages", "core"), { index: false }));
 // Every request waits for MongoDB (cached after the first), so a cold start never races the connection.
 app.use(async (req, res, next) => {

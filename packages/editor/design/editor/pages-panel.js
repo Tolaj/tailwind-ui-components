@@ -1,3 +1,4 @@
+import { host } from "../host.js";
 import { $, S, collapsed, data, esc, send } from "./base.js";
 import { fitTo, pageGroupOf, view } from "./plane.js";
 import { activate, docDirty, docs, renameFrame, selectFrame } from "./designs.js";
@@ -10,7 +11,7 @@ function renderDetailsBlock() {
     const pr = $("leftProject");
     const ARROW = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5h5v5M9.5 2.5l-6 6"/></svg>';
     if (data.project) {
-        pr.href = `/projects/${data.project.id}`;
+        pr.href = (host.projectUrl && host.projectUrl(data.project.id)) || "#";
         pr.innerHTML = `<span class="truncate">${esc(data.project.name)}</span><span class="sub2">${ARROW}</span>`;
     } else {
         pr.href = "#";

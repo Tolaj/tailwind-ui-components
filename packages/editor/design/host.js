@@ -11,6 +11,7 @@
  * @property {(projectId: string, positions: object[]) => void} saveLayoutOnExit   the same, while the page is closing
  * @property {(body: object, onText?: (text: string) => void) => Promise<string>} generate   the AI drafts a page; resolves to its HTML
  * @property {(id: string | null) => void} showDesign   the address now shows this saved design (null: an unsaved one)
+ * @property {(projectId: string) => string} [projectUrl]   where a project's own page is (the project name links there); omit for none
  * @property {(id: string) => void} openDesign   go to this design (loads the page again)
  */
 export const host = /** @type {Host} */ ({});

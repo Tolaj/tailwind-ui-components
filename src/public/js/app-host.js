@@ -1,5 +1,5 @@
 // @ts-check
-// Windcraft's own host for the editor (see design/host.js): saves through the app's API and keeps the address bar in step.
+// Windcraft's own host for the editor (see packages/editor/design/host.js): saves through the app's API and keeps the address bar in step.
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 /** One call to the app's API: the saved data, or an Error with the server's reason. */
@@ -34,7 +34,7 @@ async function generate(body, onText) {
     return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
 }
 
-/** @type {import("./design/host.js").Host} */
+/** @type {import("@windcraft/editor/design/host.js").Host} */
 export const appHost = {
     createComponent: (fields) => send("POST", "/api/components", fields),
     updateComponent: (id, fields) => send("PUT", `/api/components/${id}`, fields),
@@ -46,6 +46,7 @@ export const appHost = {
         if (navigator.sendBeacon) navigator.sendBeacon(`/api/projects/${projectId}/layout`, new Blob([JSON.stringify({ positions })], { type: "application/json" }));
     },
     generate,
+    projectUrl: (id) => `/projects/${id}`,
     showDesign: (id) => window.history.replaceState({}, "", id ? `/design/${id}` : "/design/new"),
     openDesign: (id) => { window.location.href = `/design/${id}`; },
 };

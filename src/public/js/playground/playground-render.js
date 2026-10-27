@@ -1,4 +1,4 @@
-import { parseComponentSource, buildPreviewDocument } from "./component-source.js";
+import { parseComponentSource, buildPreviewDocument } from "@windcraft/editor/playground/component-source.js";
 
 let isMobile = false;
 let timer = null;

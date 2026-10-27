@@ -1,0 +1,16 @@
+{
+    "name": "@windcraft/editor",
+    "version": "0.1.0",
+    "description": "Windcraft's visual HTML + Tailwind editor. Mount it in a page and give it a host that loads and saves designs.",
+    "type": "module",
+    "private": true,
+    "license": "UNLICENSED",
+    "main": "index.js",
+    "exports": {
+        ".": "./index.js",
+        "./*": "./*"
+    },
+    "dependencies": {
+        "@windcraft/core": "*"
+    }
+}

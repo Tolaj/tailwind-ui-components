@@ -13,5 +13,5 @@
         "noImplicitAny": false,
         "skipLibCheck": true
     },
-    "include": ["src/public/js/**/*.js", "packages/core/**/*.js", "src/services/design-spec.service.js"]
+    "include": ["src/public/js/**/*.js", "packages/core/**/*.js", "packages/editor/**/*.js", "src/services/design-spec.service.js"]
 }

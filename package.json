@@ -7,8 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test test/ packages/core/test/",
+    "test": "node --test test/ packages/core/test/ packages/editor/test/",
     "licenses": "node scripts/check-licenses.js",
+    "demo": "node packages/editor/demo/serve.js",
     "typecheck": "tsc -p tsconfig.json",
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",

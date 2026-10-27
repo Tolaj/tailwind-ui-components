@@ -1,4 +1,4 @@
-import { parseComponentSource, buildPreviewDocument } from "./playground/component-source.js";
+import { parseComponentSource, buildPreviewDocument } from "@windcraft/editor/playground/component-source.js";
 
 const items = JSON.parse(document.getElementById("libraryData").textContent);
 const projects = JSON.parse(document.getElementById("projectsData").textContent);

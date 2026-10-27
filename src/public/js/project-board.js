@@ -1,4 +1,4 @@
-import { parseComponentSource, buildPreviewDocument } from "./playground/component-source.js";
+import { parseComponentSource, buildPreviewDocument } from "@windcraft/editor/playground/component-source.js";
 import { computeLayout as layoutItems, PAGE_H, SEC_H } from "@windcraft/core/board-layout.js";
 
 const $ = (id) => document.getElementById(id);

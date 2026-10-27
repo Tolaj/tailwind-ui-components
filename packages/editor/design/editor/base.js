@@ -1,35 +1,11 @@
-import { host } from "../host.js";
+import { config } from "../config.js";
 import { parseComponentSource } from "../../playground/component-source.js";
 
 export const $ = (id) => document.getElementById(id);
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-export const data = JSON.parse($("designData").textContent);
+export const data = config.data;
 
-// Coming from the quick Add Component dialog: pick up the code and details it handed over.
-if (!data.id && new URLSearchParams(window.location.search).has("draft")) {
-    try {
-        const d = JSON.parse(sessionStorage.getItem("wc:draft") || "null");
-        if (d) {
-            Object.assign(data, {
-                htmlCode: d.html || "", title: d.title || "", category: d.category || "", description: d.description || "",
-                tags: String(d.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: d.isPublished !== "false",
-            });
-            sessionStorage.removeItem("wc:draft");
-        }
-    } catch { /* ignore a bad draft */ }
-    host.showDesign(null);
-}
-
-// Back returns to wherever the editor was opened from (the Library link is the fallback).
-try {
-    const ref = document.referrer ? new URL(document.referrer) : null;
-    if (ref && ref.origin === window.location.origin && !ref.pathname.startsWith("/design")) {
-        $("backLink").href = ref.href;
-        $("backLink").title = "Back";
-        $("backLabel").textContent = "Back";
-    }
-} catch { /* keep the Library link */ }
 export const S = {};
 S.parsed = parseComponentSource(data.htmlCode);
 S.mode = "edit";

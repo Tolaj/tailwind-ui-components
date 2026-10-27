@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windcraft editor demo</title>
+    <!-- The editor's packages are plain ES modules: this maps their names to where they are served (a bundler does the same). -->
+    <script type="importmap">{ "imports": { "@windcraft/core/": "/core/", "@windcraft/editor/": "/editor/" } }</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="./demo.js"></script>
+</body>
+</html>

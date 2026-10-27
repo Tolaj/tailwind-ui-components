@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createStore } from "../src/public/js/design/store.js";
+import { createStore } from "../design/store.js";
 
 test("get, set and subscribe: a change tells the subscribers once, and no change tells nobody", () => {
     const store = createStore({ tab: "design", bp: "" });
@@ -51,7 +51,7 @@ test("a Set that is replaced counts as a change; the same Set does not", () => {
 });
 
 test("the panel's sections: a click flips what is shown, and remembers it", async () => {
-    const { panelStore, toggleSection, togglePalette } = await import("../src/public/js/design/panel-state.js");
+    const { panelStore, toggleSection, togglePalette } = await import("../design/panel-state.js");
     assert.ok(panelStore.get().open.has("geom"), "position and size starts open");
     toggleSection("geom", true);
     assert.ok(!panelStore.get().open.has("geom"));
