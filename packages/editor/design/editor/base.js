@@ -23,6 +23,7 @@ S.viewTouched = false;
 S.sentZoom = 0;
 S.tool = "move";
 S.curKey = data.id || "draft-0";
+S.draftKey = data.draftId ? S.curKey : null; // a design opened from a Figma draft: its first save sends the draft's id, so its Figma data moves to the new page
 S.switching = false;
 S.switchToken = 0;
 S.frameAt = null;

@@ -101,7 +101,8 @@ $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label=
         const err = $("detailsError");
         $("detailsSave").disabled = true;
         try {
-            const saved = S.isNew ? await host.createComponent({ ...fields, htmlCode: assemble() }) : await host.updateComponent(data.id, fields);
+            const fromDraft = S.isNew && S.draftKey && S.draftKey === S.curKey; // a design opened from a Figma draft: its Figma data moves to the new page
+            const saved = S.isNew ? await host.createComponent({ ...fields, htmlCode: assemble(), ...(fromDraft ? { draftId: data.draftId } : {}) }) : await host.updateComponent(data.id, fields);
             const movedProject = (data.project ? data.project.id : "") !== fields.project;
             data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
             Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
@@ -114,6 +115,7 @@ $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label=
                 const d = docs.get(S.curKey);
                 if (d.board && data.project) saveBoard([boardPayload([data.id, d.board])]);
                 remapKey(S.curKey, data.id);
+                if (fromDraft) { S.draftKey = null; if (saved.figmaSource) document.dispatchEvent(new CustomEvent("figma-source-ready", { detail: { info: saved.figmaSource, id: data.id } })); }
             }
             dlg.close();
             updateChrome();

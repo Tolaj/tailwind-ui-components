@@ -19,10 +19,6 @@ function setMode(next) {
 
 export const DEFAULT_CATEGORY = "apps-general";
 
-// A design opened from Figma with Edit starts as a draft on the server: its first save sends the draft's id, so the Figma data kept for the
-// draft moves to the new page (and "Update from Figma" appears on it).
-const DRAFT_KEY = data.draftId ? S.curKey : null;
-
 /** Writes one design: creates it the first time, a new version after that. */
 async function persist(d) {
     const m = d.meta;
@@ -31,14 +27,14 @@ async function persist(d) {
         const saved = await host.createComponent({
             ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
             tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
-            ...(DRAFT_KEY && d.key === DRAFT_KEY ? { draftId: data.draftId } : {}),
+            ...(S.draftKey && d.key === S.draftKey ? { draftId: data.draftId } : {}), // a draft from Figma: its Figma data moves to this page
         });
-        if (DRAFT_KEY && d.key === DRAFT_KEY && saved.figmaSource) setupFigmaButton(saved.figmaSource, saved._id);
         m.id = saved._id;
         m.version = saved.version || 1;
         d.isNew = false;
         const old = d.key;
         remapKey(old, m.id);
+        if (S.draftKey && old === S.draftKey) { S.draftKey = null; if (saved.figmaSource) setupFigmaButton(saved.figmaSource, m.id); } // after the key moved: the button shows for the design being edited
         if (d.board && m.project) saveBoard([boardPayload([m.id, d.board])]);
         if (m.id === S.curKey) host.showDesign(m.id);
     } else {
@@ -208,6 +204,7 @@ export function init() {
     window.addEventListener("resize", layout);
     $("saveBtn").addEventListener("click", save);
     if (data.figmaSource && data.id) setupFigmaButton(data.figmaSource, data.id);
+    document.addEventListener("figma-source-ready", (e) => setupFigmaButton(e.detail.info, e.detail.id)); // from the details dialog's first save
     new MutationObserver(syncSaveButton).observe($("saveState"), { childList: true, characterData: true, subtree: true });
     $("detailsBtn").addEventListener("click", () => $("designsMenu").classList.add("hidden"));
     document.addEventListener("keydown", (e) => {
