@@ -28,7 +28,9 @@ async function run() {
         const { tree, warnings, count } = await snapshotDesign(node, (n) => figma.ui.postMessage({ type: "progress", name: node.name, count: n }), compress);
         const result = convertDesign(tree, { title: node.name });
         if (result.size > MAX_DESIGN_BYTES) warnings.push(`This page is ${Math.round(result.size / 1024)} KB; Windcraft saves up to 1 MB per design. The pictures are most of it: use fewer or smaller ones.`);
-        pages.push({ title: node.name, width: node.width, height: node.height, html: result.html, layers: count, stats: result.stats, fonts: result.fonts, missing: result.missing, size: result.size, warnings: [...warnings, ...result.warnings] });
+        let thumb = null; // a small picture of the frame for the window (the top of it, if it is tall)
+        try { thumb = `data:image/png;base64,${figma.base64Encode(await node.exportAsync({ format: "PNG", constraint: { type: "WIDTH", value: 260 } }))}`; } catch (e) { /* the window shows a placeholder */ }
+        pages.push({ thumb, title: node.name, width: node.width, height: node.height, html: result.html, layers: count, stats: result.stats, fonts: result.fonts, missing: result.missing, size: result.size, warnings: [...warnings, ...result.warnings] });
     }
     figma.ui.postMessage({ type: "result", pages });
 }

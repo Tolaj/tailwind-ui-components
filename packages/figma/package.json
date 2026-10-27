@@ -9,6 +9,7 @@
         "esbuild": "^0.28.2"
     },
     "scripts": {
-        "build": "node build.mjs"
+        "build": "node build.mjs",
+        "build:dev": "node build.mjs --dev"
     }
 }

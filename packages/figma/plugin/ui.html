@@ -52,9 +52,11 @@
     .frame b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .empty { text-align: center; padding: 22px 8px; margin-top: 12px; border: 1px dashed var(--line); border-radius: 14px; }
 
-    .done-head { display: flex; gap: 12px; align-items: center; }
-    .tick { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-size: 16px; flex: none; }
-    .tick.off { background: var(--card); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+    .hero { display: flex; gap: 14px; align-items: center; }
+    .thumb { width: 72px; height: 72px; flex: none; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--card); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; transform: scale(1.1); transform-origin: 50% 0; }
+    .badge { display: inline-block; margin-top: 4px; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
+    .badge.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
     .stack { display: grid; gap: 10px; }
     .row { display: flex; gap: 8px; }
     .row > button { flex: 1; padding-left: 8px; padding-right: 8px; }
@@ -119,9 +121,13 @@
     <section id="done" class="hidden grid">
         <div id="tabs" class="seg hidden"></div>
         <div class="card">
-            <div class="done-head">
-                <div class="tick" id="tick">✓</div>
-                <div style="min-width:0"><p class="title" id="status"></p><div class="muted" id="sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div></div>
+            <div class="hero">
+                <div class="thumb"><img id="thumb" alt=""></div>
+                <div style="min-width:0">
+                    <p class="title" id="status" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+                    <div class="meta"><span class="badge" id="badge"></span></div>
+                    <div class="muted" id="sub" style="margin-top:6px"></div>
+                </div>
             </div>
         </div>
 
@@ -158,8 +164,8 @@
         <div class="tokenbox">
             <input id="token" type="password" placeholder="Token (twl_…)">
             <div class="row"><button id="useToken" class="primary">Use token</button><button id="closeToken">Cancel</button></div>
-            <details><summary>Windcraft address</summary><input id="server" type="text" style="margin-top:8px"></details>
-        </div>
+            <details id="serverBox" class="hidden"><summary>Windcraft address</summary><input id="server" type="text" style="margin-top:8px"></details>
+                    </div>
     </section>
 
     <div class="foot" id="foot"><button class="link" id="tokenLink">Use a token instead of signing in</button></div>
@@ -167,10 +173,11 @@
 <script>
     const $ = (id) => document.getElementById(id);
     // where Windcraft lives: this is only the first guess; the server tells the plugin its current address, so it can move later
-    const DEFAULT_SERVER = "https://windcraft.swapniljadhav.com";
+    const DEFAULT_SERVER = "__SERVER__"; // the server's PUBLIC_URL, put in when the plugin is built; the server then confirms its own address
+    const DEV = "__DEV__" === "true"; // a dev build also lets you type another address
     const MAX_BYTES = 1000000; // what Windcraft saves per design
     let cfg = { server: DEFAULT_SERVER, token: "", user: null, project: "" };
-    let pages = [], current = 0, frames = [], busy = false, projects = [], progress = "";
+    let pages = [], current = 0, frames = [], busy = false, projects = [], progress = "", tokenOpen = false;
     const lastUrl = new Map(); // page index -> where it was saved
     const post = (m) => parent.postMessage({ pluginMessage: m }, "*");
     const save = () => post({ type: "save-settings", settings: cfg });
@@ -184,9 +191,8 @@
         const s = signed();
         $("who").classList.toggle("hidden", !s);
         $("topSignin").classList.toggle("hidden", s);
-        $("foot").classList.toggle("hidden", s);
+        $("foot").classList.toggle("hidden", s || tokenOpen);
         if (s) { const who = cfg.user.name || cfg.user.email || "You"; $("name").textContent = who; $("av").textContent = who.trim()[0].toUpperCase(); }
-        $("server").value = cfg.server;
         const converted = pages.length > 0;
         $("idle").classList.toggle("hidden", converted);
         $("done").classList.toggle("hidden", !converted);
@@ -201,10 +207,11 @@
         const p = pages[current], url = lastUrl.get(current), over = p.size > MAX_BYTES;
         $("tabs").classList.toggle("hidden", pages.length < 2);
         $("tabs").innerHTML = pages.map((q, n) => `<button data-i="${n}" class="${n === current ? "on" : ""}">${esc(q.title)}</button>`).join("");
-        $("tick").className = `tick${url ? "" : " off"}`;
-        $("tick").textContent = url ? "✓" : "•";
-        $("status").textContent = url ? "Saved to Windcraft" : "Converted";
-        $("sub").textContent = `${p.title} · ${kb(p.size)}${over ? " (over the 1 MB limit: use fewer or smaller pictures)" : ""}`;
+        if (p.thumb) $("thumb").src = p.thumb; else $("thumb").removeAttribute("src");
+        $("status").textContent = p.title;
+        $("badge").textContent = url ? "✓ Saved to Windcraft" : "Converted";
+        $("badge").classList.toggle("on", Boolean(url));
+        $("sub").textContent = `${Math.round(p.width)} × ${Math.round(p.height)} · ${kb(p.size)}${over ? " · over the 1 MB limit: use fewer or smaller pictures" : ""}`;
         $("primary").textContent = url ? "Edit in Windcraft" : s ? "Save to Windcraft" : "Sign in to save to Windcraft";
         $("primary").disabled = busy;
         $("again").classList.toggle("hidden", !url);
@@ -294,12 +301,10 @@
     }
 
     async function loadAccount() {
-        for (const base of [cfg.server, DEFAULT_SERVER]) { // the saved address, then the default if that no longer answers
-            try {
-                const body = await (await fetch(`${base}/api/figma/config`)).json();
-                if (body.ok) { if (body.server && body.server !== cfg.server) { cfg.server = body.server; save(); } break; }
-            } catch (err) { /* try the next address */ }
-        }
+        try { // the server says where it lives now, so the address can change later without a new plugin
+            const body = await (await fetch(`${cfg.server}/api/figma/config`)).json();
+            if (body.ok && body.server) cfg.server = body.server;
+        } catch (err) { /* offline: the built-in address is used */ }
         if (cfg.token) {
             try {
                 const res = await api("/me");
@@ -329,15 +334,16 @@
         } catch (err) { say("Could not reach Windcraft. Check your connection, or use a token.", "err"); }
     }
     $("topSignin").onclick = signIn;
-    $("tokenLink").onclick = () => { $("tokenCard").classList.remove("hidden"); $("token").focus(); };
-    $("closeToken").onclick = () => $("tokenCard").classList.add("hidden");
+    $("tokenLink").onclick = () => { tokenOpen = true; $("serverBox").classList.toggle("hidden", !DEV); $("server").value = cfg.server; $("tokenCard").classList.remove("hidden"); render(); $("token").focus(); };
+    $("closeToken").onclick = () => { tokenOpen = false; $("tokenCard").classList.add("hidden"); render(); };
     $("useToken").onclick = async () => {
-        cfg.server = $("server").value.trim().replace(/\/+$/, "") || cfg.server; cfg.token = $("token").value.trim();
+        if (DEV && $("server").value.trim()) cfg.server = $("server").value.trim().replace(/\/+$/, "");
+        cfg.token = $("token").value.trim();
         if (!cfg.token) return say("Paste a token first.", "err");
         try {
             const res = await api("/me");
             if (!res.ok) { cfg.token = ""; return say("That token was not accepted.", "err"); }
-            cfg.user = (await res.json()).user; save(); $("tokenCard").classList.add("hidden"); say(""); render(); preloadProjects();
+            cfg.user = (await res.json()).user; save(); tokenOpen = false; $("tokenCard").classList.add("hidden"); say(""); render(); preloadProjects();
             if (pages.length) showFonts(pages[current].missing || []);
         } catch (err) { cfg.token = ""; say("Could not reach that address.", "err"); }
     };
@@ -382,6 +388,31 @@
         }
     }
 
+    // the exported picture of a frame can come with an empty or white margin: cut it off so the preview starts at the design itself
+    async function trimMargins(uri) {
+        try {
+            const img = new Image(); img.src = uri; await img.decode();
+            const w = img.width, h = img.height, c = document.createElement("canvas");
+            c.width = w; c.height = h;
+            const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+            const d = g.getImageData(0, 0, w, h).data;
+            const empty = (x, y) => { const i = (y * w + x) * 4; return d[i + 3] < 16 || (d[i] > 225 && d[i + 1] > 225 && d[i + 2] > 225); };
+            const rowHas = (y) => { let n = 0; for (let x = 0; x < w; x++) if (!empty(x, y)) n++; return n > w * 0.01; };
+            const colHas = (x) => { let n = 0; for (let y = 0; y < h; y++) if (!empty(x, y)) n++; return n > h * 0.01; };
+            let top = 0, bottom = h - 1, left = 0, right = w - 1;
+            while (top < bottom && !rowHas(top)) top++;
+            while (bottom > top && !rowHas(bottom)) bottom--;
+            while (left < right && !colHas(left)) left++;
+            while (right > left && !colHas(right)) right--;
+            const cut = 7; // a little more off every side: the edge of the picture is often a faint line, not pure white
+            top = Math.min(bottom, top + cut); left = Math.min(right, left + cut); bottom = Math.max(top, bottom - cut); right = Math.max(left, right - cut);
+            const cw = right - left + 1, ch = bottom - top + 1;
+            if (cw * ch < w * h * 0.25) return uri; // a mostly white design: leave it whole
+            const out = document.createElement("canvas"); out.width = cw; out.height = ch;
+            out.getContext("2d").drawImage(c, left, top, cw, ch, 0, 0, cw, ch);
+            return out.toDataURL("image/png");
+        } catch (err) { return uri; }
+    }
     // the plugin sandbox has no canvas: it sends a picture here to be drawn at the size it is shown at and saved small (WebP keeps transparency)
     async function shrink({ id, bytes, width, height, cover, quality = 0.7, maxPixels = 900000 }) {
         let dataUri = null;
@@ -404,7 +435,7 @@
         const m = e.data.pluginMessage;
         if (!m) return;
         if (m.type === "compress") return shrink(m);
-        if (m.type === "settings") { cfg = { ...cfg, ...m.saved, server: m.saved.server || DEFAULT_SERVER }; render(); loadAccount(); return; }
+        if (m.type === "settings") { cfg = { ...cfg, ...m.saved, server: DEV && m.saved.server ? m.saved.server : DEFAULT_SERVER }; render(); loadAccount(); return; }
         if (m.type === "selection") { frames = m.frames || []; render(); return; }
         if (m.type === "empty") { busy = false; say("Select a frame (not just a shape) and try again.", "err"); render(); }
         if (m.type === "progress") { progress = `Reading ${m.name}${m.count ? ` · ${m.count} layers` : ""}…`; render(); }
@@ -412,6 +443,7 @@
         if (m.type === "result") {
             busy = false; pages = m.pages; current = 0; lastUrl.clear(); say(""); preloadProjects();
             render(); showFonts(pages[0].missing || []);
+            for (const p of pages) if (p.thumb) trimMargins(p.thumb).then((u) => { p.thumb = u; if (pages[current] === p) render(); });
         }
     };
     render();
