@@ -1,0 +1,126 @@
+// Reads Figma nodes into the plain JSON that src/convert.js turns into HTML. This is the only file that touches Figma's API.
+// Positions are made relative to the node's parent from the absolute transforms, so groups need no special care.
+// Vectors become inline SVG, and shapes filled with a picture a PNG, both exported by Figma itself.
+
+const VECTORS = new Set(["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE"]);
+const CONTAINERS = new Set(["FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"]);
+const MAX_NODES = 4000;
+const MAX_PNG_BYTES = 300 * 1024;
+
+const mixed = () => (typeof figma !== "undefined" ? figma.mixed : Symbol.for("mixed"));
+const val = (v) => (v === mixed() ? undefined : v);
+const safe = (fn) => { try { return fn(); } catch { return undefined; } };
+const plain = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+
+// a Figma transform is [[a, b, tx], [c, d, ty]]
+const mul = (m, n) => [
+    [m[0][0] * n[0][0] + m[0][1] * n[1][0], m[0][0] * n[0][1] + m[0][1] * n[1][1], m[0][0] * n[0][2] + m[0][1] * n[1][2] + m[0][2]],
+    [m[1][0] * n[0][0] + m[1][1] * n[1][0], m[1][0] * n[0][1] + m[1][1] * n[1][1], m[1][0] * n[0][2] + m[1][1] * n[1][2] + m[1][2]],
+];
+const inv = ([[a, b, tx], [c, d, ty]]) => { const det = a * d - b * c || 1; return [[d / det, -b / det, (b * ty - d * tx) / det], [-c / det, a / det, (c * tx - a * ty) / det]]; };
+const IDENTITY = [[1, 0, 0], [0, 1, 0]];
+
+const LAYOUT = ["layoutMode", "layoutWrap", "primaryAxisAlignItems", "counterAxisAlignItems", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "itemSpacing", "counterAxisSpacing"];
+const AS_CHILD = ["layoutPositioning", "layoutSizingHorizontal", "layoutSizingVertical", "layoutGrow", "layoutAlign"];
+const PAINT = ["fills", "strokes", "strokeWeight", "strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight", "strokeAlign", "dashPattern",
+    "cornerRadius", "topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius", "effects", "clipsContent"];
+const TEXT = ["characters", "fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textCase", "textDecoration", "textAutoResize"];
+const SEGMENT_FIELDS = ["fontName", "fontSize", "fontWeight", "fills", "textDecoration", "textCase", "lineHeight", "letterSpacing"];
+
+const hasImageFill = (node) => Array.isArray(node.fills) && node.fills.some((p) => p.type === "IMAGE" && p.visible !== false);
+const boxOf = (node, parentAbs) => {
+    const b = node.absoluteRenderBounds || node.absoluteBoundingBox;
+    if (!b) return null;
+    return { x: b.x - parentAbs[0][2], y: b.y - parentAbs[1][2], width: b.width, height: b.height };
+};
+
+/** A picture's bytes as a small data URI: shrunk to the size it is shown at by the plugin window (which has a canvas). */
+async function pictureUri(bytes, width, height, cover, ctx, label) {
+    if (ctx.compress) {
+        // pictures share one budget: once ~500 KB is used, the rest are saved smaller and rougher
+        const tight = (ctx.pictureChars || 0) > 500000;
+        const uri = await ctx.compress({ bytes, width, height, cover, quality: tight ? 0.5 : 0.7, maxPixels: tight ? 250000 : 900000 });
+        if (uri) ctx.pictureChars = (ctx.pictureChars || 0) + uri.length;
+        if (uri) return uri;
+        ctx.warnings.push(`${label}: its picture could not be shrunk`);
+    }
+    if (bytes.length > MAX_PNG_BYTES) { ctx.warnings.push(`${label}: its picture is ${Math.round(bytes.length / 1024)} KB, too big to include`); return null; }
+    return `data:image/png;base64,${figma.base64Encode(bytes)}`;
+}
+
+/** A frame or shape that has a picture fill (and children, so it stays a box): each picture becomes the fill's data. */
+async function attachPictures(node, out, ctx) {
+    for (const paint of out.fills || []) {
+        if (paint.type !== "IMAGE" || paint.visible === false || !paint.imageHash) continue;
+        try {
+            const key = `${paint.imageHash}:${Math.round(node.width)}x${Math.round(node.height)}`;
+            ctx.cache = ctx.cache || new Map();
+            if (!ctx.cache.has(key)) {
+                const bytes = await figma.getImageByHash(paint.imageHash).getBytesAsync();
+                ctx.cache.set(key, await pictureUri(bytes, node.width, node.height, paint.scaleMode !== "FIT" && paint.scaleMode !== "TILE", ctx, node.name));
+            }
+            if (ctx.cache.get(key)) paint.dataUri = ctx.cache.get(key);
+        } catch (e) {
+            ctx.warnings.push(`${node.name}: its picture fill could not be read (${e.message})`);
+        }
+    }
+}
+
+/**
+ * @param {SceneNode} node
+ * @param {Transform} parentAbs   the parent's absolute transform (the top node is read as if it sat at the origin)
+ * @param {{ warnings: string[], count: number, progress?: (n: number) => void, compress?: (job: { bytes: Uint8Array, width: number, height: number, cover: boolean }) => Promise<string | null> }} ctx
+ */
+export async function snapshotNode(node, parentAbs, ctx, isRoot = false) {
+    if (++ctx.count > MAX_NODES) { if (ctx.count === MAX_NODES + 1) ctx.warnings.push(`Stopped at ${MAX_NODES} layers: the rest are left out`); return null; }
+    if (ctx.progress && ctx.count % 50 === 0) ctx.progress(ctx.count);
+    const abs = node.absoluteTransform || IDENTITY;
+    const out = {
+        id: node.id, name: node.name, type: node.type, visible: node.visible !== false,
+        opacity: val(node.opacity), isMask: Boolean(safe(() => node.isMask)),
+        width: node.width, height: node.height,
+        transform: isRoot ? IDENTITY : plain(mul(inv(parentAbs), abs)),
+    };
+    for (const key of [...LAYOUT, ...AS_CHILD, ...PAINT]) { const v = val(safe(() => node[key])); if (v !== undefined) out[key] = plain(v); }
+    if (!out.visible) return out;
+
+    if (node.type === "TEXT") {
+        for (const key of TEXT) { const v = val(safe(() => node[key])); if (v !== undefined) out[key] = plain(v); }
+        const segments = safe(() => node.getStyledTextSegments(SEGMENT_FIELDS));
+        if (segments && segments.length) out.segments = plain(segments);
+        return out;
+    }
+
+    if (VECTORS.has(node.type) || (hasImageFill(out) && !(node.children && node.children.length))) {
+        const box = boxOf(node, isRoot ? IDENTITY : parentAbs);
+        try {
+            if (VECTORS.has(node.type)) { out.svg = await node.exportAsync({ format: "SVG_STRING" }); }
+            else {
+                const bytes = await node.exportAsync({ format: "PNG", constraint: { type: "SCALE", value: 1 } });
+                out.png = await pictureUri(bytes, box ? box.width : node.width, box ? box.height : node.height, false, ctx, node.name);
+            }
+            if (box && (out.svg || out.png)) out.box = box;
+            if (!out.svg && !out.png) delete out.png;
+        } catch (e) {
+            ctx.warnings.push(`${node.name}: could not be exported (${e.message})`);
+        }
+        return out;
+    }
+
+    if (hasImageFill(out)) await attachPictures(node, out, ctx); // a box with a picture behind its children
+    if (CONTAINERS.has(node.type) && node.children) {
+        out.children = [];
+        for (const child of node.children) {
+            const snap = await snapshotNode(child, abs, ctx);
+            if (snap) out.children.push(snap);
+        }
+    }
+    return out;
+}
+
+/** Everything under `node` as a snapshot, plus what could not be carried over. */
+export async function snapshotDesign(node, progress, compress) {
+    const ctx = { warnings: [], count: 0, progress, compress };
+    const tree = await snapshotNode(node, IDENTITY, ctx, true);
+    return { tree, warnings: ctx.warnings, count: ctx.count };
+}

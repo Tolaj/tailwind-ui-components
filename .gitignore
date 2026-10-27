@@ -30,3 +30,6 @@ Thumbs.db
 
 .github
 .claude
+
+# Figma plugin build output
+packages/figma/dist/

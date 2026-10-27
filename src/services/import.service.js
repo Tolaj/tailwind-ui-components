@@ -57,7 +57,7 @@ async function existingPage(userId, { id, project, title }) {
  * sections are updated, added or removed to match. That save must say which version it started from (baseVersion):
  * if the page changed since (an edit in the editor), it is refused, so nothing is overwritten unseen, unless force.
  */
-export async function importDesign(userId, { title, html, description, tags = [], split = true, project = null, id = null, baseVersion, force = false, note, group }) {
+export async function importDesign(userId, { title, html, description, tags = [], split = true, project = null, id = null, baseVersion, force = false, note, group, summarize = true }) {
     if (!html || typeof html !== "string" || !html.trim()) throw new Error("html is required");
     if (html.length > MAX_HTML) throw new Error("html is too large (limit 1 MB per design)");
 
@@ -132,12 +132,16 @@ export async function importDesign(userId, { title, html, description, tags = []
         removedSections = gone.length;
     }
 
-    const all = [...new Set([...(updated ? [page] : []), ...created])]; // what changed, for the AI summary
-    if (process.env.VERCEL) {
-        // Serverless freezes work started after the response, so give the page's AI summary a short, bounded wait.
-        await Promise.race([enrichProfileWithAI(page._id, userId), new Promise((resolve) => setTimeout(resolve, 6000))]);
-    } else {
-        (async () => { for (const c of all.slice(0, 12)) await enrichProfileWithAI(c._id, userId); })();
+    // The owner's AI writes a short summary of what changed (when they turned it on). `summarize: false` skips it: a converter
+    // such as the Figma plugin saves its own work without any AI.
+    if (summarize) {
+        const all = [...new Set([...(updated ? [page] : []), ...created])]; // what changed, for the AI summary
+        if (process.env.VERCEL) {
+            // Serverless freezes work started after the response, so give the page's AI summary a short, bounded wait.
+            await Promise.race([enrichProfileWithAI(page._id, userId), new Promise((resolve) => setTimeout(resolve, 6000))]);
+        } else {
+            (async () => { for (const c of all.slice(0, 12)) await enrichProfileWithAI(c._id, userId); })();
+        }
     }
 
     const warning = tailwindWarning(html);

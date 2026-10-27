@@ -163,3 +163,9 @@ test("baseVersion: missing, wrong or stale says exactly what to send", async () 
     assert.throws(() => checkBaseVersion(2, 3), /it is now v3, the patch was made from v2/);
     assert.doesNotThrow(() => checkBaseVersion("3", 3));
 });
+
+test("an arbitrary border colour is a colour, not a width", () => {
+    const { props, raw } = readClasses("border border-[#e5e5e5] border-[3px]");
+    assert.deepEqual(props.base, { borderWidth: "1", borderColor: "[#e5e5e5]" });
+    assert.deepEqual(raw, ["border-[3px]"]); // a second width: kept as it is
+});

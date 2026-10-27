@@ -28,14 +28,14 @@ router.get("/:id", getComponentById);
 // Protected routes - using ensureAuthAPI instead of ensureAuth
 router.post("/", ensureAuthAPI, createComponent);
 router.post("/import", ensureAuthAPI, async (req, res) => {
-    const { items, split, tags } = req.body || {};
+    const { items, split, tags, summarize } = req.body || {};
     if (!Array.isArray(items) || !items.length || items.length > 50) {
         return res.status(400).json({ success: false, message: "Provide 1 to 50 items" });
     }
     const results = [];
     for (const item of items) {
         try {
-            results.push({ ok: true, ...(await importDesign(req.session.user.id, { title: item.title, html: item.html, tags, split: split !== false })) });
+            results.push({ ok: true, ...(await importDesign(req.session.user.id, { title: item.title, html: item.html, tags, split: split !== false, summarize: summarize !== false })) });
         } catch (error) {
             results.push({ ok: false, title: item?.title || "", message: error.message });
         }

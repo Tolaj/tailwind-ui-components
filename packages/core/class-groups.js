@@ -119,7 +119,7 @@ export const GROUPS = {
     bgRepeat: E("bg-(?:repeat|no-repeat|repeat-x|repeat-y)"),
     fill: C("fill"), stroke: C("stroke"),
     // border
-    borderWidth: { re: /^border(?:-([0248]|\[[^\]]+\]))?$/, read: (m) => m[1] || "1", build: (v) => (v === "1" || v === "" ? "border" : `border-${normArb(v)}`) },
+    borderWidth: { re: /^border(?:-([0248]|\[\d[^\]]*\]))?$/, read: (m) => m[1] || "1", build: (v) => (v === "1" || v === "" ? "border" : `border-${normArb(v)}`) },
     borderT: P("border-t", "[0248]"), borderR: P("border-r", "[0248]"), borderB: P("border-b", "[0248]"), borderL: P("border-l", "[0248]"),
     borderStyle: E("border-(?:solid|dashed|dotted|double|none)"),
     borderColor: C("border"),
