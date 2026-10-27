@@ -139,7 +139,7 @@ export function agentMain() {
         sels = sels.filter(alive);
         const el = primary();
         const items = sels.filter((e) => e !== document.body).map(boxOf);
-        const handles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing);
+        const handles = Boolean(el && sels.length === 1 && el !== document.body && tool === "move" && !editing && !isLocked(el));
         let label = "", at = null;
         if (el && el !== document.body && gesture && gesture.moved) {
             const g = geomOf(el);
@@ -471,7 +471,7 @@ export function agentMain() {
         const own = Array.prototype.filter.call(el.childNodes, (n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(" ").trim();
         const label = el.id ? "#" + el.id : own ? own.slice(0, 26) : (el.getAttribute("class") || "").split(/\s+/)[0] || "";
         const children = Array.prototype.map.call(el.children, (c) => walk(c, depth + 1)).filter(Boolean);
-        return { tag, label, path: el === document.body ? [] : pathOf(el), children };
+        return { tag, label, path: el === document.body ? [] : pathOf(el), children, locked: el.hasAttribute("data-wc-locked"), hidden: el.classList.contains("hidden") };
     };
     const tree = () => { count = 0; return walk(document.body, 0); };
     const serialize = () => {
@@ -498,11 +498,15 @@ export function agentMain() {
         if (!quiet) post({ type: "tool", tool: t });
     }
 
+    // A locked element (and what is inside it) cannot be picked, moved or resized on the page: a press on it goes to what holds it. The
+    // lock is an attribute on the element, so it is saved with the design. It can still be chosen in the Layers panel, to unlock it.
+    const isLocked = (el) => Boolean(el && el.closest && el.closest("[data-wc-locked]"));
     const targetOf = (e) => {
         let t = e.target;
         if (t && t.nodeType !== 1) t = t.parentElement;
         if (!t || overlay.contains(t) || t === root) return document.body;
-        return t;
+        while (t && t !== document.body && isLocked(t)) t = t.parentElement;
+        return t || document.body;
     };
     const containerAt = (x, y) => {
         let t = document.elementFromPoint(x, y);
@@ -723,7 +727,9 @@ export function agentMain() {
     }
 
     // ── Gestures ────────────────────────────────────────────────────────────────────────────
-    function startMove(e, items) {
+    function startMove(e, all) {
+        const items = all.filter((el) => !isLocked(el)); // a locked element stays where it is
+        if (!items.length) return;
         const abs = items.filter(isAbs);
         // Alt-drag on an element in the page flow places it freely: it turns absolute (where it is) on the first movement, so an
         // Alt-click alone changes nothing
@@ -1186,7 +1192,7 @@ export function agentMain() {
     }
 
     function nudge(dx, dy) {
-        const items = sels.filter(isAbs);
+        const items = sels.filter((el) => isAbs(el) && !isLocked(el));
         if (!items.length) return;
         items.forEach((el) => { const g = geomOf(el); setPx(el, "left", g.x + dx); setPx(el, "top", g.y + dy); });
         changed(false, "nudge");
@@ -1217,6 +1223,41 @@ export function agentMain() {
         }
     }
 
+    /**
+     * Layer order is the order among siblings in the HTML (a later sibling is drawn over an earlier one; in a flex row or column it is also
+     * the order across), as in Figma. mode: front, back (all the way), forward, backward (one step). A selection keeps its own order.
+     */
+    function reorder(mode) {
+        const items = sels.filter((el) => el !== document.body && el.parentElement && !isLocked(el));
+        if (!items.length) return;
+        for (const par of new Set(items.map((el) => el.parentElement))) {
+            const mine = Array.prototype.filter.call(par.children, (c) => items.includes(c)); // in page order
+            if (mode === "front") mine.forEach((el) => par.appendChild(el));
+            else if (mode === "back") [...mine].reverse().forEach((el) => par.insertBefore(el, par.firstElementChild));
+            else if (mode === "forward") [...mine].reverse().forEach((el) => { const n = el.nextElementSibling; if (n && !items.includes(n)) n.after(el); });
+            else if (mode === "backward") mine.forEach((el) => { const p = el.previousElementSibling; if (p && !items.includes(p)) p.before(el); });
+        }
+        changed();
+    }
+
+    /** Lock or unlock the selection (all locked when any is not, else all unlocked). */
+    function toggleLockSelection() {
+        const items = sels.filter((el) => el !== document.body);
+        if (!items.length) return;
+        const on = !items.every((el) => el.hasAttribute("data-wc-locked"));
+        items.forEach((el) => (on ? el.setAttribute("data-wc-locked", "") : el.removeAttribute("data-wc-locked")));
+        changed();
+    }
+
+    /** Hide or show the selection: Tailwind's `hidden` class, so the code says so too. */
+    function toggleHiddenSelection() {
+        const items = sels.filter((el) => el !== document.body);
+        if (!items.length) return;
+        const on = !items.every((el) => el.classList.contains("hidden"));
+        items.forEach((el) => { el.classList.toggle("hidden", on); if (!el.getAttribute("class")) el.removeAttribute("class"); });
+        changed();
+    }
+
     // ── Keyboard ────────────────────────────────────────────────────────────────────────────
     document.addEventListener("keydown", (e) => {
         // Ctrl/Cmd + = / - / 0 zoom the plane, never this frame's page
@@ -1229,6 +1270,9 @@ export function agentMain() {
         const k = e.key.toLowerCase();
         if (e.code === "Space") { e.preventDefault(); post({ type: "space", down: true }); return; }
         if (meta && k === "g") { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
+        if (meta && (e.code === "BracketRight" || e.code === "BracketLeft")) { e.preventDefault(); reorder(e.code === "BracketRight" ? (e.shiftKey ? "front" : "forward") : (e.shiftKey ? "back" : "backward")); return; }
+        if (meta && e.shiftKey && k === "l") { e.preventDefault(); toggleLockSelection(); return; }
+        if (meta && e.shiftKey && k === "h") { e.preventDefault(); toggleHiddenSelection(); return; }
         if (e.shiftKey && !meta && k === "a") { e.preventDefault(); autoLayout(); return; }
         if (meta && k === "d") { e.preventDefault(); duplicate(); return; }
         if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelection(); return; }
@@ -1304,6 +1348,10 @@ export function agentMain() {
             if (m.dir < 0 && el.previousElementSibling) el.previousElementSibling.before(el);
             if (m.dir > 0 && el.nextElementSibling) el.nextElementSibling.after(el);
         },
+        front: (el) => { if (el.parentElement) el.parentElement.appendChild(el); },
+        back: (el) => { const p = el.parentElement; if (p) p.insertBefore(el, p.firstElementChild); },
+        toggleLock: (el) => { if (el.hasAttribute("data-wc-locked")) el.removeAttribute("data-wc-locked"); else el.setAttribute("data-wc-locked", ""); },
+        toggleHidden: (el) => { el.classList.toggle("hidden"); if (!el.getAttribute("class")) el.removeAttribute("class"); },
         moveTo: (el, m) => {
             const t = elAt(m.targetPath);
             if (!t || el.contains(t) || el === t) return;
@@ -1372,6 +1420,9 @@ export function agentMain() {
         if (m.cmd === "view") { zoom = m.zoom || 1; redraw(); return; }
         if (m.cmd === "scrollTo") { const el = elAt(m.path); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (m.cmd === "align") { align(m.mode); return; }
+        if (m.cmd === "order") { reorder(m.mode); return; }
+        if (m.cmd === "lockSel") { toggleLockSelection(); return; }
+        if (m.cmd === "hideSel") { toggleHiddenSelection(); return; }
         if (m.cmd === "group") { group(); return; }
         if (m.cmd === "ungroup") { ungroup(); return; }
         if (m.cmd === "deleteSel") { removeSelection(); return; }

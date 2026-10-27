@@ -106,6 +106,9 @@ export function init() {
             collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k);
             return renderLayers();
         }
+        const eye = e.target.closest("[data-eye]"), lock = e.target.closest("[data-lock]");
+        if (eye) return cmd({ cmd: "toggleHidden", path: parsePath(eye.dataset.eye) });
+        if (lock) return cmd({ cmd: "toggleLock", path: parsePath(lock.dataset.lock) });
         const row = e.target.closest("[data-path]");
         if (row) { send({ cmd: "select", path: parsePath(row.dataset.path) }); send({ cmd: "scrollTo", path: parsePath(row.dataset.path) }); }
     });

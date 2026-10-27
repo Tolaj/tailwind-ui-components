@@ -76,7 +76,7 @@ function syncSaveButton() {
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 const TOOL_KEYS = { v: "move", h: "hand", f: "frame", r: "rect", o: "ellipse", l: "line", t: "text", i: "image", b: "button" };
 
-export function handleKey({ key, meta, shift }) {
+export function handleKey({ key, meta, shift, code }) {
     if (meta && key === "z") return step(shift ? 1 : -1);
     if (meta && key === "y") return step(1);
     if (meta && key === "s") return save();
@@ -85,6 +85,10 @@ export function handleKey({ key, meta, shift }) {
     if (!meta && key === "l" && shift) return setTool("arrow");
     if (!meta && TOOL_KEYS[key]) return setTool(TOOL_KEYS[key]);
     if (!S.selected) return;
+    // layer order (Ctrl/Cmd+] / [ one step, with Shift all the way), lock and hide, as in Figma
+    if (meta && (code === "BracketRight" || code === "BracketLeft")) return send({ cmd: "order", mode: code === "BracketRight" ? (shift ? "front" : "forward") : (shift ? "back" : "backward") });
+    if (meta && shift && key === "l") return send({ cmd: "lockSel" });
+    if (meta && shift && key === "h") return send({ cmd: "hideSel" });
     if (meta && key === "d") return send({ cmd: "duplicateSel" });
     if (meta && key === "g") return send({ cmd: shift ? "ungroup" : "group" });
     if (!meta && shift && key === "a") return send({ cmd: "autoLayout" });
@@ -214,9 +218,9 @@ export function init() {
         const key = e.key.toLowerCase();
         if (e.code === "Space") { e.preventDefault(); setSpace(true); return; }
         if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); handleKey({ key: e.key, meta: false, shift: true }); return; }
-        if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (!meta && !e.altKey && TOOL_KEYS[key]) || (!meta && e.shiftKey && key === "a")) {
+        if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (meta && (e.code === "BracketLeft" || e.code === "BracketRight" || (e.shiftKey && (key === "l" || key === "h")))) || (!meta && !e.altKey && TOOL_KEYS[key]) || (!meta && e.shiftKey && key === "a")) {
             e.preventDefault();
-            handleKey({ key, meta, shift: e.shiftKey });
+            handleKey({ key, meta, shift: e.shiftKey, code: e.code });
         }
     });
     document.addEventListener("keyup", (e) => { if (e.code === "Space") setSpace(false); });
