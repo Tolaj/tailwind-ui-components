@@ -1,4 +1,4 @@
-// A snapshot of a Figma design (plain JSON, see snapshot.js in the plugin) as an HTML page with Tailwind classes. No AI, no network:
+// A snapshot of a Figma design (plain JSON, see snapshot.js in the plugin) as an HTML page with Tailwind classes. No LLM, no network:
 // fixed rules. Auto Layout frames become flex boxes exactly; everything else is placed at its exact position (`absolute`), so the
 // page always looks like the design, and the layout rules can be cleverer later without changing what is drawn.
 //
@@ -6,6 +6,8 @@
 import { ClassBag, round, px } from "./classes.js";
 import { fillClasses, strokeClasses, radiusClasses, effectClasses } from "./paint.js";
 import { textElement } from "./text.js";
+import { recolourable } from "./icons.js";
+import { compileRules } from "./rules.js";
 
 /** Which version of the conversion rules made a page (shared samples carry it, so a regression can be traced to a release). */
 export const CONVERTER_VERSION = "0.2.0";
@@ -170,19 +172,22 @@ function childrenHtml(kids, layout, ctx, node, auto) {
 }
 
 const hasText = (n) => n.type === "TEXT" || (n.children || []).some(hasText);
-const named = (node, words) => new RegExp(`(^|[^a-z])(${words})([^a-z]|$)`, "i").test(node.name || "");
+/** What a layer is called, and what component it is an instance of (an instance is often renamed, its component is not). */
+const labelOf = (n) => [n.name, n.meta && n.meta.names && n.meta.names.component && n.meta.names.component.name, n.meta && n.meta.names && n.meta.names.component && n.meta.names.component.set].filter(Boolean).join(" / ");
+const named = (node, re) => re.test(labelOf(node));
 
 /**
  * The element a container becomes, from what the designer called it (a button, a nav bar, a footer...) so the page is real HTML, not
  * only <div>s. A layer called "Header" that is a small label is not a page header: those need to span half the page.
  */
 function containerTag(node, ctx) {
-    if (named(node, "button|btn|cta") && hasText(node)) return { tag: "button", attrs: ' type="button"' };
-    if (named(node, "link") && hasText(node) && node.width < ctx.rootW / 2) return { tag: "a", attrs: ' href="#"' };
+    const w = ctx.rules.words;
+    if (named(node, w.button) && hasText(node)) return { tag: "button", attrs: ' type="button"' };
+    if (named(node, w.link) && hasText(node) && node.width < ctx.rootW / 2) return { tag: "a", attrs: ' href="#"' };
     if (node.width >= ctx.rootW / 2) {
-        if (named(node, "nav|navbar|navigation|menu bar")) return { tag: "nav", attrs: "" };
-        if (named(node, "footer")) return { tag: "footer", attrs: "" };
-        if (named(node, "header|topbar|top bar|app bar")) return { tag: "header", attrs: "" };
+        if (named(node, w.nav)) return { tag: "nav", attrs: "" };
+        if (named(node, w.footer)) return { tag: "footer", attrs: "" };
+        if (named(node, w.header)) return { tag: "header", attrs: "" };
     }
     return { tag: "div", attrs: "" };
 }
@@ -231,9 +236,11 @@ function convert(node, parent, ctx, isRoot = false) {
         const holder = { ...node, width: box.width, height: box.height, transform: [[1, 0, box.x], [0, 1, box.y]] };
         if (free) placeClasses(holder, bag);
         sizeClasses(holder, parent, bag);
+        let svg = node.svg;
+        if (svg) { const flat = recolourable(svg); if (flat) { svg = flat.svg; bag.set("textColor", flat.color); } } // a one-colour icon takes its colour from the text colour
         const img = node.png
             ? `<img src="${escapeAttr(node.png)}" alt="${escapeAttr(altFor(node.name))}" class="block h-full w-full">`
-            : node.svg.replace(/<svg\b([^>]*)>/, (m, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, "")} class="block h-full w-full">`);
+            : svg.replace(/<svg\b([^>]*)>/, (m, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, "")} class="block h-full w-full">`);
         return `<div ${bag.attrs()}>${img}</div>`;
     }
 
@@ -306,9 +313,9 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  * @param {{ title?: string }} [options]
  * @returns {{ html: string, body: string, warnings: string[], stats: { nodes: number, flex: number, absolute: number, text: number, assets: number }, fonts: string[] }}
  */
-export function convertDesign(snapshot, { title } = {}) {
+export function convertDesign(snapshot, { title, rules } = {}) {
     const warnings = [];
-    const ctx = { rootW: snapshot.width || 0, headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
     const fonts = ctx.fonts;
@@ -317,5 +324,5 @@ export function convertDesign(snapshot, { title } = {}) {
     if (fonts.size) warnings.push(`Fonts: ${[...fonts.keys()].join(", ")}. Those on Google Fonts load; any other (a paid or custom font) shows the generic fallback until its font file is added.`);
     const html = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${escapeAttr(name)}</title>\n<script src="https://cdn.tailwindcss.com"></script>\n<style>body{margin:0;line-height:normal;-webkit-font-smoothing:antialiased}img{object-fit:cover}</style>\n${fonts.size ? `<link rel="preconnect" href="https://fonts.googleapis.com">\n${fontLinks(fonts)}\n` : ""}</head>\n<body>\n${body}\n</body>\n</html>\n`;
     const missing = [...(fonts.replaced || [])].map(([family, sub]) => ({ family, weights: [...fonts.get(sub)].sort((a, b) => a - b) })); // fonts not on Google Fonts: the user can upload the real file
-    return { converter: CONVERTER_VERSION, html, body, warnings, stats: ctx.stats, fonts: [...ctx.fonts.keys()], missing, size: html.length };
+    return { converter: CONVERTER_VERSION, rulesVersion: ctx.rules.version, html, body, warnings, stats: ctx.stats, fonts: [...ctx.fonts.keys()], missing, size: html.length };
 }

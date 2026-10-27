@@ -315,3 +315,49 @@ test("text: indent and space between paragraphs", () => {
     assert.equal((spaced.match(/<span class="block mb-2 last:mb-0">/g) || []).length, 4, spaced); // One, Two, (empty), Four
     assert.match(spaced, /<span class="block mb-2 last:mb-0"><br><\/span>/); // an empty paragraph keeps its height
 });
+
+test("a one-colour icon uses currentColor and takes its colour from a text-colour class; others are left alone", () => {
+    const icon = (svg) => convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: [{ type: "VECTOR", name: "Icon", width: 24, height: 24, box: { x: 10, y: 10, width: 24, height: 24 }, svg }] }).body;
+    const one = icon('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1h10" stroke="#1A2B3C" stroke-width="2"/><path d="M2 2l5 5" fill="#1a2b3c"/></svg>');
+    assert.match(one, /stroke="currentColor"/);
+    assert.match(one, /fill="currentColor"/);
+    assert.match(one, /fill="none"/); // none stays none
+    assert.ok(!one.includes("#1A2B3C") && !one.includes("#1a2b3c") || /text-\[#1a2b3c\]/.test(one));
+    assert.match(one, /class="[^"]*text-\[#1a2b3c\]/);
+    const white = icon('<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="white"/></svg>');
+    assert.match(white, /fill="currentColor"/);
+    assert.match(white, /text-\[#ffffff\]/);
+    for (const svg of [
+        '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0" fill="#ff0000"/><path d="M1 1" fill="#00ff00"/></svg>', // two colours
+        '<svg width="24" height="24" viewBox="0 0 24 24"><defs><linearGradient id="g"><stop stop-color="#f00"/></linearGradient></defs><path d="M0 0" fill="url(#g)"/></svg>', // a gradient
+        '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0" fill="#ff0000" style="fill:#00ff00"/></svg>', // inline style
+    ]) { const out = icon(svg); assert.ok(!out.includes("currentColor") && !/text-\[#/.test(out), out); }
+});
+
+test("the data rules: bundled ones give the usual result; sent ones change it; bad ones are ignored", async () => {
+    const { compileRules, DEFAULT_RULES } = await import("../src/rules.js");
+    const text = (family) => ({ type: "TEXT", name: "t", characters: "Hi", width: 20, height: 16, transform: at(0, 0), fontSize: 14, fontName: { family, style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT" });
+    const page = (children, rules) => convertDesign({ type: "FRAME", name: "F", width: 1000, height: 300, fills: [], children }, { rules });
+    assert.match(page([text("Gilroy")]).body, /font-\['Gilroy','Montserrat',sans-serif\]/);
+    assert.equal(page([text("Gilroy")]).rulesVersion, DEFAULT_RULES.version);
+    // a new font entry and a new word, sent as data
+    const sent = { version: "x.1", fontSubstitutes: [["^acme", "Lora"]], words: { button: "knopf" } };
+    const r = page([text("Acme Sans"), { type: "FRAME", name: "Knopf 1", width: 80, height: 30, transform: at(0, 40), fills: [], children: [text("Go")] }], sent);
+    assert.match(r.body, /font-\['Acme_Sans','Lora',/);
+    assert.match(r.body, /<button type="button"/);
+    assert.equal(r.rulesVersion, "x.1");
+    assert.ok(!/Montserrat/.test(page([text("Gilroy")], sent).body), "a list that was sent replaces the bundled one");
+    // bad data: a broken pattern, a too-long one, the wrong shape: the bundled values are used
+    const bad = compileRules({ fontSubstitutes: [["(", "X"], ["a".repeat(500), "Y"], "no"], words: { button: "(", nav: 5 } });
+    assert.ok(bad.words.button.test("Button 1") && bad.words.nav.test("Navbar"));
+    assert.equal(bad.fontSubstitutes.length, DEFAULT_RULES.fontSubstitutes.length);
+    assert.equal(compileRules(null).fontSubstitutes.length, DEFAULT_RULES.fontSubstitutes.length);
+});
+
+test("an instance of a button component is a button even when it was renamed", () => {
+    const text = { type: "TEXT", name: "t", characters: "Go", width: 20, height: 16, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT" };
+    const inst = (name, component) => ({ type: "INSTANCE", name, width: 80, height: 30, transform: at(0, 0), fills: [], children: [text], ...(component ? { meta: { names: { component } } } : {}) });
+    const r = convertDesign({ type: "FRAME", name: "F", width: 400, height: 100, fills: [], children: [inst("Frame 12", { name: "Primary", set: "Button" }), inst("Frame 13", { name: "Card" }), inst("Frame 14")] }).body;
+    assert.equal((r.match(/<button /g) || []).length, 1);
+    assert.match(r, /<button type="button"[^>]*>/);
+});

@@ -191,6 +191,7 @@ export function activate(key) {
     setRole(oldKey);
     mountGhost(oldKey, true);
     host.showDesign(next.isNew ? null : next.meta.id);
+    document.dispatchEvent(new CustomEvent("design-switched"));
     let started = false;
     const start = () => {
         if (started || token !== S.switchToken) return;

@@ -4,7 +4,7 @@
 // version is app-host.js). An editor used elsewhere supplies its own.
 /**
  * @typedef {object} Host
- * @property {(fields: object) => Promise<any>} createComponent    saves a new design; resolves to the saved record ({ _id, version, ... }), rejects with the reason
+ * @property {(fields: object) => Promise<any>} createComponent    saves a new design (a design opened from a Figma draft sends `draftId`, and the answer may carry `figmaSource`); resolves to the saved record ({ _id, version, ... }), rejects with the reason
  * @property {(id: string, fields: object) => Promise<any>} updateComponent   changes a saved design (a new version when its code changes)
  * @property {(name: string) => Promise<{ id: string, name: string }>} createProject   a project is the canvas that designs share
  * @property {(projectId: string, positions: object[]) => Promise<void>} saveLayout   where each design sits on the project's canvas
@@ -13,6 +13,7 @@
  * @property {(id: string | null) => void} showDesign   the address now shows this saved design (null: an unsaved one)
  * @property {(projectId: string) => string} [projectUrl]   where a project's own page is (the project name links there); omit for none
  * @property {(id: string) => void} openDesign   go to this design (loads the page again)
+ * @property {(id: string) => Promise<any>} [updateFromFigma]   converts a design again from the Figma data kept with it (a new version); omit for no such button
  */
 export const host = /** @type {Host} */ ({});
 /** @param {Host} h */

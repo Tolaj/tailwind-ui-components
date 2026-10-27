@@ -3,11 +3,21 @@
 ## Principles (what every change must keep)
 
 - The output is **editable code**: HTML with Tailwind classes that Windcraft's Properties panel understands. A layer is never replaced by a picture because it is hard to copy (only layers that are pictures in the design, and vectors as inline SVG).
-- **No AI, no paid service.** The conversion runs on the user's computer, with fixed rules.
+- **No LLM, no paid service.** An LLM is too heavy, costly and slow for this. The conversion runs on the user's computer.
+- **Small, fast models are allowed** (for example a decision-tree guess of what a layer is), when they: run inside the plugin with no network, are tiny (kilobytes, no runtime to download), are free to use (open data and licence), give the same answer every time, and only choose between code the converter already writes. They are never loaded from downloaded pickle files: those can run code on load. We train our own and ship them as plain JSON or JS.
 - **Nothing leaves the computer** unless the user chooses (save, edit, or ticks "share this design").
 - Where code cannot match Figma exactly, we write the closest code and say so in the notes, rather than hide the difference.
 
 ## To do (not now)
+
+| Item | Why it waits |
+| --- | --- |
+| Round-trip practice set: read real web pages' layout in Chrome as layer data, convert it back, compare with the screenshot | A free, unlimited test set with the answers attached; also the training data for small models below |
+| Recolourable icons: single-colour inline icons use `currentColor`, the colour a text-colour class | Next up: small, and makes icons editable from the Properties panel |
+| Small model: what HTML element a layer is (button, nav, heading, input...), trained on the round-trip set, shipped as JSON | Needs the round-trip set first |
+| Font substitutes chosen by real width and shape (open font data) instead of a hand-written table | Better text wrapping when the real font is missing |
+| Offline tuning of thresholds (row detection, spacing) on the practice set, shipped as fixed numbers | Needs the practice set |
+
 
 | Item | Why it waits |
 | --- | --- |
@@ -24,6 +34,10 @@
 | Safari and Firefox checks (masks, shadows) | After the corpus exists |
 | Right-to-left and vertical text, OpenType features | Rare so far |
 
+| Use `meta` on the server: design tokens from variables and styles; components and variants as Windcraft components; hover and state styles from prototype reactions; responsive rules from constraints and layout grids | The data now arrives with every save: each is a server change, no plugin release |
+| Capture Figma's own CSS per layer (`getCSSAsync`) as a cross-check | Slow for thousands of layers: needs a depth or size limit |
+| Tests that run the upload and update routes against a real database | The routes were written and checked by reading and by the pure parts; an end-to-end test needs a test database |
+
 ## Done from earlier lists
 
-Masks, blend modes, centred and outside strokes, angular gradients, vertical text alignment, cut-off lines, links, mirrored layers, min and max sizes, text shadows, underline details, paragraph spacing and indent, real tags and alt text, 5 MB designs, frames up to 12000 layers.
+Masks, blend modes, centred and outside strokes, angular gradients, vertical text alignment, cut-off lines, links, mirrored layers, min and max sizes, text shadows, underline details, paragraph spacing and indent, real tags and alt text, 5 MB designs, frames up to 12000 layers, the server converts from the sent Figma data, and a design opened with Edit keeps its Figma data when it is first saved in the editor.

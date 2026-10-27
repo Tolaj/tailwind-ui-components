@@ -117,6 +117,9 @@ export const editorHtml = `<div class="flex h-screen flex-col">
                 <span class="mx-0.5 h-5 w-px bg-neutral-200"></span>
                 <button id="saveBtn" type="button"
                     class="ml-0.5 h-8 min-w-[64px] rounded-lg bg-[#111] px-3 text-[13px] font-semibold text-white hover:bg-black disabled:bg-transparent disabled:text-neutral-400 disabled:hover:bg-transparent">Save</button>
+                <button id="figmaBtn" type="button"
+                    class="ml-1 hidden h-8 rounded-lg border border-neutral-200 px-3 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
+                    title="Convert this design again from the Figma data kept with it">Update from Figma</button>
                 <span id="saveState" class="hidden"></span>
                 <select id="zoomSel"
                     class="h-8 rounded-lg border-0 bg-transparent pl-1 pr-0 text-[13px] font-medium text-neutral-800 hover:bg-neutral-100 focus:outline-none"

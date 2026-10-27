@@ -1,3 +1,5 @@
+import FigmaSource from "../models/figmaSource.model.js";
+import { adoptDraftSource } from "../services/figma-update.service.js";
 import Component from "../models/component.model.js";
 import { exportComponent, FORMATS } from "@windcraft/core/exporters.js";
 import { normalizeGroup } from "@windcraft/core/pages.js";
@@ -68,7 +70,7 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group } = req.body;
+        const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group, draftId } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
 
         if (!title || !category || !description || !htmlCode) {
@@ -94,10 +96,14 @@ export const createComponent = async (req, res) => {
 
         enrichProfileWithAI(component._id, req.session.user.id);
 
+        // a design opened from Figma with Edit brings its Figma data along: it moves from the draft to this new page
+        let figmaSource = null;
+        if (draftId) { try { figmaSource = await adoptDraftSource(req.session.user.id, draftId, component._id); } catch (err) { console.error("Adopt draft source error:", err); } }
+
         res.status(201).json({
             success: true,
             message: 'Component created successfully',
-            data: component
+            data: figmaSource ? { ...component.toObject(), figmaSource } : component
         });
     } catch (error) {
         console.error('Create component error:', error);
@@ -196,6 +202,7 @@ export const deleteComponent = async (req, res) => {
         }
 
         await Component.findByIdAndDelete(req.params.id);
+        await FigmaSource.deleteOne({ component: req.params.id }); // the Figma data kept with the page goes with it
 
         res.status(200).json({
             success: true,

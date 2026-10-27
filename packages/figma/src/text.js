@@ -16,15 +16,8 @@ export function genericFor(family) {
     return "sans-serif";
 }
 
-// Paid or custom fonts and the free Google Fonts family that looks closest. The original name stays first in the font list, so the real font wins once it is available.
-const SUBSTITUTES = [
-    [/^gilroy|^gotham|^proxima/i, "Montserrat"], [/^circular|^sofia/i, "DM Sans"], [/^avenir/i, "Nunito Sans"], [/^futura/i, "Jost"],
-    [/^(sf pro|sf ui|helvetica|neue haas|graphik|akkurat|suisse|aeonik|general sans|satoshi)/i, "Inter"],
-    [/^(chronicle|didot|bodoni|canela|gt super|tiempos|freight|ivar)/i, "Playfair Display"], [/^(georgia|times)/i, "Libre Baskerville"],
-    [/^(sf mono|menlo|consolas|monaco)/i, "JetBrains Mono"],
-];
-/** The Google Fonts family to load in place of one that is not on Google Fonts, or undefined. */
-export const substituteFor = (family) => (SUBSTITUTES.find(([re]) => re.test(family)) || [])[1];
+/** The Google Fonts family to load in place of one that is not on Google Fonts (the rules list which), or undefined. The original name stays first in the font list, so the real font wins once it is available. */
+export const substituteFor = (family, subs) => (subs.find(([re]) => re.test(family)) || [])[1];
 
 /** 600 from a style name like "SemiBold Italic" (the longer names are tried first). */
 export function weightOf(style = "") {
@@ -34,11 +27,11 @@ export function weightOf(style = "") {
 }
 
 /** The look of one run of text. `fonts` collects each family with the weights used (for the page's font link). */
-export function styleClasses(s, bag, fonts) {
+export function styleClasses(s, bag, fonts, rules) {
     const family = s.fontName && s.fontName.family;
     const weight = s.fontWeight || weightOf(s.fontName && s.fontName.style);
     if (family) {
-        const sub = substituteFor(family);
+        const sub = substituteFor(family, rules.fontSubstitutes);
         bag.add(`font-['${arb(family)}',${sub ? `'${arb(sub)}',` : ""}${genericFor(sub || family)}]`);
         if (sub) (fonts.replaced = fonts.replaced || new Map()).set(family, sub);
         const load = sub || family; // the family the page asks Google Fonts for
@@ -116,12 +109,12 @@ export function textElement(node, ctx) {
     if (vertical) bag.set("display", "flex").set("flexDir", "flex-col").set("justify", vertical);
     const wrap = (html) => (vertical ? `<span>${html}</span>` : html);
     if (node.paragraphIndent > 0) bag.add(`indent-[${round(node.paragraphIndent)}px]`);
-    styleClasses({ ...node, ...first }, bag, ctx.fonts); // what the runs share is the first run's; each span repeats only what it changes
+    styleClasses({ ...node, ...first }, bag, ctx.fonts, ctx.rules); // what the runs share is the first run's; each span repeats only what it changes
     const single = segs.length === 1;
     const run = (s, part) => {
         if (single) return linked(s, lines(part));
         const sb = new ClassBag(ctx.warn);
-        styleClasses({ ...node, ...s }, sb, ctx.fonts);
+        styleClasses({ ...node, ...s }, sb, ctx.fonts, ctx.rules);
         const cls = sb.toString();
         return linked(s, cls ? `<span class="${cls}">${lines(part)}</span>` : lines(part));
     };

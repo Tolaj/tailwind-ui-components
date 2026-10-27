@@ -19,6 +19,10 @@ function setMode(next) {
 
 export const DEFAULT_CATEGORY = "apps-general";
 
+// A design opened from Figma with Edit starts as a draft on the server: its first save sends the draft's id, so the Figma data kept for the
+// draft moves to the new page (and "Update from Figma" appears on it).
+const DRAFT_KEY = data.draftId ? S.curKey : null;
+
 /** Writes one design: creates it the first time, a new version after that. */
 async function persist(d) {
     const m = d.meta;
@@ -27,7 +31,9 @@ async function persist(d) {
         const saved = await host.createComponent({
             ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
             tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
+            ...(DRAFT_KEY && d.key === DRAFT_KEY ? { draftId: data.draftId } : {}),
         });
+        if (DRAFT_KEY && d.key === DRAFT_KEY && saved.figmaSource) setupFigmaButton(saved.figmaSource, saved._id);
         m.id = saved._id;
         m.version = saved.version || 1;
         d.isNew = false;
@@ -156,6 +162,32 @@ function updateShield() { $("toolbar").classList.toggle("hidden", S.mode !== "ed
 let pan = null;
 
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
+/**
+ * A design converted from Figma keeps its layer data: it can be converted again with the latest rules (a new version; the old code stays
+ * in its history). The button belongs to one design (the page the editor opened with, or the draft once it is saved) and shows while
+ * that design is the one being edited.
+ */
+let figmaButtonReady = false;
+function setupFigmaButton(info, designId) {
+    if (!host.updateFromFigma) return;
+    const btn = $("figmaBtn");
+    const label = info.outdated ? "Update from Figma · new" : "Update from Figma";
+    btn.textContent = label;
+    btn.title = info.outdated ? "A newer converter is available: convert this design again from its Figma data" : "Convert this design again from the Figma data kept with it";
+    btn.dataset.design = designId;
+    const show = () => btn.classList.toggle("hidden", S.curKey !== btn.dataset.design);
+    show();
+    if (figmaButtonReady) return; // the listeners are set once; a later save only changes which design the button belongs to
+    figmaButtonReady = true;
+    document.addEventListener("design-switched", show);
+    btn.addEventListener("click", async () => {
+        if (!confirm("Convert this design again from its Figma data with the latest converter?\n\nThe new conversion replaces the current code, including edits made in Windcraft since it was saved. The current code stays in the version history.")) return;
+        btn.disabled = true; btn.textContent = "Updating…";
+        try { await host.updateFromFigma(btn.dataset.design); host.openDesign(btn.dataset.design); }
+        catch (err) { btn.disabled = false; btn.textContent = label; alert((err && err.message) || "Could not update this design."); }
+    });
+}
+
 export function init() {
     $("playBtn").addEventListener("click", () => setMode(S.mode === "edit" ? "preview" : "edit"));
     $("zoomSel").addEventListener("change", (e) => {
@@ -171,6 +203,7 @@ export function init() {
     $("redoBtn").addEventListener("click", () => step(1));
     window.addEventListener("resize", layout);
     $("saveBtn").addEventListener("click", save);
+    if (data.figmaSource && data.id) setupFigmaButton(data.figmaSource, data.id);
     new MutationObserver(syncSaveButton).observe($("saveState"), { childList: true, characterData: true, subtree: true });
     $("detailsBtn").addEventListener("click", () => $("designsMenu").classList.add("hidden"));
     document.addEventListener("keydown", (e) => {

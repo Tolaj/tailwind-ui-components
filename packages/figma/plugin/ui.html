@@ -137,6 +137,7 @@
                 <select id="projectSel"></select>
                 <input id="newProject" type="text" placeholder="New project name" class="hidden">
                 <label class="check hidden" id="allRow" style="margin:0"><input type="checkbox" id="saveAll" checked><span id="allText"></span></label>
+                <label class="check" id="keepRow" style="margin:0"><input type="checkbox" id="keepSource" checked><span>Send the Figma layer data too, so Windcraft can make the code even better and update it later</span></label>
                 <label class="check" id="shareRow2" style="margin:0"><input type="checkbox" id="shareSample"><span>Also share this design with Windcraft, to improve the converter</span></label>
                 <label class="check hidden" id="anonRow" style="margin:0 0 0 22px"><input type="checkbox" id="anonSample" checked><span>Replace layer names and text with dummy text first</span></label>
                 <div id="conflict" class="hidden banner">
@@ -240,15 +241,17 @@
     $("tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { current = Number(b.dataset.i); render(); showFonts(pages[current].missing || []); } };
 
     $("run").onclick = () => { busy = true; progress = "Reading your design…"; say(""); render(); post({ type: "run" }); };
-    $("another").onclick = () => { pages = []; lastUrl.clear(); say(""); $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); render(); };
+    $("another").onclick = () => { pages = []; lastUrl.clear(); uploads.clear(); say(""); $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); render(); };
     $("again").onclick = () => openSheet();
     $("primary").onclick = () => { const url = lastUrl.get(current); if (url) return post({ type: "open", url }); if (!signed()) return signIn(); openSheet(); };
     $("edit").onclick = async () => { // opens the editor with this design, without putting it in the library
         if (!signed()) return signIn();
         $("edit").disabled = true; $("edit").textContent = "Opening…";
         try {
-            const packed = await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html }));
-            const res = await api("/draft", { method: "POST", ...packed });
+            const up = $("keepSource").checked ? await uploadSnapshot(current) : null; // with the data, Windcraft makes the code for the editor
+            const packed = up ? { body: JSON.stringify({ title: pages[current].title, uploadId: up.uploadId, chunks: up.count }), headers: {} } : await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html }));
+            let res = await api("/draft", { method: "POST", ...packed });
+            if (up && !res.ok && ![401, 429].includes(res.status)) { const plain = await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html })); res = await api("/draft", { method: "POST", ...plain }); }
             const body = await res.json().catch(() => ({}));
             if (res.ok && body.ok) post({ type: "open", url: body.url }); else say(body.message || "Could not open the editor.", "err");
         } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }
@@ -318,6 +321,30 @@
         const packed = await gzipBody(JSON.stringify({ snapshot: got.snapshot, html: got.html, kind, note, anonymized: anonymize, converter: pages[index].converter, title: anonymize ? "" : pages[index].title }));
         try { return (await api("/sample", { method: "POST", ...packed })).ok; } catch (err) { return false; }
     }
+    /**
+     * Sends one frame's Figma layer data (with its pictures, gzipped) to Windcraft, which makes the page's code from it with its own,
+     * newest converter. It goes in pieces of up to 3 MB: a host may refuse a bigger request, and the server joins the pieces.
+     * Resolves to { uploadId, count }, or null when it could not be sent (the plugin's own code is saved instead).
+     */
+    const uploads = new Map(); // frame index -> a finished upload, so a retry after a name clash does not send it again
+    async function uploadSnapshot(index) {
+        if (typeof CompressionStream === "undefined") return null;
+        const got = await ask("get-sample", { index, full: true });
+        if (!got || !got.snapshot) return null;
+        const bytes = new Uint8Array(await new Response(new Blob([JSON.stringify(got.snapshot)]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
+        const SIZE = 3 * 1024 * 1024, count = Math.ceil(bytes.length / SIZE);
+        if (count > 5) return null; // over ~15 MB gzipped: more than a page's record can hold
+        const uploadId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+        try {
+            for (let i = 0; i < count; i++) {
+                const send = () => fetch(`${cfg.server}/api/figma/upload/chunk`, { method: "POST", headers: { "Content-Type": "application/octet-stream", Authorization: `Bearer ${cfg.token}`, "X-Upload-Id": uploadId, "X-Chunk-Index": String(i) }, body: bytes.subarray(i * SIZE, (i + 1) * SIZE) });
+                let res = await send();
+                if (!res.ok) res = await send(); // one more try for a piece
+                if (!res.ok) return null;
+            }
+        } catch (err) { return null; }
+        return { uploadId, count };
+    }
     $("shareSample").onchange = () => $("anonRow").classList.toggle("hidden", !$("shareSample").checked);
     $("report").onclick = () => { if (!signed()) return signIn(); $("reportBox").classList.toggle("hidden"); };
     $("cancelReport").onclick = () => $("reportBox").classList.add("hidden");
@@ -349,21 +376,30 @@
         const project = $("projectSel").value === NEW ? $("newProject").value.trim() : $("projectSel").value;
         if (!project) return say("Give the new project a name.", "err");
         say(""); busy = true; $("doSave").disabled = true; $("conflict").classList.add("hidden");
-        const held = [];
+        const held = [], notKept = [];
         let failed = false;
         for (let n = 0; n < indexes.length && !failed; n++) {
             const i = indexes[n];
             $("doSave").textContent = indexes.length > 1 ? `Saving ${n + 1} of ${indexes.length}…` : "Saving…";
             try {
-                const packed = await gzipBody(JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode, width: pages[i].width }));
-                const res = await api("/send", { method: "POST", ...packed });
-                const body = await res.json().catch(() => ({}));
-                if (res.ok && body.ok) { lastUrl.set(i, body.url); cfg.project = body.project || project; if ($("shareSample").checked) await shareSample(i, "share", "", $("anonSample").checked); }
+                // with the Figma data sent, Windcraft makes the code (with its newest converter); otherwise the plugin's own code is saved
+                let up = null;
+                if ($("keepSource").checked) {
+                    if (!uploads.has(i)) { $("doSave").textContent = indexes.length > 1 ? `Sending ${n + 1} of ${indexes.length}…` : "Sending the design…"; const got = await uploadSnapshot(i); if (got) uploads.set(i, got); else notKept.push(pages[i].title); }
+                    up = uploads.get(i) || null;
+                    $("doSave").textContent = indexes.length > 1 ? `Saving ${n + 1} of ${indexes.length}…` : "Saving…";
+                }
+                const sendHtml = async () => { const packed = await gzipBody(JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode, width: pages[i].width })); return api("/send", { method: "POST", ...packed }); };
+                let res = up ? await api("/convert-save", { method: "POST", body: JSON.stringify({ uploadId: up.uploadId, chunks: up.count, title: pages[i].title, project, mode }) }) : await sendHtml();
+                let body = await res.json().catch(() => ({}));
+                if (up && !res.ok && !body.conflict && ![401, 413, 429].includes(res.status)) { uploads.delete(i); notKept.push(pages[i].title); res = await sendHtml(); body = await res.json().catch(() => ({})); } // the server could not use the data: save the plugin's own code
+                if (res.ok && body.ok) { lastUrl.set(i, body.url); uploads.delete(i); cfg.project = body.project || project; if ($("shareSample").checked) await shareSample(i, "share", "", $("anonSample").checked); }
                 else if (body.conflict) held.push(i);
                 else { failed = true; say(res.status === 401 ? "Your sign-in ended. Sign in again." : `Not saved: ${pages[i].title}: ${body.message || res.status}`, "err"); }
             } catch (err) { failed = true; say("Could not reach Windcraft. Check your connection.", "err"); }
         }
         save(); busy = false; $("doSave").disabled = false; $("doSave").textContent = "Save";
+        if (notKept.length) say(`${notKept.join(", ")}: the Figma data could not be sent, so ${notKept.length === 1 ? "it was" : "they were"} saved with the plugin's own conversion. Windcraft cannot improve or update ${notKept.length === 1 ? "it" : "them"} later.`, "err");
         clashes = held;
         if (held.length) {
             const names = held.map((i) => `"${pages[i].title}"`).join(", ");
@@ -378,6 +414,7 @@
             const body = await (await fetch(`${cfg.server}/api/figma/config`)).json();
             if (body.ok && body.server) cfg.server = body.server;
         } catch (err) { /* offline: the built-in address is used */ }
+        fetch(`${cfg.server}/api/figma/rules`).then((r) => r.json()).then((b) => { if (b.ok && b.rules) post({ type: "rules", rules: b.rules }); }).catch(() => { /* offline: the converter's own copy is used */ });
         if (cfg.token) {
             try {
                 const res = await api("/me");
@@ -515,7 +552,7 @@
         if (m.type === "progress") { progress = `Reading ${m.name}${m.count ? ` · ${m.count} layers` : ""}…`; render(); }
         if (m.type === "error") { busy = false; say("Something went wrong: " + m.message, "err"); render(); }
         if (m.type === "result") {
-            busy = false; pages = m.pages; current = 0; lastUrl.clear(); say(""); preloadProjects();
+            busy = false; pages = m.pages; current = 0; lastUrl.clear(); uploads.clear(); say(""); preloadProjects();
             render(); showFonts(pages[0].missing || []);
             for (const p of pages) if (p.thumb) trimMargins(p.thumb).then((u) => { p.thumb = u; if (pages[current] === p) render(); });
         }

@@ -49,4 +49,9 @@ export const appHost = {
     projectUrl: (id) => `/projects/${id}`,
     showDesign: (id) => window.history.replaceState({}, "", id ? `/design/${id}` : "/design/new"),
     openDesign: (id) => { window.location.href = `/design/${id}`; },
+    updateFromFigma: async (id) => {
+        const res = await fetch(`/design/${id}/update-from-figma`, { method: "POST", headers: JSON_HEADERS });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || !body.success) throw new Error(body.message || "Could not update the design");
+    },
 };

@@ -1,6 +1,6 @@
 # @windcraft/figma
 
-The Figma → Windcraft converter, as a free Figma plugin. **No AI**: Figma's properties are mapped to Tailwind with fixed rules, using Windcraft's own class tables (`@windcraft/core`), so the result opens in the editor with every class a property the panel understands. Everything runs inside Figma on your computer: the plugin has no network access.
+The Figma → Windcraft converter, as a free Figma plugin. **No LLM** (too heavy, costly and slow): Figma's properties are mapped to Tailwind with fixed rules, using Windcraft's own class tables (`@windcraft/core`), so the result opens in the editor with every class a property the panel understands. Everything runs inside Figma on your computer: the plugin has no network access.
 
 ## What it converts
 
@@ -79,7 +79,7 @@ It reads only your selection, sends nothing anywhere (the manifest allows no net
 | `spike/` | The spike plugin: `manifest.json`, `code.js` (one plain file: a plugin cannot import), `ui.html` |
 | `test/spike.test.js` | The spike's analysis tested on made-up Figma nodes |
 
-## Making the converter better (no AI, no cost)
+## Making the converter better (no LLM, no cost)
 
 | Step | How |
 | --- | --- |
@@ -89,3 +89,13 @@ It reads only your selection, sends nothing anywhere (the manifest allows no net
 | Samples from users | In the save panel a user may tick "Also share this design with Windcraft" (unticked by default; layer names and text can be replaced with dummy text), or press **Report a problem**. They arrive in the `ConversionSample` collection; `node scripts/export-samples.mjs <dir>` writes them as files. A sample has no pictures, so scoring one needs a reference picture. |
 
 Sharing is always the user's choice, and the plugin's publish text must say what is sent.
+
+## Windcraft makes the code from the Figma data
+
+When a frame is saved, the plugin (unless the user unticks "Send the Figma layer data too") uploads the layer data (with pictures, gzipped) in pieces of up to 3 MB (`POST /api/figma/upload/chunk`), then calls `POST /api/figma/convert-save`: **the server converts it with its own converter and rules**, saves the page, and keeps the data next to the page. A host may refuse a bigger request, and its servers share no memory between requests, so the pieces wait in the database (an hour at most). If the data cannot be sent, the plugin saves its own conversion instead (`/send`) and says so. **Edit** works the same way (`/draft`): the server converts for the editor and keeps the data with the draft for a day; when the draft is first saved as a page in the editor, the data moves to the page (the editor sends the draft's id with the save), so that page gets **Update from Figma** too.
+
+Why: the plugin's code changes only with a Figma-reviewed release, the server's changes with a deploy. The plugin's job is to collect everything Figma knows; the server's job is to make the best code from it. Besides what the converter uses, every layer carries `meta`: constraints, scroll behaviour, layout grids, prototype reactions, the names of its styles, the variables its properties follow (with their values), and for an instance its component, set and variant. The plugin's own converter ignores `meta`, except that an instance's component name helps decide it is a button, link, nav...
+
+The data is private to the page's owner, one per page (saving again replaces it), deleted with the page, and **not** used to improve the converter: only a design the user chose to share is (and `meta` is removed when the text is replaced with dummy text).
+
+In the editor, a page with Figma data shows **Update from Figma** (marked "new" when the converter or rules have moved on): it converts the kept data again and saves the result as the page's next version, so the old code stays in the version history. Edits made in Windcraft since the first save are not carried over; the button asks first.

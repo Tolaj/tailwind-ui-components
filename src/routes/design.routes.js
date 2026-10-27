@@ -4,6 +4,8 @@ import Component from "../models/component.model.js";
 import { categories } from "./home.routes.js";
 import Project from "../models/project.model.js";
 import FigmaDraft from "../models/figmaDraft.model.js";
+import { figmaSourceInfo, updateFromFigma } from "../services/figma-update.service.js";
+import { publicBase } from "../utils/publicUrl.js";
 import { resolveProject } from "../services/project.service.js";
 
 const router = express.Router();
@@ -37,7 +39,7 @@ router.get("/new", async (req, res) => {
     // a design sent from Figma "to edit only": it fills the new page, and is saved to the library only when the user saves it here
     const draft = mongoose.isValidObjectId(req.query.draft) ? await FigmaDraft.findOne({ _id: req.query.draft, userId: req.session.user.id }).lean() : null;
     renderEditor(res, {
-        id: null, title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
+        id: null, draftId: draft ? String(draft._id) : null, title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
         project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id),
     }, "New component");
 });
@@ -60,12 +62,24 @@ router.get("/:id", async (req, res) => {
         })) : [];
         renderEditor(res, {
             project: c.project ? projects.find((p) => p.id === String(c.project)) || null : null, projects,
+            figmaSource: await figmaSourceInfo(c._id),
             id: String(c._id), title: c.title, group: c.group || "", frameW: c.frameW || null, version: c.version || 1, htmlCode: c.htmlCode,
             category: c.category, description: c.description, tags: c.tags || [], isPublished: c.isPublished,
             kind: c.kind, parent: c.parent ? String(c.parent) : null, board: boardOf(c), plane,
         }, c.title);
     } catch (error) {
         notFound(req, res);
+    }
+});
+
+/** Converts the page again from the Figma data kept with it, with the latest converter (the old code stays in its version history). */
+router.post("/:id/update-from-figma", async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
+        res.json({ success: true, ...(await updateFromFigma(req.session.user.id, req.params.id, publicBase(req))) });
+    } catch (error) {
+        console.error("Update from Figma error:", error);
+        res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Could not update the page" });
     }
 });
 

@@ -25,7 +25,11 @@ const AS_CHILD = ["layoutPositioning", "layoutSizingHorizontal", "layoutSizingVe
 const PAINT = ["blendMode", "fills", "strokes", "strokeWeight", "strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight", "strokeAlign", "dashPattern",
     "cornerRadius", "topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius", "effects", "clipsContent"];
 const TEXT = ["characters", "fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textCase", "textDecoration", "textAutoResize", "textTruncation", "maxLines", "paragraphIndent", "paragraphSpacing"];
-const SEGMENT_FIELDS = ["fontName", "fontSize", "fontWeight", "fills", "textDecoration", "textCase", "lineHeight", "letterSpacing", "hyperlink", "textDecorationStyle", "textDecorationOffset", "textDecorationThickness", "textDecorationColor", "textDecorationSkipInk"];
+const SEGMENT_BASE = ["fontName", "fontSize", "fontWeight", "fills", "textDecoration", "textCase", "lineHeight", "letterSpacing"];
+const SEGMENT_MORE = ["hyperlink", "textDecorationStyle", "textDecorationOffset", "textDecorationThickness", "textDecorationColor", "textDecorationSkipInk", "listOptions", "indentation", "textStyleId", "fillStyleId"];
+/** The styled runs of a text. getStyledTextSegments refuses the whole call for a field name it does not know, so a shorter list is tried before giving up. */
+const textSegments = (node) =>
+    safe(() => node.getStyledTextSegments([...SEGMENT_BASE, ...SEGMENT_MORE])) || safe(() => node.getStyledTextSegments([...SEGMENT_BASE, "hyperlink"])) || safe(() => node.getStyledTextSegments(SEGMENT_BASE));
 
 const hasImageFill = (node) => Array.isArray(node.fills) && node.fills.some((p) => p.type === "IMAGE" && p.visible !== false);
 const boxOf = (node, parentAbs) => {
@@ -33,6 +37,63 @@ const boxOf = (node, parentAbs) => {
     if (!b) return null;
     return { x: b.x - parentAbs[0][2], y: b.y - parentAbs[1][2], width: b.width, height: b.height };
 };
+
+// ── Everything else Figma knows about a layer ────────────────────────────────────────────────────────────────────────────────────
+// The converter in the plugin does not use most of this. It travels with the layer (as `meta`) when the design is sent to Windcraft, so
+// the server can use it (design tokens, components and variants, hover states, responsive rules...) without a new plugin release.
+const META_PROPS = ["constraints", "scrollBehavior", "overflowDirection", "layoutGrids", "locked", "description", "devStatus", "reactions", "boundVariables",
+    "componentPropertyReferences", "componentPropertyDefinitions", "componentProperties", "variantProperties", "fillStyleId", "strokeStyleId", "effectStyleId", "textStyleId", "gridStyleId", "exportSettings"];
+const STYLE_IDS = ["fillStyleId", "strokeStyleId", "effectStyleId", "textStyleId", "gridStyleId"];
+const MAX_LOOKUPS = 600; // names of styles, variables and components are looked up once each, up to this many per design
+
+/** The values of the layer's own properties worth keeping, plus the names behind its style, variable and component ids. */
+async function collectMeta(node, ctx) {
+    const meta = {};
+    for (const key of META_PROPS) {
+        const v = val(safe(() => node[key]));
+        if (v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)) continue;
+        if (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length) continue;
+        meta[key] = plain(v);
+    }
+    ctx.names = ctx.names || { styles: new Map(), variables: new Map(), collections: new Map(), components: new Map() };
+    const lookup = async (cache, id, fn) => {
+        if (!id || typeof id !== "string") return undefined;
+        if (cache.has(id)) return cache.get(id);
+        if (ctx.lookups >= MAX_LOOKUPS) return undefined;
+        ctx.lookups = (ctx.lookups || 0) + 1;
+        const value = await fn().catch(() => null);
+        cache.set(id, value);
+        return value;
+    };
+    const names = {};
+    for (const key of STYLE_IDS) {
+        const style = meta[key] && (await lookup(ctx.names.styles, meta[key], async () => { const s = await figma.getStyleByIdAsync(meta[key]); return s ? { name: s.name, type: s.type, description: s.description || "" } : null; }));
+        if (style) (names.styles = names.styles || {})[key] = style;
+    }
+    if (meta.boundVariables) { // the variables this layer's properties follow: their names, kinds and collections
+        const ids = new Set();
+        JSON.stringify(meta.boundVariables, (k, v) => { if (k === "id" && typeof v === "string" && v.startsWith("VariableID")) ids.add(v); return v; });
+        for (const id of ids) {
+            const variable = await lookup(ctx.names.variables, id, async () => {
+                const v = await figma.variables.getVariableByIdAsync(id);
+                if (!v) return null;
+                const collection = await lookup(ctx.names.collections, v.variableCollectionId, async () => { const c = await figma.variables.getVariableCollectionByIdAsync(v.variableCollectionId); return c ? { name: c.name, modes: (c.modes || []).map((m) => m.name) } : null; });
+                return { name: v.name, type: v.resolvedType, collection: collection ? collection.name : "", values: plain(v.valuesByMode) };
+            });
+            if (variable) (names.variables = names.variables || {})[id] = variable;
+        }
+    }
+    if (node.type === "INSTANCE") { // which component (and variant) this is an instance of
+        const main = await safeAsync(() => node.getMainComponentAsync());
+        if (main) {
+            const info = await lookup(ctx.names.components, main.id, async () => ({ id: main.id, name: main.name, set: main.parent && main.parent.type === "COMPONENT_SET" ? main.parent.name : "", description: main.description || "", key: main.key }));
+            if (info) names.component = info;
+        }
+    }
+    if (Object.keys(names).length) meta.names = names;
+    return Object.keys(meta).length ? meta : null;
+}
+const safeAsync = async (fn) => { try { return await fn(); } catch { return undefined; } };
 
 /** A picture's bytes as a small data URI: shrunk to the size it is shown at by the plugin window (which has a canvas). */
 async function pictureUri(bytes, width, height, cover, ctx, label) {
@@ -83,10 +144,12 @@ export async function snapshotNode(node, parentAbs, ctx, isRoot = false) {
     };
     for (const key of [...LAYOUT, ...AS_CHILD, ...PAINT]) { const v = val(safe(() => node[key])); if (v !== undefined) out[key] = plain(v); }
     if (!out.visible) return out;
+    const meta = await collectMeta(node, ctx);
+    if (meta) out.meta = meta;
 
     if (node.type === "TEXT") {
         for (const key of TEXT) { const v = val(safe(() => node[key])); if (v !== undefined) out[key] = plain(v); }
-        const segments = safe(() => node.getStyledTextSegments(SEGMENT_FIELDS));
+        const segments = textSegments(node);
         if (segments && segments.length) out.segments = plain(segments);
         return out;
     }
