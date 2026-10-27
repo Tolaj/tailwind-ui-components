@@ -83,7 +83,7 @@ test("a vector the plugin exported is inlined at its box, without its fixed size
     const frame = { type: "FRAME", name: "V", width: 100, height: 100, children: [{ type: "VECTOR", name: "Icon", width: 24, height: 24, box: { x: 10, y: 12, width: 24, height: 24 }, svg: '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0"/></svg>' }] };
     const { body, stats } = convertDesign(frame);
     assert.equal(stats.assets, 1);
-    assert.match(body, /<svg viewBox="0 0 24 24" class="block h-full w-full">/);
+    assert.match(body, /<svg viewBox="0 0 24 24" class="block h-full w-full" aria-hidden="true">/); // "Icon" says nothing: decoration
     assert.ok(classesOf(body)[1].includes("left-2.5"), "10px is the 2.5 step");
 });
 
@@ -391,4 +391,37 @@ test("a font Google does not have is stood in for by the free font that sets tex
     assert.match(odd.body, /font-\['Acme_Sans',sans-serif\]/);
     // a hand-made rule still wins
     assert.match(page([text("Gilroy", line, 20, 0.3), text("Gilroy", line, 20, 0.3)]).body, /font-\['Gilroy','Montserrat',sans-serif\]/);
+});
+
+test("sections, icon labels and heading levels from the designer's own names", () => {
+    const text = (s, size, extra = {}) => ({ type: "TEXT", name: "t", characters: s, width: 200, height: size, transform: at(0, 0), fontSize: size, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT", ...extra });
+    const block = (name, w, h, kids = []) => ({ type: "FRAME", name, width: w, height: h, transform: at(0, 0), fills: [], children: kids });
+    // a big layer straight under the page named like a part of a page is a <section>; a small one, or a deeper one, stays a div
+    const page = convertDesign({ type: "FRAME", name: "Page", width: 1000, height: 2000, fills: [], children: [
+        block("Hero", 1000, 600, [block("Content", 900, 300, [text("Welcome", 20)])]), block("Features", 1000, 500, [text("Features list", 16)]), block("Content label", 100, 40, [text("x", 12)]), block("Random", 1000, 300, [text("y", 12)]),
+    ] }).body;
+    assert.equal((page.match(/<section /g) || []).length, 2, page); // Hero and Features; the nested "Content" and the small label are not
+    // icons: a name that names the icon is its label, a name that does not is decoration
+    const icon = (name, component) => ({ type: "VECTOR", name, width: 24, height: 24, box: { x: 0, y: 0, width: 24, height: 24 }, svg: '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0" fill="#000"/></svg>', ...(component ? { meta: { names: { component } } } : {}) });
+    const icons = convertDesign({ type: "FRAME", name: "F", width: 200, height: 100, fills: [], children: [icon("icon/navigation/arrow_downward_24px"), icon("Vector 12"), icon("Frame 9", { name: "Icons/Search" })] }).body;
+    assert.match(icons, /role="img" aria-label="arrow downward"/);
+    assert.match(icons, /aria-hidden="true"/);
+    assert.match(icons, /aria-label="Search"/); // an instance renamed "Frame 9" still has its component's name
+    // a text style called "Heading/H2" makes it an h2, whatever its size; a long paragraph with such a style is left alone
+    const styled = (name, characters, size) => text(characters, size, { meta: { names: { styles: { textStyleId: { name, type: "TEXT" } } } } });
+    const r = convertDesign({ type: "FRAME", name: "F", width: 600, height: 400, fills: [], children: [styled("Heading/H2", "A small section title", 18), styled("Body/Large", "Just body text here", 40), styled("Heading/H1", "x".repeat(400), 30)] }).body;
+    assert.match(r, /<h2 [^>]*>A small section title<\/h2>/);
+    assert.match(r, /<p [^>]*>Just body text here<\/p>/);
+    assert.ok(!/<h1 /.test(r), "a 400-letter paragraph is not a heading");
+});
+
+test("a section needs text in it (a gradient called Hero is not one); a child sticking out of its frame is not a clean row", () => {
+    const text = { type: "TEXT", name: "t", characters: "Hello there", width: 80, height: 16, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT" };
+    const frame = (name, kids) => ({ type: "FRAME", name, width: 1000, height: 400, transform: at(0, 0), fills: [], children: kids });
+    const page = convertDesign({ type: "FRAME", name: "P", width: 1000, height: 900, fills: [], children: [frame("BG Hero", []), frame("Hero", [text])] }).body;
+    assert.equal((page.match(/<section /g) || []).length, 1, page);
+    const box = (x, y) => ({ type: "RECTANGLE", name: "b", width: 40, height: 20, transform: at(x, y), fills: [solid(1, 2, 3)] });
+    const r = convertDesign({ type: "FRAME", name: "R", width: 300, height: 60, fills: [], children: [box(10, -1.5), box(70, -1.5), box(130, -1.5)] });
+    assert.ok(!r.warnings.some((w) => /Could not write/.test(w)), r.warnings.join("|"));
+    assert.equal(r.stats.detected, 0, "a row whose top is above its frame stays placed exactly");
 });

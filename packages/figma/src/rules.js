@@ -3,7 +3,7 @@
 // lists can be improved without publishing a new plugin version. Only plain data, never code: patterns are text, compiled here.
 
 export const DEFAULT_RULES = {
-    version: "2026-10-27.1",
+    version: "2026-10-28.1",
     // [a pattern for the font's name (case-insensitive), the Google Fonts family to load in its place]
     fontSubstitutes: [
         ["^gilroy|^gotham|^proxima", "Montserrat"], ["^circular|^sofia", "DM Sans"], ["^avenir", "Nunito Sans"], ["^futura", "Jost"],
@@ -12,7 +12,11 @@ export const DEFAULT_RULES = {
         ["^(sf mono|menlo|consolas|monaco)", "JetBrains Mono"],
     ],
     // words in a layer's name (whole words, any case) and the element they make
-    words: { button: "button|btn|cta", link: "link", nav: "nav|navbar|navigation|menu bar", footer: "footer", header: "header|topbar|top bar|app bar" },
+    words: {
+        button: "button|btn|cta", link: "link", nav: "nav|navbar|navigation|menu bar", footer: "footer", header: "header|topbar|top bar|app bar",
+        // a big layer straight under the page, named like a part of a page, is a <section>
+        section: "section|hero|content|features?|pricing|testimonials?|about|contact|faq|team|blog|gallery|slider|showcase",
+    },
 };
 
 const MAX_PATTERN = 200;

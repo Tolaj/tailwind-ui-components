@@ -12,7 +12,7 @@ import { pickSubstitutes } from "./fonts.js";
 import { substituteFor } from "./text.js";
 
 /** Which version of the conversion rules made a page (shared samples carry it, so a regression can be traced to a release). */
-export const CONVERTER_VERSION = "0.2.0";
+export const CONVERTER_VERSION = "0.3.0";
 
 const CONTAINERS = new Set(["FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"]);
 const isAuto = (n) => n.layoutMode === "HORIZONTAL" || n.layoutMode === "VERTICAL";
@@ -121,11 +121,13 @@ function detectFlow(node, kids) {
         else continue;
         const gap = Math.max(0, round(gaps.reduce((a, b) => a + b, 0) / gaps.length, 2));
         const first = bs[0][m.pos];
+        if (first < -TOL || padCross < -TOL || padCrossEnd < -TOL) continue; // a child sticking out of its frame is not a clean row or column (padding cannot be negative)
+        const pad = (v) => Math.max(0, round(v, 2));
         return {
             order, layoutMode: row ? "HORIZONTAL" : "VERTICAL", itemSpacing: gap, primaryAxisAlignItems: "MIN", counterAxisAlignItems: counter,
             ...(row
-                ? { paddingLeft: round(first, 2), paddingTop: round(padCross, 2), paddingBottom: round(padCrossEnd, 2), paddingRight: 0 }
-                : { paddingTop: round(first, 2), paddingLeft: round(padCross, 2), paddingRight: round(padCrossEnd, 2), paddingBottom: 0 }),
+                ? { paddingLeft: pad(first), paddingTop: pad(padCross), paddingBottom: pad(padCrossEnd), paddingRight: 0 }
+                : { paddingTop: pad(first), paddingLeft: pad(padCross), paddingRight: pad(padCrossEnd), paddingBottom: 0 }),
         };
     }
     return null;
@@ -190,12 +192,27 @@ function containerTag(node, ctx) {
         if (named(node, w.nav)) return { tag: "nav", attrs: "" };
         if (named(node, w.footer)) return { tag: "footer", attrs: "" };
         if (named(node, w.header)) return { tag: "header", attrs: "" };
+        if (ctx.rootKids.has(node) && node.height >= 120 && named(node, w.section) && hasText(node)) return { tag: "section", attrs: "" };
     }
     return { tag: "div", attrs: "" };
 }
 
 /** A picture's alt text: its layer name when that says something, nothing (a decorative picture) when it is "Rectangle 12" or "HG". */
 const altFor = (name) => (/^(rectangle|ellipse|frame|group|vector|image|img|photo|picture|layer|polygon|star|line|bg|background|mask|shape|icon|asset)?[\s_-]*\d*$/i.test(String(name || "").trim()) || String(name || "").trim().length <= 3 ? "" : String(name).trim());
+
+/**
+ * What a screen reader says for an icon: its layer or component name when that names the icon ("icon/navigation/arrow_downward_24px" is
+ * "arrow downward"), nothing (null: it is decoration) when the name says nothing ("Vector 12").
+ */
+function iconLabel(node) {
+    const c = node.meta && node.meta.names && node.meta.names.component;
+    for (const raw of [c && c.name, node.name]) {
+        if (!raw) continue;
+        const last = String(raw).split("/").pop().replace(/^icons?[\s_-]+/i, "").replace(/[\s_-]*\d+(px)?$/i, "").replace(/[_-]+/g, " ").trim();
+        if (altFor(last)) return last;
+    }
+    return null;
+}
 
 /** The pixel sizes Figma lets an Auto Layout frame or child keep, as min and max classes. */
 function limitClasses(node, bag) {
@@ -242,7 +259,7 @@ function convert(node, parent, ctx, isRoot = false) {
         if (svg) { const flat = recolourable(svg); if (flat) { svg = flat.svg; bag.set("textColor", flat.color); } } // a one-colour icon takes its colour from the text colour
         const img = node.png
             ? `<img src="${escapeAttr(node.png)}" alt="${escapeAttr(altFor(node.name))}" class="block h-full w-full">`
-            : svg.replace(/<svg\b([^>]*)>/, (m, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, "")} class="block h-full w-full">`);
+            : svg.replace(/<svg\b([^>]*)>/, (m, attrs) => { const label = iconLabel(node); return `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, "")} class="block h-full w-full"${label ? ` role="img" aria-label="${escapeAttr(label)}"` : ' aria-hidden="true"'}>`; });
         return `<div ${bag.attrs()}>${img}</div>`;
     }
 
@@ -252,7 +269,11 @@ function convert(node, parent, ctx, isRoot = false) {
         let tag = baseTag;
         const size = node.fontSize || (node.segments && node.segments[0] && node.segments[0].fontSize) || 0;
         const rank = ctx.headings.indexOf(size);
-        if (rank >= 0 && isHeadingText(node)) { // a clearly bigger size of real words: a heading (the first of the biggest size is the page's h1)
+        // the designer's own text style says it ("Heading/H2", "H3 bold"): that level wins over a guess from the type size
+        const styleName = node.meta && node.meta.names && node.meta.names.styles && node.meta.names.styles.textStyleId && node.meta.names.styles.textStyleId.name;
+        const styled = styleName && typeof node.characters === "string" && node.characters.length <= 160 && !/\n/.test(node.characters) ? /(?:^|[^a-z0-9])(?:h|heading\s*)([1-6])(?![0-9])/i.exec(styleName) : null;
+        if (styled) { tag = `h${styled[1]}`; if (styled[1] === "1") ctx.h1Used = true; }
+        else if (rank >= 0 && isHeadingText(node)) { // a clearly bigger size of real words: a heading (the first of the biggest size is the page's h1)
             let level = Math.min(3, rank + 1);
             if (level === 1) { if (ctx.h1Used) level = 2; else ctx.h1Used = true; }
             tag = `h${level}`;
@@ -317,7 +338,7 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  */
 export function convertDesign(snapshot, { title, rules } = {}) {
     const warnings = [];
-    const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, rootKids: new Set(snapshot.children || []), headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
     ctx.fonts.picks = pickSubstitutes(snapshot, (family) => substituteFor(family, ctx.rules.fontSubstitutes)); // free stand-ins for fonts Google does not have, from their widths in Figma
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
