@@ -33,7 +33,12 @@ async function run() {
     figma.ui.postMessage({ type: "result", pages });
 }
 
+// where to send, remembered on this computer (the token is the user's own, made on Windcraft's Connect page)
+const SETTINGS = "windcraft-send";
+figma.clientStorage.getAsync(SETTINGS).then((saved) => figma.ui.postMessage({ type: "settings", saved: saved || {} })).catch(() => {});
+
 figma.ui.onmessage = (msg) => {
+    if (msg.type === "save-settings") { figma.clientStorage.setAsync(SETTINGS, msg.settings).catch(() => {}); return; }
     if (msg.type === "compressed") { const done = pending.get(msg.id); pending.delete(msg.id); if (done) done(msg.dataUri || null); return; }
     if (msg.type === "run") run().catch((e) => figma.ui.postMessage({ type: "error", message: String((e && e.message) || e) }));
     if (msg.type === "close") figma.closePlugin();

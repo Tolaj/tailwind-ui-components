@@ -18,7 +18,14 @@
 <body>
     <h1>Windcraft: Figma to code</h1>
     <p id="hint">Select one or more frames. Everything happens in Figma on your computer; nothing is sent anywhere.</p>
-    <div id="bar"><button class="primary" id="run">Convert selection</button><button id="copy" class="hidden">Copy HTML</button><button id="save" class="hidden">Download .html</button></div>
+    <div id="bar"><button class="primary" id="run">Convert selection</button><button id="copy" class="hidden">Copy HTML</button><button id="save" class="hidden">Download .html</button><button id="send" class="hidden">Send to Windcraft</button></div>
+    <details id="dest" class="hidden" style="margin-top:8px"><summary>Windcraft account</summary>
+        <p style="margin-top:6px">Make a token on Windcraft's Connect page and paste it here. It is kept on this computer only.</p>
+        <input id="server" placeholder="https://your-windcraft.example.com" style="width:100%;box-sizing:border-box;margin-bottom:4px">
+        <input id="token" type="password" placeholder="Token (twl_…)" style="width:100%;box-sizing:border-box;margin-bottom:4px">
+        <input id="project" placeholder="Project (optional)" style="width:100%;box-sizing:border-box">
+    </details>
+    <p id="sent" class="hidden"></p>
     <div id="tabs" style="margin-top:8px"></div>
     <div id="stats" class="hidden"></div>
     <ul id="warn" class="hidden"></ul>
@@ -44,6 +51,19 @@
         a.download = (pages[current].title || "design").replace(/[^\w-]+/g, "-") + ".html";
         a.click();
     };
+    $("send").onclick = async () => {
+        const server = $("server").value.trim().replace(/\/+$/, ""), token = $("token").value.trim(), project = $("project").value.trim();
+        if (!server || !token) { $("dest").open = true; $("sent").classList.remove("hidden"); $("sent").textContent = "Fill in the Windcraft address and token first."; return; }
+        parent.postMessage({ pluginMessage: { type: "save-settings", settings: { server, token, project } } }, "*");
+        $("send").disabled = true; $("sent").classList.remove("hidden"); $("sent").textContent = "Sending…";
+        try {
+            const res = await fetch(`${server}/api/figma/send`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ title: pages[current].title, html: pages[current].html, project: project || undefined }) });
+            const body = await res.json().catch(() => ({}));
+            $("sent").textContent = res.ok && body.ok ? `Sent. ${body.message}` : `Not sent: ${body.message || res.status}`;
+            if (res.ok && body.ok && body.url) { const a = document.createElement("a"); a.href = body.url; a.target = "_blank"; a.textContent = " Open it"; $("sent").appendChild(a); }
+        } catch (err) { $("sent").textContent = "Could not reach that address. Check it, and that the server is running."; }
+        $("send").disabled = false;
+    };
     // the plugin sandbox has no canvas: it sends a picture here to be drawn at the size it is shown at and saved small (WebP keeps transparency)
     async function shrink({ id, bytes, width, height, cover, quality = 0.7, maxPixels = 900000 }) {
         let dataUri = null;
@@ -66,6 +86,7 @@
         const m = e.data.pluginMessage;
         if (!m) return;
         if (m.type === "compress") return shrink(m);
+        if (m.type === "settings") { $("server").value = m.saved.server || ""; $("token").value = m.saved.token || ""; $("project").value = m.saved.project || ""; return; }
         if (m.type === "empty") $("hint").textContent = "Select one or more frames, then press Convert.";
         if (m.type === "progress") $("hint").textContent = `Reading ${m.name}${m.count ? ` (${m.count} layers)` : ""}…`;
         if (m.type === "error") $("hint").textContent = "Something went wrong: " + m.message;
@@ -73,7 +94,7 @@
             pages = m.pages; $("hint").textContent = `Converted ${pages.length} ${pages.length === 1 ? "frame" : "frames"}.`;
             $("tabs").innerHTML = pages.map((p, i) => `<button data-i="${i}">${p.title.replace(/</g, "&lt;")}</button>`).join("");
             $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) show(Number(b.dataset.i)); };
-            ["copy", "save", "stats", "out", "next"].forEach((id) => $(id).classList.remove("hidden"));
+            ["copy", "save", "send", "dest", "stats", "out", "next"].forEach((id) => $(id).classList.remove("hidden"));
             show(0);
         }
     };

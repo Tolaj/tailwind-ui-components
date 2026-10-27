@@ -4,7 +4,17 @@
     "api": "1.0.0",
     "main": "code.js",
     "ui": "ui.html",
-    "editorType": ["figma"],
+    "editorType": [
+        "figma"
+    ],
     "documentAccess": "dynamic-page",
-    "networkAccess": { "allowedDomains": ["none"] }
+    "networkAccess": {
+        "allowedDomains": [
+            "*"
+        ],
+        "reasoning": "Sends a converted design to the Windcraft server the user types in (their own deployment or localhost)",
+        "devAllowedDomains": [
+            "http://localhost:3000"
+        ]
+    }
 }

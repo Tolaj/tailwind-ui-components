@@ -5,6 +5,7 @@ import componentRoutes from "./component.routes.js";
 import homeRoutes from "./home.routes.js";
 import aiRoutes from "./ai.routes.js";
 import mcpRoutes from "./mcp.routes.js";
+import figmaRoutes from "./figma.routes.js";
 import libraryRoutes from "./library.routes.js";
 import infoRoutes from "./info.routes.js";
 import connectRoutes from "./connect.routes.js";
@@ -37,6 +38,7 @@ const constructorMethod = (app) => {
     app.use("/api/components", componentRoutes);
     app.use("/api/ai", aiRoutes);
     app.use("/mcp", mcpRoutes);
+    app.use("/api/figma", figmaRoutes);
     app.get("/my-components", (req, res) => res.redirect("/library"));
     app.use("/library", ensureAuth, libraryRoutes);
     app.use("/connect", ensureAuth, connectRoutes);
