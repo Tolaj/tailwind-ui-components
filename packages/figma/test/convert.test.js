@@ -115,9 +115,10 @@ test("what we write stays editable: every class is a property Windcraft knows, e
 
 test("a font gets a fallback family and its own link, so a font Google lacks cannot stop the rest", () => {
     const frame = { type: "FRAME", name: "F", width: 100, height: 100, children: [text("A", "Hi", { fontName: { family: "Chronicle Display", style: "Bold" } }), text("B", "Yo", { fontName: { family: "Gilroy", style: "Regular" } }), text("C", "x", { fontName: { family: "Fira Code", style: "Regular" } })] };
-    const { body, html } = convertDesign(frame);
-    assert.ok(body.includes("font-['Chronicle_Display',serif]"), body);
-    assert.ok(body.includes("font-['Gilroy',sans-serif]"));
+    const { body, html, warnings } = convertDesign(frame);
+    assert.ok(body.includes("font-['Chronicle_Display','Playfair_Display',serif]"), body);
+    assert.ok(body.includes("font-['Gilroy','Montserrat',sans-serif]"));
+    assert.ok(warnings.some((w) => w.includes("Gilroy → Montserrat")), "names the replacement");
     assert.ok(body.includes("font-['Fira_Code',monospace]"));
     assert.equal((html.match(/fonts\.googleapis\.com\/css2/g) || []).length, 3, "one link per family");
 });

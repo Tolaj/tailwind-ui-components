@@ -14,6 +14,16 @@ export function genericFor(family) {
     return "sans-serif";
 }
 
+// Paid or custom fonts and the free Google Fonts family that looks closest. The original name stays first in the font list, so the real font wins once it is available.
+const SUBSTITUTES = [
+    [/^gilroy|^gotham|^proxima/i, "Montserrat"], [/^circular|^sofia/i, "DM Sans"], [/^avenir/i, "Nunito Sans"], [/^futura/i, "Jost"],
+    [/^(sf pro|sf ui|helvetica|neue haas|graphik|akkurat|suisse|aeonik|general sans|satoshi)/i, "Inter"],
+    [/^(chronicle|didot|bodoni|canela|gt super|tiempos|freight|ivar)/i, "Playfair Display"], [/^(georgia|times)/i, "Libre Baskerville"],
+    [/^(sf mono|menlo|consolas|monaco)/i, "JetBrains Mono"],
+];
+/** The Google Fonts family to load in place of one that is not on Google Fonts, or undefined. */
+export const substituteFor = (family) => (SUBSTITUTES.find(([re]) => re.test(family)) || [])[1];
+
 /** 600 from a style name like "SemiBold Italic" (the longer names are tried first). */
 export function weightOf(style = "") {
     const s = style.toLowerCase().replace(/[\s-]/g, "");
@@ -26,9 +36,12 @@ export function styleClasses(s, bag, fonts) {
     const family = s.fontName && s.fontName.family;
     const weight = s.fontWeight || weightOf(s.fontName && s.fontName.style);
     if (family) {
-        bag.add(`font-['${arb(family)}',${genericFor(family)}]`);
-        if (!fonts.has(family)) fonts.set(family, new Set());
-        fonts.get(family).add(weight);
+        const sub = substituteFor(family);
+        bag.add(`font-['${arb(family)}',${sub ? `'${arb(sub)}',` : ""}${genericFor(sub || family)}]`);
+        if (sub) (fonts.replaced = fonts.replaced || new Map()).set(family, sub);
+        const load = sub || family; // the family the page asks Google Fonts for
+        if (!fonts.has(load)) fonts.set(load, new Set());
+        fonts.get(load).add(weight);
     }
     if (s.fontSize) bag.set("fontSize", px("fontSize", s.fontSize));
     if (WEIGHTS[weight] && weight !== 400) bag.set("fontWeight", WEIGHTS[weight]);
