@@ -7,6 +7,7 @@ import FigmaDraft from "../models/figmaDraft.model.js";
 import { listProjects } from "../services/project.service.js";
 import { startLink, collectLink, signOutToken } from "../services/figma-link.service.js";
 import { publicBase } from "../utils/publicUrl.js";
+import { limit, rateLimited } from "../utils/rateLimit.js";
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.use((req, res, next) => {
 router.get("/config", (req, res) => res.json({ ok: true, server: publicBase(req) }));
 
 /** Sign-in without a token: the plugin gets a code to open in the browser, then waits for the user to approve it there. */
-router.post("/link", async (req, res) => {
+router.post("/link", limit("figma-link", 30, 60 * 60 * 1000), async (req, res) => {
     const { code, secret } = await startLink();
     res.json({ ok: true, secret, code, url: `${publicBase(req)}/figma/authorize?code=${encodeURIComponent(code)}` });
 });
@@ -65,6 +66,7 @@ router.post("/send", async (req, res) => {
     try {
         const userId = await bearer(req, res);
         if (!userId) return;
+        if (rateLimited("figma-send", userId, 200, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "That is a lot of saves in an hour. Try again in a little while." });
         const { title, html, project, mode, width } = req.body || {};
         if (typeof title !== "string" || typeof html !== "string" || !title.trim() || !html.trim()) return res.status(400).json({ ok: false, message: "title and html are required" });
         if (html.length > MAX_HTML) return res.status(413).json({ ok: false, message: "This page is over 1 MB: use fewer or smaller pictures." });
@@ -98,6 +100,7 @@ router.post("/draft", async (req, res) => {
     try {
         const userId = await bearer(req, res);
         if (!userId) return;
+        if (rateLimited("figma-draft", userId, 100, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "Too many editor drafts in an hour. Try again in a little while." });
         const { title, html } = req.body || {};
         if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) return res.status(400).json({ ok: false, message: "A design up to 1 MB is needed." });
         const draft = await FigmaDraft.create({ userId, title: String(title || "").slice(0, 120), html: await withFonts(html, publicBase(req)), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
@@ -121,6 +124,7 @@ router.post("/fonts", async (req, res) => {
     try {
         const userId = await authenticateBearer(req);
         if (!userId) return res.status(401).json({ ok: false, message: "That token was not accepted." });
+        if (rateLimited("figma-font", userId, 40, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "Too many font uploads in an hour. Try again in a little while." });
         res.json({ ok: true, font: await saveFont(userId, req.body || {}) });
     } catch (error) {
         res.status(400).json({ ok: false, message: error.message });

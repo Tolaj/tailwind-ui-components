@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import { createZip } from "../utils/zip.js";
 import { publicBase } from "../utils/publicUrl.js";
 import { connectedApps, revokeClientForUser, issueTokenPair } from "../services/oauth.service.js";
+import FigmaToken from "../models/figmaToken.model.js";
 import OAuthClient from "../models/oauthClient.model.js";
 import OAuthToken from "../models/oauthToken.model.js";
 import { buildClaudeCodeKit, buildDesignPack, mcpJson, claudeMdSnippet, skillMd, TOKEN_ENV } from "../services/kit.service.js";
@@ -19,10 +20,11 @@ const sendZip = (res, name, files) => {
 router.get("/", async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const [count, account, apps] = await Promise.all([
+        const [count, account, apps, figmaSignIns] = await Promise.all([
             Component.countDocuments({ createdBy: userId }),
             User.findById(userId).select("apiTokenPrefix").lean(),
             connectedApps(userId),
+            FigmaToken.find({ userId }).sort("-createdAt").select("createdAt").lean(),
         ]);
         res.render("main/connect", {
             layout: "main",
@@ -31,6 +33,8 @@ router.get("/", async (req, res) => {
             user: req.session.user,
             count,
             apps,
+            figmaSignIns: figmaSignIns.map((t) => ({ id: String(t._id), since: t.createdAt })),
+            hasConnections: apps.length > 0 || figmaSignIns.length > 0,
             isLocal: /^https?:\/\/(localhost|127\.0\.0\.1)/.test(baseUrl(req)),
             tokenPrefix: account?.apiTokenPrefix || "",
             mcpUrl: `${baseUrl(req)}/mcp`,
@@ -56,6 +60,13 @@ router.get("/design-pack.zip", async (req, res) => {
         console.error("Design pack error:", error);
         res.status(500).type("text/plain").send("Could not build the design pack");
     }
+});
+
+// a Figma plugin sign-in ends at once: the plugin has to sign in again
+router.post("/figma/:id/revoke", async (req, res) => {
+    if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(400).json({ success: false });
+    await FigmaToken.deleteOne({ _id: req.params.id, userId: req.session.user.id });
+    res.json({ success: true });
 });
 
 router.post("/apps/:clientId/revoke", async (req, res) => {

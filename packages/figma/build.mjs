@@ -19,7 +19,10 @@ const server = (process.env.WINDCRAFT_URL || process.env.PUBLIC_URL || fromFile 
 if (!server) throw new Error("No Windcraft address: set PUBLIC_URL in the app's .env (the same value the server uses), or build with --dev for localhost.");
 if (!/^https?:\/\/[^\s"<>]+$/.test(server)) throw new Error(`PUBLIC_URL is not an address: ${server}`);
 const manifest = JSON.parse(fs.readFileSync(path.join(dir, "plugin", "manifest.json"), "utf8"));
-if (/^http:\/\/localhost(:\d+)?$/.test(server)) manifest.networkAccess.devAllowedDomains = [server]; // Figma only lets a plugin reach a local address when it is listed here
+// the plugin may only reach Windcraft's own address (Figma reviews this); a local address is allowed through devAllowedDomains
+if (/^http:\/\/localhost(:\d+)?$/.test(server)) { manifest.networkAccess.allowedDomains = ["none"]; manifest.networkAccess.devAllowedDomains = [server]; }
+else manifest.networkAccess.allowedDomains = [server];
+if (dev) manifest.networkAccess.devAllowedDomains = [...new Set([...(manifest.networkAccess.devAllowedDomains || []), "http://localhost:3000", "http://localhost:3001"])];
 fs.writeFileSync(path.join(dist, "manifest.json"), JSON.stringify(manifest, null, 4) + "\n");
 // the window is one self-contained page, so Windcraft's logo (from the app) is put into it as a data address
 const logo = fs.readFileSync(path.join(dir, "..", "..", "src", "public", "images", "logo.png")).toString("base64");

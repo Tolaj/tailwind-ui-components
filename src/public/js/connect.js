@@ -19,6 +19,13 @@ document.addEventListener("click", async (e) => {
 });
 
 document.addEventListener("click", async (e) => {
+    const figmaBtn = e.target.closest("[data-revoke-figma]");
+    if (figmaBtn) {
+        if (!confirm("Sign the Figma plugin out? It will need to sign in again.")) return;
+        const res = await fetch(`/connect/figma/${encodeURIComponent(figmaBtn.dataset.revokeFigma)}/revoke`, { method: "POST" });
+        if ((await res.json()).success) location.reload();
+        return;
+    }
     const btn = e.target.closest("[data-revoke]");
     if (!btn) return;
     if (!confirm("Disconnect this app? It will lose access immediately.")) return;

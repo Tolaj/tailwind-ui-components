@@ -57,12 +57,18 @@
             </div>
 
             <h3 class="mt-5 text-sm font-semibold text-gray-900">Connected apps</h3>
-            {{#if apps.length}}
+            {{#if hasConnections}}
             <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
                 {{#each apps}}
                 <li class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
                     <span><strong class="text-gray-900">{{this.name}}</strong> <span class="text-gray-500">connected {{formatDate this.since}}</span></span>
                     <button type="button" data-revoke="{{this.clientId}}" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-red-700 hover:bg-red-50">Disconnect</button>
+                </li>
+                {{/each}}
+                {{#each figmaSignIns}}
+                <li class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                    <span><strong class="text-gray-900">Figma plugin</strong> <span class="text-gray-500">signed in {{formatDate this.since}}</span></span>
+                    <button type="button" data-revoke-figma="{{this.id}}" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-red-700 hover:bg-red-50">Sign out</button>
                 </li>
                 {{/each}}
             </ul>

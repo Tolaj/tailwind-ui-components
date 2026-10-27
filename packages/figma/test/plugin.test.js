@@ -20,12 +20,13 @@ async function runPlugin(selection) {
     const handlers = {};
     const figma = {
         mixed: MIXED, currentPage: { selection },
-        showUI() {}, closePlugin() {}, on() {}, base64Encode: (b) => Buffer.from(b).toString("base64"),
+        showUI() {}, closePlugin() {}, on() {}, openExternal() {}, clientStorage: { getAsync: async () => null, setAsync: async () => {} }, base64Encode: (b) => Buffer.from(b).toString("base64"),
         // the plugin window shrinks pictures: here, a stand-in that answers every job with a tiny WebP
         ui: { postMessage: (m) => { messages.push(m); if (m.type === "compress") setTimeout(() => handlers.onmessage({ type: "compressed", id: m.id, dataUri: `data:image/webp;base64,SHRUNK${m.width}x${m.height}${m.cover ? "c" : ""}` }), 0); }, set onmessage(fn) { handlers.onmessage = fn; } },
         getImageByHash: (hash) => ({ getBytesAsync: async () => new Uint8Array(900 * 1024).fill(hash.length) }),
     };
     vm.runInNewContext(fs.readFileSync(out, "utf8"), { figma, __html__: "", console, setTimeout, clearTimeout });
+    handlers.onmessage({ type: "run" }); // the window asks for the conversion when the user presses the button
     for (let i = 0; i < 50 && !messages.some((m) => m.type === "result" || m.type === "error" || m.type === "empty"); i++) await new Promise((r) => setTimeout(r, 10));
     return messages.find((m) => m.type === "result" || m.type === "error" || m.type === "empty");
 }
@@ -37,7 +38,7 @@ test("the plugin reads a frame, its group, text and a vector, and converts them"
         fills: [{ type: "SOLID", color: rgb(0, 0, 0), opacity: 1, visible: true }], getStyledTextSegments: () => [{ characters: "Hello", fontName: { family: "Inter", style: "Bold" }, fontSize: 20, fontWeight: 700, fills: [{ type: "SOLID", color: rgb(0, 0, 0), opacity: 1 }] }],
     });
     const group = fakeNode({ type: "GROUP", name: "Group", id: "2", width: 80, height: 24, absoluteTransform: abs(130, 120), children: [title] });
-    const icon = fakeNode({ type: "VECTOR", name: "Icon", id: "4", width: 24, height: 24, absoluteTransform: abs(300, 40), absoluteRenderBounds: { x: 300, y: 40, width: 24, height: 24 }, exportAsync: async () => '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0"/></svg>' });
+    const icon = fakeNode({ type: "VECTOR", name: "Icon", id: "4", width: 24, height: 24, absoluteTransform: abs(300, 140), absoluteRenderBounds: { x: 300, y: 140, width: 24, height: 24 }, exportAsync: async () => '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M0 0"/></svg>' });
     const frame = fakeNode({
         type: "FRAME", name: "Page", id: "1", width: 400, height: 200, absoluteTransform: abs(100, 100), layoutMode: "NONE", clipsContent: true,
         fills: [{ type: "SOLID", color: rgb(255, 255, 255), opacity: 1, visible: true }], children: [group, icon],
@@ -52,7 +53,7 @@ test("the plugin reads a frame, its group, text and a vector, and converts them"
     assert.match(page.html, /<div class="[^"]*w-\[400px\][^"]*h-\[200px\][^"]*relative[^"]*overflow-hidden[^"]*bg-\[#ffffff\]/);
     // the group sits at (30, 20) in the frame; its text at (0, 0) inside the group
     assert.match(page.html, /<div class="absolute left-\[30px\] top-5 w-20 h-6"><p class="absolute left-0 top-0[^"]*font-bold[^"]*">Hello<\/p><\/div>/);
-    assert.match(page.html, /<div class="absolute left-\[200px\] -top-\[60px\] w-6 h-6"><svg /); // the vector sits at (200, -60) from the frame
+    assert.match(page.html, /<div class="absolute left-\[200px\] top-10 w-6 h-6"><svg /); // the vector sits at (200, 40) from the frame
     assert.deepEqual(Array.from(page.fonts), ["Inter"]); // (copied: the plugin ran in its own realm)
 });
 

@@ -10,11 +10,8 @@
     "documentAccess": "dynamic-page",
     "networkAccess": {
         "allowedDomains": [
-            "*"
+            "none"
         ],
-        "reasoning": "Sends a converted design to the Windcraft server the user types in (their own deployment or localhost)",
-        "devAllowedDomains": [
-            "http://localhost:3000"
-        ]
+        "reasoning": "Signs the user in to their Windcraft account and saves the converted design, reads their projects and the shared font library, and uploads fonts they choose. The build sets the address."
     }
 }
