@@ -1,9 +1,9 @@
 import { panelStore, togglePalette, toggleSection } from "../panel-state.js";
-import { BREAKPOINT_WIDTH, setGroup, BREAKPOINTS, GROUPS, parseToken } from "../class-groups.js";
+import { BREAKPOINT_WIDTH, setGroup, BREAKPOINTS, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
 import { renderPanel } from "../panel.js";
 import { inspectorView, variant, val, srcOf, modeFor } from "../panel-model.js";
 import { checkTags } from "../code-view.js";
-import { groupOf, variantOf, twShown, hasScale, twValue, fromPx } from "../prop-tailwind.js";
+import { groupOf, variantOf, twShown, hasScale, twValue, fromPx } from "@windcraft/core/prop-tailwind.js";
 import { normalizeValue } from "../css-props.js";
 import { host } from "../host.js";
 import { $, S, data, model, send } from "./base.js";

@@ -5,7 +5,7 @@
 //   setProp(prop, value) · setPropLive(prop, hex) · setPropDone(prop, hex, input) · resetProp(prop) · arrange(kind) · toggleSection(id, wasOpen)
 import { html } from "../vendor/preact-htm.js";
 import { CSS_SECTIONS, rgbToHex } from "./css-props.js";
-import { variantOf } from "./prop-tailwind.js";
+import { variantOf } from "@windcraft/core/prop-tailwind.js";
 import { srcOf, shownOf, ownsValue } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, SelectInput, Segmented, Section, ColorInput } from "./controls.js";

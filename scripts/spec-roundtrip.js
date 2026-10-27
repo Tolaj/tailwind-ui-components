@@ -4,7 +4,7 @@
 // many of its classes the spec understands as props (the rest are kept as raw classes).
 import mongoose from "mongoose";
 import Component from "../src/models/component.model.js";
-import { toSpec, toHtml } from "../src/public/js/shared/design-spec.js";
+import { toSpec, toHtml } from "@windcraft/core/design-spec.js";
 import { readHtml, applyOps } from "../src/services/design-spec.service.js";
 import { isDeepStrictEqual } from "node:util";
 

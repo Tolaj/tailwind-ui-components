@@ -1,6 +1,6 @@
 import Component from "../models/component.model.js";
-import { exportComponent, FORMATS } from "../public/js/shared/exporters.js";
-import { normalizeGroup } from "../public/js/shared/pages.js";
+import { exportComponent, FORMATS } from "@windcraft/core/exporters.js";
+import { normalizeGroup } from "@windcraft/core/pages.js";
 import { specOf } from "../services/design-spec.service.js";
 import { buildProfile, profileToMarkdown, enrichProfileWithAI } from "../services/profile.service.js";
 import { resolveProject } from "../services/project.service.js";

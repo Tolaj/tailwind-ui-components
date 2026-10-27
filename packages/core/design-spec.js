@@ -7,7 +7,7 @@
 //
 // Elements are numbered in document order (n1, n2...) every time a spec is made. The ids belong to that version of the
 // design: a patch says which version it was read from (design-spec.service.js), so an id never lands on the wrong element.
-import { GROUPS, parseToken } from "../design/class-groups.js";
+import { GROUPS, parseToken } from "./class-groups.js";
 
 /**
  * Class properties by variant: { base: { p: "6" }, md: { p: "8" }, "md:hover": { bgColor: "blue-600" } }.

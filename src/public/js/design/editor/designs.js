@@ -1,6 +1,6 @@
 import { parseComponentSource, buildPreviewDocument } from "../../playground/component-source.js";
 import { host } from "../host.js";
-import { normalizeGroup } from "../../shared/pages.js";
+import { normalizeGroup } from "@windcraft/core/pages.js";
 import { DEVICES } from "../float-toolbar.js";
 import { $, S, collapsed, data, esc, frame, model, send } from "./base.js";
 import { MIN_H, applyView, canvas, fitTo, heightOfDoc, layout, pageGroupOf, placePills, positions, view, widthOf } from "./plane.js";

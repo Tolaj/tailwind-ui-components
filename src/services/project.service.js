@@ -1,4 +1,4 @@
-import { placeInOrder } from "../public/js/shared/pages.js";
+import { placeInOrder } from "@windcraft/core/pages.js";
 import mongoose from "mongoose";
 import Project from "../models/project.model.js";
 import Component from "../models/component.model.js";

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { withSharedHead, placeInOrder, normalizeGroup } from "../src/public/js/shared/pages.js";
-import { computeLayout, GAP_X, ROW_GAP } from "../src/public/js/shared/board-layout.js";
+import { withSharedHead, placeInOrder, normalizeGroup } from "../pages.js";
+import { computeLayout, GAP_X, ROW_GAP } from "../board-layout.js";
 
 const SHARED = `<script src="https://cdn.tailwindcss.com"></script>\n<style>body{margin:0}</style>`;
 

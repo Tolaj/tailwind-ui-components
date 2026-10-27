@@ -3,7 +3,7 @@
 // provides:
 //   removeClass(index) · addClasses(text) · setClassesText(text) · setStyle(css | null) · setAttribute(name, value | null)
 import { html, useState, useEffect, useRef } from "../vendor/preact-htm.js";
-import { parseToken } from "./class-groups.js";
+import { parseToken } from "@windcraft/core/class-groups.js";
 import { TextInput, TextArea } from "./controls.js";
 
 /** "color: red; margin: 0" -> [["color","red"],["margin","0"]] */

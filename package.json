@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/server.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/ packages/core/test/",
     "licenses": "node scripts/check-licenses.js",
     "typecheck": "tsc -p tsconfig.json",
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",

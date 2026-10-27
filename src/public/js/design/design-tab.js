@@ -3,7 +3,7 @@
 // frame's breakpoint) through useUi() and act through `actions`, which the editor provides:
 //   select(path) · move(dir) · duplicate() · remove() · setTag(tag) · setBreakpoint(bp) · setState(st) · setText(text) · setAttr(name, value)
 import { html } from "../vendor/preact-htm.js";
-import { BREAKPOINTS, STATES } from "./class-groups.js";
+import { BREAKPOINTS, STATES } from "@windcraft/core/class-groups.js";
 import { TAG_KINDS, variant, modeFor } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, TextArea, SelectInput, Field } from "./controls.js";

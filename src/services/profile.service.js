@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import Component from "../models/component.model.js";
 import User from "../models/user.model.js";
-import { splitSource } from "../public/js/shared/exporters.js";
+import { splitSource } from "@windcraft/core/exporters.js";
 
 const COLOR_NAMES = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
 const COLOR_RE = new RegExp(`^(?:bg|text|border|ring|from|via|to|fill|stroke|divide|outline|accent|decoration|shadow)-((?:${COLOR_NAMES})-\\d{2,3}|black|white)(?:/\\d+)?$`);

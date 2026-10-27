@@ -7,7 +7,8 @@
             "config": {
                 "includeFiles": [
                     "src/views/**",
-                    "src/public/**"
+                    "src/public/**",
+                    "packages/**"
                 ],
                 "maxDuration": 60
             }

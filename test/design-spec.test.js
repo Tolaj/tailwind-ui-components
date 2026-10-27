@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toSpec, toHtml, readClasses, writeClasses } from "../src/public/js/shared/design-spec.js";
+import { toSpec, toHtml, readClasses, writeClasses } from "@windcraft/core/design-spec.js";
 import { readHtml, applyOps, PatchError } from "../src/services/design-spec.service.js";
 
 const CARD = `<style>.x{color:red}</style>

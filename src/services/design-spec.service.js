@@ -1,14 +1,14 @@
 // @ts-check
 // The design spec on the server: what MCP hands an AI (get_design_spec) and the small patches it sends back
-// (apply_design_patch). The spec itself is built by the shared module (public/js/shared/design-spec.js); this file reads
+// (apply_design_patch). The spec itself is built by the shared module (packages/core/design-spec.js); this file reads
 // HTML without a browser, applies patches to the real code, and saves the result as a new version.
 //
 // A patch changes only what it names: every other byte of the design stays as the reader wrote it. It is checked and
 // applied in full or not at all, and only to the version it was read from, so an id can't land on the wrong element.
 import { parse, TextNode } from "node-html-parser";
 import Component from "../models/component.model.js";
-import { toSpec, walkElements, contentRoots } from "../public/js/shared/design-spec.js";
-import { GROUPS, setGroup, BREAKPOINTS, STATES } from "../public/js/design/class-groups.js";
+import { toSpec, walkElements, contentRoots } from "@windcraft/core/design-spec.js";
+import { GROUPS, setGroup, BREAKPOINTS, STATES } from "@windcraft/core/class-groups.js";
 import { buildProfile, enrichProfileWithAI } from "./profile.service.js";
 
 const READ = { comment: true, blockTextElements: { script: true, noscript: true, style: true } };

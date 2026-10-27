@@ -3,7 +3,7 @@
 // and a colour field. Each keeps what is being typed in its own state and reports changes through callbacks; none reads the
 // page or the editor's state. Their classes are the ones canvas.handlebars styles.
 import { html, useState, useRef } from "../vendor/preact-htm.js";
-import { HUES, SHADES, SPECIAL_COLORS } from "./class-groups.js";
+import { HUES, SHADES, SPECIAL_COLORS } from "@windcraft/core/class-groups.js";
 
 /**
  * What a typed-in field needs: it shows `value` until it is focused, keeps what is typed in its own state (a redraw with the

@@ -1,9 +1,9 @@
 import Component from "../models/component.model.js";
 import { buildProfile, enrichProfileWithAI } from "./profile.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
-import { parseDocument, splitSections } from "../public/js/shared/split-sections.js";
+import { parseDocument, splitSections } from "@windcraft/core/split-sections.js";
 import { tailwindWarning } from "./design-spec.service.js";
-import { normalizeGroup } from "../public/js/shared/pages.js";
+import { normalizeGroup } from "@windcraft/core/pages.js";
 
 const MAX_HTML = 1_000_000;
 

@@ -1,4 +1,4 @@
-import { computeLayout } from "../../shared/board-layout.js";
+import { computeLayout } from "@windcraft/core/board-layout.js";
 import { $, DEFAULT_W, S, data, frame, send } from "./base.js";
 import { docs, wraps } from "./designs.js";
 import { placeFloat, renderFloat, renderFrameSel } from "./frame-handles.js";

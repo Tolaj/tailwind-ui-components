@@ -1,8 +1,8 @@
 // What the Properties panel draws from: the data tables behind its controls (suggestions, options, tags), small selectors
 // that read the selection and the panel's state (panel-state.js), and inspectorView, which says what the panel shows. The
 // components themselves are in panel.js, design-tab.js, geom-section.js, prop-sections.js, extras-section.js and classes-section.js.
-import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, GROUPS, getGroup, parseToken } from "./class-groups.js";
-import { twShown } from "./prop-tailwind.js";
+import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, GROUPS, getGroup, parseToken } from "@windcraft/core/class-groups.js";
+import { twShown } from "@windcraft/core/prop-tailwind.js";
 import { panelStore } from "./panel-state.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
