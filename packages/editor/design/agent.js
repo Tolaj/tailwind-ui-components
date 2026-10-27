@@ -288,7 +288,7 @@ export function agentMain() {
      * "css" writes the inline style, made !important when the design's own CSS would still win.
      */
     // ── After a drag, resize or draw: pixels become Tailwind classes (the editor builds them, this frame checks them) ──
-    const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top"];
+    const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top", "margin-right", "align-self"];
     const inlineOf = (el, props) => { const o = {}; props.forEach((p) => { o[p] = el.style.getPropertyValue(p); }); return o; };
     /** What the editor needs to turn an element's new inline pixels into classes: the values, its classes, and where each value came from before. */
     function gestureItem(el, pre, props) {
@@ -823,8 +823,127 @@ export function agentMain() {
         return { container: c, ref, before: horizontal ? px0 < r.x + r.w / 2 : py0 < r.y + r.h / 2, horizontal };
     }
 
+
+    // ── Nudging: a drag that stays in the element's own slot moves it with margins, or aligns it in a flex or grid box ──
+    // Dropping into a different slot still reorders. Staying put is the smart part: the element is placed by its margin (snapped to the
+    // container's edges, its neighbours and the spacing already used), by auto margins (centred, pushed right) or, across the axis of a
+    // flex / grid box, by align-self. Everything is checked against the real layout, since margins collapse and flex adds them up.
+    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "align-self"];
+    const ORANGE = "#f59e0b";
+    const kidsOf = (c, skip) => Array.prototype.filter.call(c.children, (k) => k !== skip && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
+    const canNudge = (el) => !!el.parentElement && el !== document.body && !isAbs(el) && getComputedStyle(el).display !== "inline";
+    /** Would dropping at `t` leave the element where it is among its siblings? */
+    function sameSlot(el, t) {
+        if (t.container !== el.parentElement) return false;
+        if (!t.ref) return true;
+        const kids = kidsOf(el.parentElement, null), others = kids.filter((k) => k !== el);
+        const i = others.indexOf(t.ref);
+        return i >= 0 && (t.before ? i : i + 1) === kids.indexOf(el);
+    }
+    function nudgeStart(g) {
+        const el = g.el, par = el.parentElement, cs = getComputedStyle(el), pcs = getComputedStyle(par), pr = pageRect(par);
+        const f = (v) => parseFloat(v) || 0;
+        const bx = f(pcs.borderLeftWidth) + f(pcs.paddingLeft), bt = f(pcs.borderTopWidth) + f(pcs.paddingTop);
+        const box = { x: pr.x + bx, y: pr.y + bt, w: pr.w - bx - f(pcs.borderRightWidth) - f(pcs.paddingRight), h: pr.h - bt - f(pcs.borderBottomWidth) - f(pcs.paddingBottom) };
+        const idx = Array.prototype.indexOf.call(par.children, el);
+        const others = kidsOf(par, el).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none").map((k) => ({ r: pageRect(k), before: Array.prototype.indexOf.call(par.children, k) < idx }));
+        g.nudge = { active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, r0: pageRect(el), box, lay: layoutOf(par), others };
+    }
+    const restoreProp = (el, n, p) => { if (n.inl0[p]) el.style.setProperty(p, n.inl0[p]); else el.style.removeProperty(p); };
+    function restoreNudge(g) {
+        const n = g.nudge;
+        if (!n || !n.active) return;
+        NUDGE_PROPS.forEach((p) => restoreProp(g.el, n, p));
+        tidyStyle(g.el);
+        n.active = false;
+        guideLayer.innerHTML = "";
+    }
+    /** Is this axis one that the element's own margin moves its siblings along (block flow down, a flex box along its direction)? */
+    const mainAxis = (lay, a) => (lay === "page flow" || lay === "flex column" ? a === "y" : lay === "flex row" ? a === "x" : false);
+    const crossAxis = (lay, a) => (lay === "flex row" ? a === "y" : lay === "flex column" ? a === "x" : lay === "grid" ? a === "y" : false);
+    /** The line, among the container's edges and centre, its neighbours' edges and the spacing used between them, that `start` .. `start + size` is close to. */
+    function nearestLine(n, a, start, size) {
+        const S = a, Z = a === "x" ? "w" : "h", main = mainAxis(n.lay, a);
+        const lines = [{ at: n.box[S], e: "s", k: "start" }, { at: n.box[S] + n.box[Z] / 2, e: "c", k: "centre" }, { at: n.box[S] + n.box[Z], e: "e", k: "end" }];
+        const sibs = n.others.filter((o) => !main || o.before);
+        sibs.forEach((o) => lines.push({ at: o.r[S], e: "s", k: "sib" }, { at: o.r[S] + o.r[Z] / 2, e: "c", k: "sib" }, { at: o.r[S] + o.r[Z], e: "e", k: "sib" }));
+        const gaps = [];
+        if (main) {
+            const before = n.others.filter((o) => o.before).sort((p, q) => p.r[S] - q.r[S]);
+            const all = n.others.slice().sort((p, q) => p.r[S] - q.r[S]);
+            for (let i = 1; i < all.length; i++) { const d = all[i].r[S] - (all[i - 1].r[S] + all[i - 1].r[Z]); if (d >= 0) gaps.push(Math.round(d)); }
+            const end = before.length ? Math.max(...before.map((o) => o.r[S] + o.r[Z])) : n.box[S];
+            const med = gaps.length ? gaps.sort((p, q) => p - q)[Math.floor(gaps.length / 2)] : 0;
+            [0, med].forEach((gp) => lines.push({ at: end + gp, e: "s", k: "gap", gap: gp }));
+        }
+        const T = px(6);
+        let best = null, gap = null;
+        lines.forEach((c) => {
+            const d = c.at - (c.e === "s" ? start : c.e === "c" ? start + size / 2 : start + size);
+            if (Math.abs(d) > T) return;
+            if (c.k === "gap") { if (!gap || Math.abs(d) < Math.abs(gap.d)) gap = { ...c, d }; } else if (!best || Math.abs(d) < Math.abs(best.d)) best = { ...c, d };
+        });
+        return gap && (!best || Math.abs(gap.d) <= Math.abs(best.d) + px(4)) ? gap : best; // the spacing wins over an edge that is about as close
+    }
+    function nudgeGesture(g, e) {
+        const n = g.nudge, el = g.el;
+        let dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+        if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+        NUDGE_PROPS.forEach((p) => restoreProp(el, n, p));
+        n.active = true;
+        const lines = [], said = [];
+        ["x", "y"].forEach((a) => {
+            const Z = a === "x" ? "w" : "h", mProp = a === "x" ? "margin-left" : "margin-top";
+            let want = n.r0[a] + (a === "x" ? dx : dy);
+            const hit = e.metaKey ? null : nearestLine(n, a, want, n.r0[Z]); // Cmd: no snapping
+            if (hit) want += hit.d;
+            const set = (p, v) => el.style.setProperty(p, v);
+            // across the axis of a flex or grid box: align-self, if the element keeps its size and lands on the line
+            if (hit && crossAxis(n.lay, a) && ["start", "centre", "end"].includes(hit.k)) {
+                set("align-self", hit.k === "start" ? "flex-start" : hit.k === "end" ? "flex-end" : "center");
+                const r = pageRect(el);
+                if (Math.abs(r[a] - want) <= 2 && Math.abs(r[Z] - n.r0[Z]) < 1) { said.push(`align ${hit.k === "start" ? "start" : hit.k === "end" ? "end" : "centre"}`); lines.push({ a, at: hit.at }); return; }
+                restoreProp(el, n, "align-self");
+            }
+            // centred, or pushed to the end, along the row: auto margins
+            if (hit && a === "x" && (hit.k === "centre" || hit.k === "end") && n.r0.w < n.box.w - 1) {
+                set("margin-left", "auto");
+                if (hit.k === "centre") set("margin-right", "auto");
+                if (Math.abs(pageRect(el).x - want) <= 2) { said.push(hit.k === "centre" ? "centred (mx-auto)" : "to the right (ml-auto)"); lines.push({ a, at: hit.at }); return; }
+                restoreProp(el, n, "margin-left"); restoreProp(el, n, "margin-right");
+            }
+            // a margin, nudged until the real position matches (collapsing margins eat part of a change)
+            let m = Math.max(0, n.m[a] + (want - n.r0[a]));
+            const q = Math.round(m / 4) * 4;
+            m = !hit && Math.abs(q - m) <= 1.5 ? q : Math.round(m);
+            if (Math.abs(m - n.m[a]) < 0.5) return;
+            setPx(el, mProp, m);
+            const err = want - pageRect(el)[a];
+            if (Math.abs(err) > 0.5) setPx(el, mProp, Math.max(0, m + err));
+            if (hit) lines.push({ a, at: hit.at });
+        });
+        // what it shows: the margins as orange boxes with their size, the lines it snapped to, and a note
+        guideLayer.innerHTML = "";
+        const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, auto = el.style.getPropertyValue("margin-left") === "auto";
+        const tag = (x, y, text) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(11)}px/1 system-ui,sans-serif;padding:${px(3)}px ${px(6)}px;border-radius:${px(4)}px;white-space:nowrap;`)).textContent = text;
+        if (ml >= 1 && !auto) { guideLayer.appendChild(mk(`position:absolute;left:${r.x - ml}px;top:${r.y}px;width:${ml}px;height:${r.h}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x - ml / 2, r.y + r.h / 2, `${Math.round(ml)}`); }
+        if (mt >= 1) { guideLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y - mt}px;width:${r.w}px;height:${mt}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x + r.w / 2, r.y - mt / 2, `${Math.round(mt)}`); }
+        lines.forEach((l) => guideLayer.appendChild(mk(l.a === "x"
+            ? `position:absolute;left:${l.at}px;top:${n.box.y}px;width:${px(1)}px;height:${n.box.h}px;background:${RED};`
+            : `position:absolute;top:${l.at}px;left:${n.box.x}px;height:${px(1)}px;width:${n.box.w}px;background:${RED};`)));
+        const parts = said.slice();
+        if (ml >= 1 && !auto) parts.push(`margin-left ${Math.round(ml)}px`);
+        if (mt >= 1) parts.push(`margin-top ${Math.round(mt)}px`);
+        const pr = pageRect(el.parentElement);
+        dropHint.textContent = parts.length ? parts.join(" · ") : "Back where it was";
+        Object.assign(dropHint.style, { display: "block", left: `${pr.x}px`, top: `${Math.max(0, pr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+        ghostBox.style.display = "none"; dropBox.style.display = "none"; insertLine.style.display = "none";
+    }
+
     function reorderGesture(g, e) {
         const t = dropTarget(g.el, e.clientX, e.clientY);
+        if (canNudge(g.el) && sameSlot(g.el, t)) { if (!g.nudge) nudgeStart(g); nudgeGesture(g, e); redraw(); return; }
+        restoreNudge(g);
         g.target = t.ref || t.container;
         g.pos = t.ref ? (t.before ? "before" : "after") : "inside";
         // the box that follows the pointer
@@ -1023,6 +1142,12 @@ export function agentMain() {
             if (g.moved) setSelection(g.shift ? [...new Set([...sels, ...g.hits])] : g.hits);
             else if (!g.shift) post({ type: "frameClick" }); // a click on the empty part of the design: the frame itself
             return;
+        }
+        if (g.type === "reorder" && g.moved && g.nudge && g.nudge.active) {
+            const props = NUDGE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.nudge.inl0[p]); // what the nudge wrote
+            tidyStyle(g.el);
+            if (!props.length) return redraw(); // back where it was
+            return askConvert([gestureItem(g.el, g.nudge.pre, props)]);
         }
         if (g.type === "reorder" && g.moved && g.target) {
             if (g.pos === "before") g.target.before(g.el); else if (g.pos === "after") g.target.after(g.el); else g.target.appendChild(g.el);

@@ -15,6 +15,7 @@ const WORDS = {
     "flex-wrap": ["flexWrap", same("flex-")],
     "justify-content": ["justify", pick({ "flex-start": "justify-start", start: "justify-start", center: "justify-center", "flex-end": "justify-end", end: "justify-end", "space-between": "justify-between", "space-around": "justify-around", "space-evenly": "justify-evenly", stretch: "justify-stretch", normal: "justify-normal" })],
     "align-items": ["items", pick({ "flex-start": "items-start", start: "items-start", center: "items-center", "flex-end": "items-end", end: "items-end", baseline: "items-baseline", stretch: "items-stretch" })],
+    "align-self": ["self", pick({ auto: "self-auto", "flex-start": "self-start", start: "self-start", center: "self-center", "flex-end": "self-end", end: "self-end", stretch: "self-stretch", baseline: "self-baseline" })],
     "text-align": ["textAlign", same("text-")],
     "text-decoration-line": ["textDecoration", pick({ none: "no-underline", underline: "underline", "line-through": "line-through", overline: "overline" })],
     "text-transform": ["textTransform", pick({ none: "normal-case", uppercase: "uppercase", lowercase: "lowercase", capitalize: "capitalize" })],
