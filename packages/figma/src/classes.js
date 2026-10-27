@@ -14,7 +14,7 @@ export const px = (key, n) => fromPx(key, round(n));
 export const arb = (s) => String(s).trim().replace(/\s+/g, "_");
 
 export class ClassBag {
-    constructor(warn = () => {}) { this.props = {}; this.raw = []; this.style = ""; this.warn = warn; }
+    constructor(warn = () => {}) { this.props = {}; this.raw = []; this.style = ""; this.shadows = []; this.warn = warn; } // `shadows`: box-shadow parts (strokes drawn as rings, then effects), written as one class by effectClasses
 
     /** A class group with a value. A value the group cannot hold becomes a warning, never a broken class. */
     set(key, value) {

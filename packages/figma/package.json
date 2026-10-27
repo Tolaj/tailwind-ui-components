@@ -1,6 +1,6 @@
 {
     "name": "@windcraft/figma",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Windcraft's Figma plugin: reads a Figma design and turns it into a Windcraft design (no AI). Not built yet beyond the Auto Layout spike.",
     "type": "module",
     "private": true,

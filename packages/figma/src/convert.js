@@ -7,22 +7,35 @@ import { ClassBag, round, px } from "./classes.js";
 import { fillClasses, strokeClasses, radiusClasses, effectClasses } from "./paint.js";
 import { textElement } from "./text.js";
 
+/** Which version of the conversion rules made a page (shared samples carry it, so a regression can be traced to a release). */
+export const CONVERTER_VERSION = "0.2.0";
+
 const CONTAINERS = new Set(["FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"]);
 const isAuto = (n) => n.layoutMode === "HORIZONTAL" || n.layoutMode === "VERTICAL";
 const escapeAttr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
-/** The rotation in degrees of a Figma transform [[a, c, tx], [b, d, ty]] (y points down, so this is CSS's clockwise angle). */
-const rotationOf = (t) => (t ? (Math.atan2(t[1][0], t[0][0]) * 180) / Math.PI : 0);
+/** A mirrored node has a transform with a negative determinant. */
+const isFlipped = (t) => Boolean(t) && t[0][0] * t[1][1] - t[0][1] * t[1][0] < 0;
 
-/** Where a node's top-left sits in its parent's space. A rotated node turns about its centre in CSS, so the box is the unrotated one. */
+/**
+ * The rotation in degrees of a Figma transform [[a, c, tx], [b, d, ty]] (y points down, so this is CSS's clockwise angle).
+ * A mirrored node is a mirror (scale-x -1) followed by this turn: turn(θ) · mirror has first column (-cos θ, -sin θ).
+ */
+const rotationOf = (t) => {
+    if (!t) return 0;
+    const deg = (Math.atan2(isFlipped(t) ? -t[1][0] : t[1][0], isFlipped(t) ? -t[0][0] : t[0][0]) * 180) / Math.PI;
+    return deg <= -179.999 ? 180 : deg; // a half turn is 180, whichever way round the maths came out
+};
+
+/** Where a node's top-left sits in its parent's space. A rotated or mirrored node turns about its centre in CSS, so the box is the unturned one. */
 function placeOf(node) {
     const t = node.transform;
-    if (!t) return { x: node.x || 0, y: node.y || 0, rotate: 0 };
-    const rotate = rotationOf(t);
-    if (!rotate) return { x: t[0][2], y: t[1][2], rotate: 0 };
+    if (!t) return { x: node.x || 0, y: node.y || 0, rotate: 0, flip: false };
+    const rotate = rotationOf(t), flip = isFlipped(t);
+    if (!rotate && !flip) return { x: t[0][2], y: t[1][2], rotate: 0, flip: false };
     const cx = t[0][2] + (t[0][0] * node.width + t[0][1] * node.height) / 2;
     const cy = t[1][2] + (t[1][0] * node.width + t[1][1] * node.height) / 2;
-    return { x: cx - node.width / 2, y: cy - node.height / 2, rotate };
+    return { x: cx - node.width / 2, y: cy - node.height / 2, rotate, flip };
 }
 
 /** Width and height classes for a node, by how its parent places it. */
@@ -64,9 +77,10 @@ function flexClasses(node, bag) {
 
 /** Free placement: `absolute` with the offsets and, for a rotated node, its turn. */
 function placeClasses(node, bag) {
-    const { x, y, rotate } = placeOf(node);
+    const { x, y, rotate, flip } = placeOf(node);
     bag.set("position", "absolute").set("left", px("left", x)).set("top", px("top", y));
     if (Math.abs(rotate) >= 0.05) bag.set("rotate", `[${round(rotate, 2)}deg]`);
+    if (flip) bag.add("scale-x-[-1]"); // Tailwind turns, then mirrors: the order Figma's transform means
 }
 
 
@@ -75,8 +89,8 @@ const TOL = 1; // pixels of slack when deciding that things line up
 /** A child's box in its parent's space, or null when it is turned (a turned node is not part of a row or column). */
 function boxIn(k) {
     if (k.svg || k.png) { const b = k.box || k; return { x: b.x ?? 0, y: b.y ?? 0, w: b.width, h: b.height }; }
-    const { x, y, rotate } = placeOf(k);
-    return rotate ? null : { x, y, w: k.width, h: k.height };
+    const { x, y, rotate, flip } = placeOf(k);
+    return rotate || flip ? null : { x, y, w: k.width, h: k.height };
 }
 
 /**
@@ -113,6 +127,96 @@ function detectFlow(node, kids) {
     return null;
 }
 
+/** A mask layer's shape as an SVG the size of its parent (only its outline counts: it is drawn black). */
+function maskSvg(mask, parent) {
+    const W = round(parent.width), H = round(parent.height);
+    let shape;
+    if (mask.svg) { // a vector: the SVG the plugin exported, placed at its box
+        const b = mask.box || mask;
+        shape = mask.svg.replace(/<svg\b([^>]*)>/, (m, attrs) => {
+            const viewBox = /viewBox="([^"]*)"/.exec(attrs);
+            return `<svg x="${round(b.x ?? 0)}" y="${round(b.y ?? 0)}" width="${round(b.width)}" height="${round(b.height)}"${viewBox ? ` viewBox="${viewBox[1]}"` : ""} preserveAspectRatio="none">`;
+        });
+    } else {
+        const { x, y, rotate } = placeOf(mask);
+        const turn = rotate ? ` transform="rotate(${round(rotate, 3)} ${round(x + mask.width / 2)} ${round(y + mask.height / 2)})"` : "";
+        if (mask.type === "ELLIPSE") shape = `<ellipse cx="${round(x + mask.width / 2)}" cy="${round(y + mask.height / 2)}" rx="${round(mask.width / 2)}" ry="${round(mask.height / 2)}" fill="#000"${turn}/>`;
+        else {
+            const radius = round(Math.min(mask.topLeftRadius ?? mask.cornerRadius ?? 0, mask.width / 2, mask.height / 2));
+            shape = `<rect x="${round(x)}" y="${round(y)}" width="${round(mask.width)}" height="${round(mask.height)}" rx="${radius}" fill="#000"${turn}/>`;
+        }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${shape}</svg>`;
+}
+
+/**
+ * A container's children as HTML. A mask layer shapes everything that comes after it in the same container (Figma's rule), so the
+ * layers after a mask go into one box covering the container, shown through the mask's shape. A mask in an Auto Layout frame is left out.
+ */
+function childrenHtml(kids, layout, ctx, node, auto) {
+    let html = "";
+    for (let i = 0; i < kids.length; i++) {
+        const k = kids[i];
+        if (k.isMask && k.visible !== false && !auto) {
+            if (i === kids.length - 1) return html; // a mask with nothing after it masks nothing
+            const uri = `url("data:image/svg+xml,${encodeURIComponent(maskSvg(k, node))}")`;
+            const style = `-webkit-mask-image:${uri};mask-image:${uri};-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%`;
+            ctx.stats.masked++;
+            return html + `<div class="absolute inset-0" style="${style.replace(/"/g, "&quot;")}">${childrenHtml(kids.slice(i + 1), layout, ctx, node, auto)}</div>`;
+        }
+        html += convert(k, layout, ctx);
+    }
+    return html;
+}
+
+const hasText = (n) => n.type === "TEXT" || (n.children || []).some(hasText);
+const named = (node, words) => new RegExp(`(^|[^a-z])(${words})([^a-z]|$)`, "i").test(node.name || "");
+
+/**
+ * The element a container becomes, from what the designer called it (a button, a nav bar, a footer...) so the page is real HTML, not
+ * only <div>s. A layer called "Header" that is a small label is not a page header: those need to span half the page.
+ */
+function containerTag(node, ctx) {
+    if (named(node, "button|btn|cta") && hasText(node)) return { tag: "button", attrs: ' type="button"' };
+    if (named(node, "link") && hasText(node) && node.width < ctx.rootW / 2) return { tag: "a", attrs: ' href="#"' };
+    if (node.width >= ctx.rootW / 2) {
+        if (named(node, "nav|navbar|navigation|menu bar")) return { tag: "nav", attrs: "" };
+        if (named(node, "footer")) return { tag: "footer", attrs: "" };
+        if (named(node, "header|topbar|top bar|app bar")) return { tag: "header", attrs: "" };
+    }
+    return { tag: "div", attrs: "" };
+}
+
+/** A picture's alt text: its layer name when that says something, nothing (a decorative picture) when it is "Rectangle 12" or "HG". */
+const altFor = (name) => (/^(rectangle|ellipse|frame|group|vector|image|img|photo|picture|layer|polygon|star|line|bg|background|mask|shape|icon|asset)?[\s_-]*\d*$/i.test(String(name || "").trim()) || String(name || "").trim().length <= 3 ? "" : String(name).trim());
+
+/** The pixel sizes Figma lets an Auto Layout frame or child keep, as min and max classes. */
+function limitClasses(node, bag) {
+    for (const [from, group] of [["minWidth", "minW"], ["maxWidth", "maxW"], ["minHeight", "minH"], ["maxHeight", "maxH"]]) {
+        if (Number.isFinite(node[from]) && node[from] > 0) bag.set(group, px(group, node[from]));
+    }
+}
+
+/** Heading levels from type sizes: the page's body size is the one most text is set in; clearly bigger sizes of real words are h1, h2, h3. */
+function headingSizes(root) {
+    const sizeOf = (n) => n.fontSize || (n.segments && n.segments[0] && n.segments[0].fontSize) || 0;
+    const chars = new Map(), words = [];
+    (function walk(n) {
+        if (n.visible === false) return;
+        if (n.type === "TEXT" && n.characters) {
+            const s = sizeOf(n);
+            if (s) chars.set(s, (chars.get(s) || 0) + n.characters.length);
+            if (isHeadingText(n)) words.push(s);
+        }
+        (n.children || []).forEach(walk);
+    })(root);
+    if (chars.size < 2) return [];
+    const body = [...chars].sort((a, b) => b[1] - a[1])[0][0];
+    return [...new Set(words.filter((s) => s >= body * 1.4 && s >= 18))].sort((a, b) => b - a);
+}
+/** Real words, not a number or a one-word label: short enough to be a title, long enough to read as one. */
+const isHeadingText = (n) => typeof n.characters === "string" && n.characters.length <= 160 && !/\n/.test(n.characters) && (n.characters.match(/\p{L}/gu) || []).length >= 4;
+
 function convert(node, parent, ctx, isRoot = false) {
     if (node.visible === false) return "";
     if (node.isMask) { ctx.warn(`${node.name}: a mask is not carried over`); return ""; }
@@ -128,19 +232,28 @@ function convert(node, parent, ctx, isRoot = false) {
         if (free) placeClasses(holder, bag);
         sizeClasses(holder, parent, bag);
         const img = node.png
-            ? `<img src="${escapeAttr(node.png)}" alt="${escapeAttr(node.name)}" class="block h-full w-full">`
+            ? `<img src="${escapeAttr(node.png)}" alt="${escapeAttr(altFor(node.name))}" class="block h-full w-full">`
             : node.svg.replace(/<svg\b([^>]*)>/, (m, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, "")} class="block h-full w-full">`);
         return `<div ${bag.attrs()}>${img}</div>`;
     }
 
     if (node.type === "TEXT") {
         ctx.stats.text++;
-        const { tag, bag: textBag, inner } = textElement(node, ctx);
+        const { tag: baseTag, bag: textBag, inner } = textElement(node, ctx);
+        let tag = baseTag;
+        const size = node.fontSize || (node.segments && node.segments[0] && node.segments[0].fontSize) || 0;
+        const rank = ctx.headings.indexOf(size);
+        if (rank >= 0 && isHeadingText(node)) { // a clearly bigger size of real words: a heading (the first of the biggest size is the page's h1)
+            let level = Math.min(3, rank + 1);
+            if (level === 1) { if (ctx.h1Used) level = 2; else ctx.h1Used = true; }
+            tag = `h${level}`;
+        }
         if (free) placeClasses(node, bag);
         sizeClasses(node, parent, bag, { textAuto: true });
         for (const [k, v] of Object.entries(textBag.props)) if (!bag.has(k)) bag.set(k, v);
         textBag.raw.forEach((c) => bag.add(c));
-        effectClasses(node, bag, ctx.warn);
+        limitClasses(node, bag);
+        effectClasses(node, bag, ctx.warn, { text: true });
         return `<${tag} ${bag.attrs()}>${inner}</${tag}>`;
     }
 
@@ -159,6 +272,7 @@ function convert(node, parent, ctx, isRoot = false) {
     else if (kids.length && !bag.has("position")) bag.set("position", "relative");
     if (auto && kids.some((k) => k.layoutPositioning === "ABSOLUTE") && !bag.has("position")) bag.set("position", "relative");
     if (node.clipsContent) bag.set("overflow", "overflow-hidden");
+    limitClasses(node, bag);
     fillClasses(node, bag, ctx.warn);
     strokeClasses(node, bag, ctx.warn);
     radiusClasses(node, bag);
@@ -175,8 +289,9 @@ function convert(node, parent, ctx, isRoot = false) {
         });
         kids = kept;
     }
-    const inner = kids.map((k) => convert(k, layout, ctx)).join("");
-    return `<div ${bag.attrs()}>${inner}</div>`;
+    const inner = childrenHtml(kids, layout, ctx, node, auto);
+    const { tag, attrs } = isRoot ? { tag: "div", attrs: "" } : containerTag(node, ctx);
+    return `<${tag}${attrs} ${bag.attrs()}>${inner}</${tag}>`;
 }
 
 /**
@@ -193,7 +308,7 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  */
 export function convertDesign(snapshot, { title } = {}) {
     const warnings = [];
-    const ctx = { warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { rootW: snapshot.width || 0, headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
     const fonts = ctx.fonts;
@@ -202,5 +317,5 @@ export function convertDesign(snapshot, { title } = {}) {
     if (fonts.size) warnings.push(`Fonts: ${[...fonts.keys()].join(", ")}. Those on Google Fonts load; any other (a paid or custom font) shows the generic fallback until its font file is added.`);
     const html = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${escapeAttr(name)}</title>\n<script src="https://cdn.tailwindcss.com"></script>\n<style>body{margin:0;line-height:normal;-webkit-font-smoothing:antialiased}img{object-fit:cover}</style>\n${fonts.size ? `<link rel="preconnect" href="https://fonts.googleapis.com">\n${fontLinks(fonts)}\n` : ""}</head>\n<body>\n${body}\n</body>\n</html>\n`;
     const missing = [...(fonts.replaced || [])].map(([family, sub]) => ({ family, weights: [...fonts.get(sub)].sort((a, b) => a - b) })); // fonts not on Google Fonts: the user can upload the real file
-    return { html, body, warnings, stats: ctx.stats, fonts: [...ctx.fonts.keys()], missing, size: html.length };
+    return { converter: CONVERTER_VERSION, html, body, warnings, stats: ctx.stats, fonts: [...ctx.fonts.keys()], missing, size: html.length };
 }

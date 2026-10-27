@@ -36,6 +36,8 @@ app.use(async (req, res, next) => {
     }
 });
 
+// the Figma plugin sends whole designs (up to 5 MB, gzipped on the wire): read those bodies with a bigger limit before the general parser
+app.use(["/api/figma/send", "/api/figma/draft", "/api/figma/sample"], express.json({ limit: "12mb" }));
 app.use(express.json({ limit: "3mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionConfig);

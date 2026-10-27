@@ -12,11 +12,15 @@ The Figma → Windcraft converter, as a free Figma plugin. **No AI**: Figma's pr
 | Shadows and blurs | `shadow-[...]`, `blur-[...]`, `backdrop-blur-[...]` |
 | Text | `<p>` with size, weight, family, colour, line height, letter spacing, alignment, case, decoration; runs with different styles become `<span>`s |
 | Vectors | inline SVG (exported by Figma) |
-| A shape filled with a picture | an `<img>`; a frame with a picture behind its children gets it as a background (`bg-cover bg-center`). Pictures are redrawn at the size they are shown, as WebP, by the plugin window, so a photo is tens of KB, not megabytes. They are inlined in the HTML (Windcraft saves up to 1 MB per design; the plugin warns when a page is over) |
+| A shape filled with a picture | an `<img>`; a frame with a picture behind its children gets it as a background (`bg-cover bg-center`). Pictures are redrawn at the size they are shown, as WebP, by the plugin window, so a photo is tens of KB, not megabytes. They are inlined in the HTML (Windcraft saves up to 5 MB per design; the plugin warns when a page is over) |
 | Fonts | `font-['Name',sans-serif]` with a generic fallback, and one Google Fonts link per family. A font that is not on Google Fonts (a paid or custom font) falls back to the generic family until you load it yourself |
 | Rotation | `rotate-[Ndeg]` about the centre, the box kept in place |
 
-Not carried over yet (the plugin lists these as warnings): masks, angular and diamond gradients, flips, blend modes, centred strokes (drawn inside), vertical text alignment, constraints (right/bottom anchoring).
+Also carried over: masks (the layers after a mask are shown through its shape; not inside Auto Layout frames), blend modes (a layer's own, and between a shape's fills), angular gradients (conic), outside and centred strokes (rings, joined with the shadows into one `box-shadow`), text vertical alignment in a fixed box, text cut with "…" (`line-clamp`), text links (`<a>`), and layers wholly outside a clipping frame are left out. A design may be up to 5 MB (it is sent gzipped).
+
+Real HTML, not only `<div>`s: layers named like a button, link, nav bar, header or footer become `<button>`, `<a>`, `<nav>`, `<header>`, `<footer>` (the last three only when they span half the page); the biggest sizes of real words are `<h1>` to `<h3>`; a picture's `alt` is its layer name unless that says nothing ("Rectangle 12"). Also: mirrored layers, min and max sizes, text shadows that follow the letters, underline style, thickness, offset and colour, first-line indent and space between paragraphs.
+
+Not carried over yet (the plugin lists these as warnings, and `TODO.md` has the plan): diamond gradients (the first colour is used), gradient strokes, constraints (right/bottom anchoring), lists, image crop and filters, fixed and sticky layers.
 
 ## Build and run the plugin
 
@@ -74,3 +78,14 @@ It reads only your selection, sends nothing anywhere (the manifest allows no net
 |---|---|
 | `spike/` | The spike plugin: `manifest.json`, `code.js` (one plain file: a plugin cannot import), `ui.html` |
 | `test/spike.test.js` | The spike's analysis tested on made-up Figma nodes |
+
+## Making the converter better (no AI, no cost)
+
+| Step | How |
+| --- | --- |
+| Collect frames | Build the plugin with `npm run build:dev -w @windcraft/figma`, convert a frame, press **Download debug data**: you get `<name>.snapshot.json` (the layer data, with pictures) and `<name>.reference.png` (Figma's own 1x picture). Put pairs in one folder. |
+| Score them | `node packages/figma/bench/score.mjs <folder>`: converts each frame with the current rules, renders it in headless Chrome and prints a table (score, worst horizontal band, size, notes), lowest first. |
+| Protect against regressions | `node packages/figma/bench/score.mjs <folder> --baseline <folder>/baseline.json --update` once; before each plugin release run it without `--update`: a frame that dropped by more than 0.5 fails the run. |
+| Samples from users | In the save panel a user may tick "Also share this design with Windcraft" (unticked by default; layer names and text can be replaced with dummy text), or press **Report a problem**. They arrive in the `ConversionSample` collection; `node scripts/export-samples.mjs <dir>` writes them as files. A sample has no pictures, so scoring one needs a reference picture. |
+
+Sharing is always the user's choice, and the plugin's publish text must say what is sent.

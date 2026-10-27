@@ -73,11 +73,10 @@ test("a left to right gradient is 90deg with its stops in place", () => {
     assert.ok(convertDesign(frame).body.includes("bg-[linear-gradient(90deg,#ff0000_0%,#0000ff_100%)]"));
 });
 
-test("hidden nodes and masks are left out, with a warning for the mask", () => {
+test("hidden nodes, and a mask with nothing after it, are left out", () => {
     const frame = { type: "FRAME", name: "H", width: 10, height: 10, children: [{ type: "RECTANGLE", name: "Hidden", visible: false, width: 1, height: 1 }, { type: "RECTANGLE", name: "Mask", isMask: true, width: 1, height: 1 }] };
     const r = convertDesign(frame);
     assert.equal(classesOf(r.body).length, 1);
-    assert.ok(r.warnings.some((w) => /Mask: a mask/.test(w)));
 });
 
 test("a vector the plugin exported is inlined at its box, without its fixed size", () => {
@@ -168,4 +167,151 @@ test("layers wholly outside a frame that clips are left out; a frame that does n
     const open = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, clipsContent: false, fills: [], children: kids });
     assert.equal(open.stats.skipped, 0);
     assert.equal((open.body.match(/<div/g) || []).length, 6);
+});
+
+const rect = (name, x, y, w, h, extra = {}) => ({ type: "RECTANGLE", name, width: w, height: h, transform: at(x, y), fills: [solid(1, 2, 3)], ...extra });
+
+test("a mask shapes the layers after it, not the ones before it", () => {
+    const frame = { type: "FRAME", name: "F", width: 200, height: 100, fills: [], children: [
+        rect("before", 0, 0, 10, 10),
+        rect("Mask", 20, 10, 100, 60, { isMask: true, cornerRadius: 12 }),
+        rect("photo", 0, 0, 200, 100), rect("badge", 150, 5, 20, 20),
+    ] };
+    const r = convertDesign(frame);
+    assert.equal(r.stats.masked, 1);
+    const [wrapper] = r.body.match(/<div class="absolute inset-0" style="[^"]*">/);
+    assert.match(wrapper, /mask-image:url\(&quot;data:image\/svg\+xml,/);
+    const encoded = /data:image\/svg\+xml,([^&]*)&quot;/.exec(wrapper)[1];
+    assert.match(decodeURIComponent(encoded), /<rect x="20" y="10" width="100" height="60" rx="12"/);
+    const inside = r.body.slice(r.body.indexOf(wrapper));
+    assert.ok(inside.includes("w-[200px]") && inside.includes("w-5"), "the layers after the mask are inside the masked box");
+    assert.ok(r.body.indexOf("w-2.5") < r.body.indexOf(wrapper), "the layer before it is not masked");
+});
+
+test("a mask in an Auto Layout frame is left out, as is one hidden", () => {
+    const auto = { type: "FRAME", name: "A", width: 100, height: 100, layoutMode: "VERTICAL", fills: [], children: [rect("Mask", 0, 0, 10, 10, { isMask: true }), rect("x", 0, 0, 10, 10)] };
+    assert.equal(convertDesign(auto).stats.masked, 0);
+    const hidden = { type: "FRAME", name: "H", width: 100, height: 100, fills: [], children: [rect("Mask", 0, 0, 10, 10, { isMask: true, visible: false }), rect("x", 0, 0, 10, 10)] };
+    assert.equal(convertDesign(hidden).stats.masked, 0);
+});
+
+test("strokes: outside and centred ones are rings, joined with the shadows in one class", () => {
+    const stroke = { type: "SOLID", color: { r: 1, g: 0, b: 0 }, opacity: 1 };
+    const shadow = { type: "DROP_SHADOW", color: { r: 0, g: 0, b: 0, a: 0.25 }, offset: { x: 0, y: 4 }, radius: 8, spread: 0 };
+    const one = (extra) => convertDesign({ type: "FRAME", name: "F", width: 50, height: 50, fills: [], children: [rect("r", 0, 0, 20, 20, { strokes: [stroke], strokeWeight: 4, effects: [shadow], ...extra })] }).body;
+    const outside = one({ strokeAlign: "OUTSIDE" });
+    assert.equal((outside.match(/shadow-\[/g) || []).length, 1, outside);
+    assert.match(outside, /shadow-\[0_0_0_4px_#ff0000,0px_4px_8px_0px_/);
+    const centred = one({ strokeAlign: "CENTER" });
+    assert.match(centred, /shadow-\[0_0_0_2px_#ff0000,inset_0_0_0_2px_#ff0000,0px_4px/);
+    assert.ok(!/\bborder\b/.test(classesOf(centred)[1]), "a centred stroke is not an inside border");
+    assert.ok(/\bborder-4\b|border-\[4px\]/.test(classesOf(one({ strokeAlign: "INSIDE" }))[1]), "an inside stroke stays a border");
+});
+
+test("blend modes: a layer's own, and between a shape's fills", () => {
+    const r = convertDesign({ type: "FRAME", name: "F", width: 50, height: 50, fills: [], children: [
+        rect("m", 0, 0, 20, 20, { blendMode: "MULTIPLY" }),
+        rect("two", 0, 0, 20, 20, { fills: [solid(255, 0, 0, 0.2), solid(0, 0, 255)].map((p, i) => (i === 0 ? { ...p, blendMode: "OVERLAY" } : p)) }),
+    ] });
+    assert.match(r.body, /mix-blend-multiply/);
+    assert.match(r.body, /\[background-blend-mode:normal,overlay\]/);
+});
+
+test("an angular gradient is a conic gradient, a diamond one the first colour", () => {
+    const stops = [{ position: 0, color: { r: 1, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }];
+    const paint = (type) => ({ type, gradientTransform: [[1, 0, 0], [0, 1, 0]], gradientStops: stops, opacity: 1 });
+    const body = (type) => convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: [rect("g", 0, 0, 100, 100, { fills: [paint(type)] })] });
+    assert.match(body("GRADIENT_ANGULAR").body, /bg-\[conic-gradient\(from_\d+(\.\d+)?deg_at_50px_50px,/);
+    assert.ok(body("GRADIENT_DIAMOND").warnings.some((w) => /diamond/.test(w)));
+});
+
+test("text: a link, vertical centring in a fixed box, and cut-off lines", () => {
+    const text = (extra) => ({ type: "TEXT", name: "t", width: 100, height: 60, transform: at(0, 0), characters: "Hello world", fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "NONE", ...extra });
+    const page = (t) => convertDesign({ type: "FRAME", name: "F", width: 200, height: 200, fills: [], children: [t] });
+    const centred = page(text({ textAlignVertical: "CENTER" })).body;
+    assert.match(classesOf(centred)[1], /\bflex\b.*\bflex-col\b.*\bjustify-center\b|\bjustify-center\b/);
+    assert.match(centred, /<span>Hello world<\/span>/);
+    assert.ok(!/justify-center/.test(page(text({ textAlignVertical: "TOP" })).body));
+    assert.ok(!/justify-center/.test(page(text({ textAlignVertical: "CENTER", textAutoResize: "HEIGHT" })).body), "a box that fits its text needs no centring");
+    assert.match(page(text({ textTruncation: "ENDING", maxLines: 2 })).body, /line-clamp-2/);
+    assert.match(page(text({ textTruncation: "ENDING", height: 40 })).body, /line-clamp-2/); // 40px of 14px (16.8px lines) = 2 lines
+    const link = page(text({ segments: [{ characters: "Hello ", fontName: { family: "Inter", style: "Regular" }, fontSize: 14, fills: [solid(0, 0, 0)] }, { characters: "world", fontName: { family: "Inter", style: "Regular" }, fontSize: 14, fills: [solid(0, 0, 0)], hyperlink: { type: "URL", value: "https://example.com/a?b=1&c=2" } }] })).body;
+    assert.match(link, /<a href="https:\/\/example.com\/a\?b=1&amp;c=2" target="_blank" rel="noopener"><span[^>]*>world<\/span><\/a>/);
+    const unsafe = page(text({ segments: [{ characters: "x", fontName: { family: "Inter", style: "Regular" }, fontSize: 14, fills: [solid(0, 0, 0)], hyperlink: { type: "URL", value: "javascript:alert(1)" } }] })).body;
+    assert.ok(!unsafe.includes("<a "), unsafe);
+});
+
+test("a mirrored layer is mirrored, not turned upside down; a mirrored and turned one is both", () => {
+    const flipX = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: [rect("m", 0, 0, 20, 10, { transform: [[-1, 0, 50], [0, 1, 30]] })] }).body;
+    assert.match(flipX, /scale-x-\[-1\]/);
+    assert.ok(!/rotate-/.test(flipX), flipX); // x = 50 - 20 = 30 is its left edge: it sits at left 30, not turned
+    assert.match(flipX, /left-\[30px\]|left-7\.5/);
+    const flipY = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: [rect("m", 0, 0, 20, 10, { transform: [[1, 0, 10], [0, -1, 40]] })] }).body;
+    assert.match(flipY, /rotate-\[180deg\]/); // a vertical mirror is a half turn and a horizontal mirror
+    assert.match(flipY, /scale-x-\[-1\]/);
+    assert.match(flipY, /top-\[30px\]|top-7\.5/);
+});
+
+test("min and max sizes become classes", () => {
+    const r = convertDesign({ type: "FRAME", name: "F", width: 300, height: 100, fills: [], children: [{ type: "FRAME", name: "Card", width: 100, height: 50, transform: at(0, 0), fills: [], minWidth: 80, maxWidth: 240, minHeight: null, maxHeight: 400 }] });
+    assert.match(r.body, /min-w-20\b/); // 80px is the 20 step, which the Properties panel reads as a size
+    assert.match(r.body, /max-w-60\b/);
+    assert.match(r.body, /max-h-\[400px\]/);
+    assert.ok(!/min-h-/.test(r.body));
+});
+
+test("layers named like buttons, links, nav bars and footers become those elements", () => {
+    const text = (s) => ({ type: "TEXT", name: "t", characters: s, width: 40, height: 16, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT" });
+    const box = (name, w, kids = [text("Go")]) => ({ type: "FRAME", name, width: w, height: 40, transform: at(0, 0), fills: [], children: kids });
+    const r = convertDesign({ type: "FRAME", name: "Page", width: 1000, height: 600, fills: [], children: [box("Button / Primary", 120), box("nav link", 80), box("Navbar", 900), box("Footer", 900), box("Header label", 100), box("Top Header", 900), box("Card", 100)] }).body;
+    assert.match(r, /<button type="button" class=/);
+    assert.match(r, /<a href="#" class=/);
+    assert.match(r, /<nav class=/);
+    assert.match(r, /<footer class=/);
+    assert.match(r, /<header class=/); // "Top Header" spans the page...
+    assert.equal((r.match(/<header /g) || []).length, 1); // ...but the small "Header label" stays a div
+    assert.match(r, /<\/button>/);
+    assert.match(r, /^<div /); // the page itself is a div
+});
+
+test("the biggest type of real words is the h1, the next sizes h2 and h3; numbers and body text stay paragraphs", () => {
+    const text = (s, size, y) => ({ type: "TEXT", name: "t", characters: s, width: 300, height: size, transform: at(0, y), fontSize: size, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT" });
+    const body = "Some body text that goes on for a while so that it is the most common size on the page.";
+    const r = convertDesign({ type: "FRAME", name: "P", width: 800, height: 600, fills: [], children: [
+        text("Be prepared for the mountains", 64, 0), text("01", 120, 80), text("Pick the right gear", 40, 200), text("Another section title", 40, 260),
+        text("Small print", 12, 320), text(body, 16, 340), text(body, 16, 380), text(body, 16, 420),
+    ] }).body;
+    assert.match(r, /<h1 [^>]*>Be prepared for the mountains<\/h1>/);
+    assert.match(r, /<h2 [^>]*>Pick the right gear<\/h2>/);
+    assert.match(r, /<h2 [^>]*>Another section title<\/h2>/);
+    assert.match(r, /<p [^>]*>01<\/p>/); // a number is not a heading, however big
+    assert.match(r, /<p [^>]*>Small print<\/p>/);
+    assert.equal((r.match(/<h1 /g) || []).length, 1);
+});
+
+test("a picture's alt text is its layer name, unless that says nothing", () => {
+    const pic = (name) => ({ type: "RECTANGLE", name, width: 20, height: 20, png: "data:image/png;base64,AA", box: { x: 0, y: 0, width: 20, height: 20 } });
+    const alts = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: ["Hero mountain photo", "Rectangle 12", "HG", "Image"].map(pic) }).body.match(/alt="[^"]*"/g);
+    assert.deepEqual(alts, ['alt="Hero mountain photo"', 'alt=""', 'alt=""', 'alt=""']);
+});
+
+test("text: a drop shadow follows the letters, and underlines keep their style", () => {
+    const shadow = { type: "DROP_SHADOW", color: { r: 0, g: 0, b: 0, a: 0.5 }, offset: { x: 1, y: 2 }, radius: 4 };
+    const text = (extra) => ({ type: "TEXT", name: "t", characters: "Hello", width: 60, height: 20, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT", ...extra });
+    const page = (t) => convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, fills: [], children: [t] });
+    const shadowed = page(text({ effects: [shadow] }));
+    assert.match(shadowed.body, /\[text-shadow:1px_2px_4px_/);
+    assert.ok(!/shadow-\[/.test(shadowed.body.replace(/\[text-shadow:[^\]]*\]/, "")), shadowed.body); // no box shadow around the text's box
+    const wavy = page(text({ textDecoration: "UNDERLINE", textDecorationStyle: "WAVY", textDecorationOffset: { value: 3, unit: "PIXELS" }, textDecorationThickness: { value: 10, unit: "PERCENT" }, textDecorationSkipInk: false })).body;
+    for (const c of ["underline", "decoration-wavy", "underline-offset-[3px]", "decoration-[0.1em]", "[text-decoration-skip-ink:none]"]) assert.ok(wavy.includes(c), `${c} in ${wavy}`);
+});
+
+test("text: indent and space between paragraphs", () => {
+    const text = (extra) => ({ type: "TEXT", name: "t", characters: "One\nTwo\n\nFour", width: 100, height: 100, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "HEIGHT", ...extra });
+    const page = (t) => convertDesign({ type: "FRAME", name: "F", width: 200, height: 200, fills: [], children: [t] }).body;
+    assert.match(page(text({ paragraphIndent: 12 })), /indent-\[12px\]/);
+    assert.match(page(text({})), /One<br>Two<br><br>Four/); // no spacing set: a new paragraph is a line break, as before
+    const spaced = page(text({ paragraphSpacing: 8 }));
+    assert.equal((spaced.match(/<span class="block mb-2 last:mb-0">/g) || []).length, 4, spaced); // One, Two, (empty), Four
+    assert.match(spaced, /<span class="block mb-2 last:mb-0"><br><\/span>/); // an empty paragraph keeps its height
 });

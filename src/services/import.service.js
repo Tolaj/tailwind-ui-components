@@ -5,7 +5,7 @@ import { parseDocument, splitSections } from "@windcraft/core/split-sections.js"
 import { tailwindWarning } from "./design-spec.service.js";
 import { normalizeGroup } from "@windcraft/core/pages.js";
 
-const MAX_HTML = 1_000_000;
+const MAX_HTML = 5_000_000;
 
 const buildDoc = (userId, { title, description, htmlCode, tags, project = null, kind = "component", parent = null, order = 0, group = "", frameW = null }) => ({
         title: String(title).slice(0, 80) || "Imported design",
@@ -60,7 +60,7 @@ async function existingPage(userId, { id, project, title }) {
  */
 export async function importDesign(userId, { title, html, description, tags = [], split = true, project = null, id = null, baseVersion, force = false, note, group, frameW, summarize = true }) {
     if (!html || typeof html !== "string" || !html.trim()) throw new Error("html is required");
-    if (html.length > MAX_HTML) throw new Error("html is too large (limit 1 MB per design)");
+    if (html.length > MAX_HTML) throw new Error("html is too large (limit 5 MB per design)");
 
     const doc = parseDocument(html);
     const pageTitle = (title || doc.title || doc.heading || "Imported design").trim();

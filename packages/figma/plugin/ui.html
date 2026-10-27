@@ -137,6 +137,8 @@
                 <select id="projectSel"></select>
                 <input id="newProject" type="text" placeholder="New project name" class="hidden">
                 <label class="check hidden" id="allRow" style="margin:0"><input type="checkbox" id="saveAll" checked><span id="allText"></span></label>
+                <label class="check" id="shareRow2" style="margin:0"><input type="checkbox" id="shareSample"><span>Also share this design with Windcraft, to improve the converter</span></label>
+                <label class="check hidden" id="anonRow" style="margin:0 0 0 22px"><input type="checkbox" id="anonSample" checked><span>Replace layer names and text with dummy text first</span></label>
                 <div id="conflict" class="hidden banner">
                     <div id="conflictText"></div>
                     <div class="row" style="margin-top:10px"><button id="replace" class="primary">Save as new version</button><button id="keepBoth">Keep both</button></div>
@@ -148,6 +150,13 @@
                 <div class="row"><button id="edit" title="Open it in the Windcraft editor without saving it to your library">Edit</button><button id="copy">Copy HTML</button><button id="save">Download</button></div>
             </div>
             <div class="links"><button class="link" id="again">Save again</button><button class="link" id="another">Convert another</button></div>
+            <div class="links" style="margin-top:4px"><button class="link" id="report">Report a problem</button><button class="link hidden" id="debugDl">Download debug data</button></div>
+            <div id="reportBox" class="stack hidden" style="margin-top:12px">
+                <div class="muted">Tell us what looks different from Figma. We get the layer data (no pictures) and what the converter made of it.</div>
+                <textarea id="reportNote" placeholder="What is wrong?" style="width:100%;height:70px;font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;resize:vertical"></textarea>
+                <label class="check" style="margin:0"><input type="checkbox" id="reportAnon" checked><span>Replace layer names and text with dummy text first</span></label>
+                <div class="row"><button id="sendReport" class="primary">Send</button><button id="cancelReport">Cancel</button></div>
+            </div>
         </div>
 
         <details id="fonts" class="card"><summary id="fontsTitle">Fonts</summary>
@@ -175,8 +184,8 @@
     const $ = (id) => document.getElementById(id);
     // where Windcraft lives: this is only the first guess; the server tells the plugin its current address, so it can move later
     const DEFAULT_SERVER = "__SERVER__"; // the server's PUBLIC_URL, put in when the plugin is built; the server then confirms its own address
-    const DEV = "__DEV__" === "true"; // a dev build also lets you type another address
-    const MAX_BYTES = 1000000; // what Windcraft saves per design
+    const DEV = "__DEV__" === "true"; // a dev build also lets you type another address, and download debug data
+    const MAX_BYTES = 5000000; // what Windcraft saves per design
     let cfg = { server: DEFAULT_SERVER, token: "", user: null, project: "" };
     let pages = [], current = 0, frames = [], busy = false, projects = [], progress = "", tokenOpen = false;
     const lastUrl = new Map(); // page index -> where it was saved
@@ -184,6 +193,12 @@
     const save = () => post({ type: "save-settings", settings: cfg });
     const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+    // whole designs go gzipped: a host may refuse a request body over a few MB, and pictures in a page squeeze down by about a quarter
+    async function gzipBody(text) {
+        if (typeof CompressionStream === "undefined") return { body: text, headers: {} };
+        const packed = await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+        return { body: packed, headers: { "Content-Encoding": "gzip" } };
+    }
     const api = (path, opts = {}) => fetch(`${cfg.server}/api/figma${path}`, { ...opts, headers: { "Content-Type": "application/json", ...(cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {}), ...(opts.headers || {}) } });
     const signed = () => Boolean(cfg.token && cfg.user);
     function say(text, kind = "") { const b = $("banner"); b.className = `banner ${kind}`; b.textContent = text; b.classList.toggle("hidden", !text); }
@@ -212,7 +227,7 @@
         $("status").textContent = p.title;
         $("badge").textContent = url ? "✓ Saved to Windcraft" : "Converted";
         $("badge").classList.toggle("on", Boolean(url));
-        $("sub").textContent = `${Math.round(p.width)} × ${Math.round(p.height)} · ${kb(p.size)}${over ? " · over the 1 MB limit: use fewer or smaller pictures" : ""}`;
+        $("sub").textContent = `${Math.round(p.width)} × ${Math.round(p.height)} · ${kb(p.size)}${over ? " · over the 5 MB limit: use fewer or smaller pictures" : ""}`;
         $("primary").textContent = url ? "Edit in Windcraft" : s ? "Save to Windcraft" : "Sign in to save to Windcraft";
         $("primary").disabled = busy;
         $("again").classList.toggle("hidden", !url);
@@ -232,7 +247,8 @@
         if (!signed()) return signIn();
         $("edit").disabled = true; $("edit").textContent = "Opening…";
         try {
-            const res = await api("/draft", { method: "POST", body: JSON.stringify({ title: pages[current].title, html: pages[current].html }) });
+            const packed = await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html }));
+            const res = await api("/draft", { method: "POST", ...packed });
             const body = await res.json().catch(() => ({}));
             if (res.ok && body.ok) post({ type: "open", url: body.url }); else say(body.message || "Could not open the editor.", "err");
         } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }
@@ -286,6 +302,43 @@
     }
     $("projectSel").onchange = pickProject;
     $("cancelSave").onclick = () => { $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); };
+    // the sandbox holds the layer data: ask it for one frame's, and wait for the answer
+    const waiting = new Map();
+    let askId = 1;
+    const ask = (type, payload) => new Promise((resolve) => {
+        const id = askId++;
+        waiting.set(id, resolve);
+        post({ type, id, ...payload });
+        setTimeout(() => { if (waiting.delete(id)) resolve(null); }, 60000);
+    });
+    /** Sends one frame's layer data (no pictures) and what the converter made of it to Windcraft. Only ever called when the user chose to. */
+    async function shareSample(index, kind, note, anonymize) {
+        const got = await ask("get-sample", { index, anonymize });
+        if (!got || !got.snapshot) return false;
+        const packed = await gzipBody(JSON.stringify({ snapshot: got.snapshot, html: got.html, kind, note, anonymized: anonymize, converter: pages[index].converter, title: anonymize ? "" : pages[index].title }));
+        try { return (await api("/sample", { method: "POST", ...packed })).ok; } catch (err) { return false; }
+    }
+    $("shareSample").onchange = () => $("anonRow").classList.toggle("hidden", !$("shareSample").checked);
+    $("report").onclick = () => { if (!signed()) return signIn(); $("reportBox").classList.toggle("hidden"); };
+    $("cancelReport").onclick = () => $("reportBox").classList.add("hidden");
+    $("sendReport").onclick = async () => {
+        $("sendReport").disabled = true; $("sendReport").textContent = "Sending…";
+        const ok = await shareSample(current, "report", $("reportNote").value.trim(), $("reportAnon").checked);
+        $("sendReport").disabled = false; $("sendReport").textContent = "Send";
+        if (ok) { $("reportBox").classList.add("hidden"); $("reportNote").value = ""; say("Thank you: your report was sent."); } else say("Could not send the report. Check your connection and try again.", "err");
+    };
+    // dev builds: the whole layer data (with pictures) and Figma's own picture of the frame, to score the converter against
+    const download = (name, blob) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); };
+    $("debugDl").onclick = async () => {
+        $("debugDl").textContent = "Preparing…";
+        const base = (pages[current].title || "design").replace(/[^\w-]+/g, "-");
+        const snap = await ask("get-sample", { index: current, full: true });
+        if (snap && snap.snapshot) download(`${base}.snapshot.json`, new Blob([JSON.stringify(snap.snapshot)], { type: "application/json" }));
+        const ref = await ask("get-reference", { index: current });
+        if (ref && ref.png) setTimeout(() => download(`${base}.reference.png`, new Blob([Uint8Array.from(atob(ref.png), (c) => c.charCodeAt(0))], { type: "image/png" })), 400);
+        $("debugDl").textContent = "Download debug data";
+    };
+
     let clashes = []; // pages that are already in the project, waiting for "new version" or "keep both"
     const targets = () => ($("saveAll").checked && pages.length > 1 ? pages.map((_, i) => i) : [current]);
     $("doSave").onclick = () => saveTargets(targets());
@@ -302,9 +355,10 @@
             const i = indexes[n];
             $("doSave").textContent = indexes.length > 1 ? `Saving ${n + 1} of ${indexes.length}…` : "Saving…";
             try {
-                const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode, width: pages[i].width }) });
+                const packed = await gzipBody(JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode, width: pages[i].width }));
+                const res = await api("/send", { method: "POST", ...packed });
                 const body = await res.json().catch(() => ({}));
-                if (res.ok && body.ok) { lastUrl.set(i, body.url); cfg.project = body.project || project; }
+                if (res.ok && body.ok) { lastUrl.set(i, body.url); cfg.project = body.project || project; if ($("shareSample").checked) await shareSample(i, "share", "", $("anonSample").checked); }
                 else if (body.conflict) held.push(i);
                 else { failed = true; say(res.status === 401 ? "Your sign-in ended. Sign in again." : `Not saved: ${pages[i].title}: ${body.message || res.status}`, "err"); }
             } catch (err) { failed = true; say("Could not reach Windcraft. Check your connection.", "err"); }
@@ -437,7 +491,7 @@
         let dataUri = null;
         try {
             const bitmap = await createImageBitmap(new Blob([bytes]));
-            const k = Math.min(1, Math.sqrt(maxPixels / Math.max(1, width * height))); // big pictures are drawn smaller: the page stays under the 1 MB limit
+            const k = Math.min(1, Math.sqrt(maxPixels / Math.max(1, width * height))); // big pictures are drawn smaller: the page stays under the 5 MB limit
             const w = Math.max(1, Math.round(width * k)), h = Math.max(1, Math.round(height * k));
             const canvas = document.createElement("canvas");
             canvas.width = w; canvas.height = h;
@@ -454,6 +508,7 @@
         const m = e.data.pluginMessage;
         if (!m) return;
         if (m.type === "compress") return shrink(m);
+        if (m.type === "sample" || m.type === "reference") { const r = waiting.get(m.id); waiting.delete(m.id); if (r) r(m); return; }
         if (m.type === "settings") { cfg = { ...cfg, ...m.saved, server: DEV && m.saved.server ? m.saved.server : DEFAULT_SERVER }; render(); loadAccount(); return; }
         if (m.type === "selection") { frames = m.frames || []; render(); return; }
         if (m.type === "empty") { busy = false; say("Select a frame (not just a shape) and try again.", "err"); render(); }
@@ -465,6 +520,7 @@
             for (const p of pages) if (p.thumb) trimMargins(p.thumb).then((u) => { p.thumb = u; if (pages[current] === p) render(); });
         }
     };
+    if (DEV) $("debugDl").classList.remove("hidden");
     render();
 </script>
 </body>

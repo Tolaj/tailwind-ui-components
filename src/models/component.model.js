@@ -110,4 +110,13 @@ const componentSchema = new mongoose.Schema(
     }
 );
 
+// A component keeps its old versions inside its own document, and MongoDB stops at 16 MB per document. With designs up to 5 MB the
+// oldest versions are dropped first, so the code and its history stay under this many characters (the newest old version is always kept).
+const HISTORY_BUDGET = 12_000_000;
+componentSchema.pre("save", function () {
+    if (!this.isModified("versions") && !this.isModified("htmlCode")) return;
+    let total = (this.htmlCode || "").length + this.versions.reduce((n, v) => n + (v.htmlCode || "").length, 0);
+    while (this.versions.length > 1 && total > HISTORY_BUDGET) total -= (this.versions.shift().htmlCode || "").length;
+});
+
 export default mongoose.model("Component", componentSchema);

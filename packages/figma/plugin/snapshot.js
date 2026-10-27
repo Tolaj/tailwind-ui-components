@@ -4,7 +4,7 @@
 
 const VECTORS = new Set(["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE"]);
 const CONTAINERS = new Set(["FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"]);
-const MAX_NODES = 4000;
+const MAX_NODES = 12000;
 const MAX_PNG_BYTES = 300 * 1024;
 
 const mixed = () => (typeof figma !== "undefined" ? figma.mixed : Symbol.for("mixed"));
@@ -20,12 +20,12 @@ const mul = (m, n) => [
 const inv = ([[a, b, tx], [c, d, ty]]) => { const det = a * d - b * c || 1; return [[d / det, -b / det, (b * ty - d * tx) / det], [-c / det, a / det, (c * tx - a * ty) / det]]; };
 const IDENTITY = [[1, 0, 0], [0, 1, 0]];
 
-const LAYOUT = ["layoutMode", "layoutWrap", "primaryAxisAlignItems", "counterAxisAlignItems", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "itemSpacing", "counterAxisSpacing"];
+const LAYOUT = ["minWidth", "maxWidth", "minHeight", "maxHeight", "layoutMode", "layoutWrap", "primaryAxisAlignItems", "counterAxisAlignItems", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "itemSpacing", "counterAxisSpacing"];
 const AS_CHILD = ["layoutPositioning", "layoutSizingHorizontal", "layoutSizingVertical", "layoutGrow", "layoutAlign"];
-const PAINT = ["fills", "strokes", "strokeWeight", "strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight", "strokeAlign", "dashPattern",
+const PAINT = ["blendMode", "fills", "strokes", "strokeWeight", "strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight", "strokeAlign", "dashPattern",
     "cornerRadius", "topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius", "effects", "clipsContent"];
-const TEXT = ["characters", "fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textCase", "textDecoration", "textAutoResize"];
-const SEGMENT_FIELDS = ["fontName", "fontSize", "fontWeight", "fills", "textDecoration", "textCase", "lineHeight", "letterSpacing"];
+const TEXT = ["characters", "fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textCase", "textDecoration", "textAutoResize", "textTruncation", "maxLines", "paragraphIndent", "paragraphSpacing"];
+const SEGMENT_FIELDS = ["fontName", "fontSize", "fontWeight", "fills", "textDecoration", "textCase", "lineHeight", "letterSpacing", "hyperlink", "textDecorationStyle", "textDecorationOffset", "textDecorationThickness", "textDecorationColor", "textDecorationSkipInk"];
 
 const hasImageFill = (node) => Array.isArray(node.fills) && node.fills.some((p) => p.type === "IMAGE" && p.visible !== false);
 const boxOf = (node, parentAbs) => {
@@ -37,9 +37,9 @@ const boxOf = (node, parentAbs) => {
 /** A picture's bytes as a small data URI: shrunk to the size it is shown at by the plugin window (which has a canvas). */
 async function pictureUri(bytes, width, height, cover, ctx, label) {
     if (ctx.compress) {
-        // pictures share one budget: once ~500 KB is used, the rest are saved smaller and rougher
-        const tight = (ctx.pictureChars || 0) > 500000;
-        const uri = await ctx.compress({ bytes, width, height, cover, quality: tight ? 0.5 : 0.7, maxPixels: tight ? 250000 : 900000 });
+        // pictures share one budget: once ~3 MB is used, the rest are saved smaller and rougher
+        const tight = (ctx.pictureChars || 0) > 3000000;
+        const uri = await ctx.compress({ bytes, width, height, cover, quality: tight ? 0.6 : 0.78, maxPixels: tight ? 400000 : 1600000 });
         if (uri) ctx.pictureChars = (ctx.pictureChars || 0) + uri.length;
         if (uri) return uri;
         ctx.warnings.push(`${label}: its picture could not be shrunk`);

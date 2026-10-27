@@ -3,6 +3,8 @@ import { authenticateBearer } from "../services/bearer.service.js";
 import { callTool } from "../mcp/tools.js";
 import { saveFont, removeFont, withFonts, haveFamilies } from "../services/fonts.service.js";
 import User from "../models/user.model.js";
+import zlib from "zlib";
+import ConversionSample from "../models/conversionSample.model.js";
 import FigmaDraft from "../models/figmaDraft.model.js";
 import { listProjects } from "../services/project.service.js";
 import { startLink, collectLink, signOutToken } from "../services/figma-link.service.js";
@@ -14,7 +16,7 @@ const router = express.Router();
 // The Figma plugin window has no origin of its own, so it is allowed from anywhere. That is safe here: the request
 // is checked by the Bearer token in its header, and no cookie or session is read.
 router.use((req, res, next) => {
-    res.set({ "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS" });
+    res.set({ "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type, Content-Encoding", "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS" });
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
 });
@@ -43,7 +45,7 @@ router.post("/signout", async (req, res) => {
     res.json({ ok: true, removed: await signOutToken(token) });
 });
 
-const MAX_HTML = 1000000;
+const MAX_HTML = 5_000_000;
 const bearer = async (req, res) => {
     const userId = await authenticateBearer(req);
     if (!userId) res.status(401).json({ ok: false, message: "Your sign-in ended. Sign in again." });
@@ -69,7 +71,7 @@ router.post("/send", async (req, res) => {
         if (rateLimited("figma-send", userId, 200, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "That is a lot of saves in an hour. Try again in a little while." });
         const { title, html, project, mode, width } = req.body || {};
         if (typeof title !== "string" || typeof html !== "string" || !title.trim() || !html.trim()) return res.status(400).json({ ok: false, message: "title and html are required" });
-        if (html.length > MAX_HTML) return res.status(413).json({ ok: false, message: "This page is over 1 MB: use fewer or smaller pictures." });
+        if (html.length > MAX_HTML) return res.status(413).json({ ok: false, message: "This page is over 5 MB: use fewer or smaller pictures." });
         if (typeof project !== "string" || !project.trim()) return res.status(400).json({ ok: false, message: "Choose a project to save in, or give a name to create one." });
         const withFont = await withFonts(html, publicBase(req));
         const baseTitle = title.trim().slice(0, 110);
@@ -95,6 +97,27 @@ router.post("/send", async (req, res) => {
     }
 });
 
+/** A design the user chose to share (or report) to improve the converter: the layer data, what we made of it, and a note. */
+router.post("/sample", async (req, res) => {
+    try {
+        const userId = await bearer(req, res);
+        if (!userId) return;
+        if (rateLimited("figma-sample", userId, 60, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "Too many shared designs in an hour. Try again in a little while." });
+        const { snapshot, html, kind, note, converter, title, anonymized } = req.body || {};
+        if (!snapshot || typeof snapshot !== "object" || typeof html !== "string" || !html.trim()) return res.status(400).json({ ok: false, message: "A design to share is needed." });
+        const dims = Number.isFinite(snapshot.width) && Number.isFinite(snapshot.height) ? { width: snapshot.width, height: snapshot.height } : {};
+        const sample = await ConversionSample.create({
+            userId, kind: kind === "report" ? "report" : "share", converter: String(converter || "").slice(0, 20), title: String(title || "").slice(0, 120),
+            note: String(note || "").slice(0, 1000), anonymized: anonymized === true, ...dims,
+            snapshotGz: zlib.gzipSync(JSON.stringify(snapshot)), htmlGz: zlib.gzipSync(html),
+        });
+        res.json({ ok: true, id: String(sample._id) });
+    } catch (error) {
+        console.error("Figma sample error:", error);
+        res.status(500).json({ ok: false, message: "Could not save the shared design" });
+    }
+});
+
 /** Opens the editor on a design without saving it to the library: it is kept for a day as a draft. */
 router.post("/draft", async (req, res) => {
     try {
@@ -102,7 +125,7 @@ router.post("/draft", async (req, res) => {
         if (!userId) return;
         if (rateLimited("figma-draft", userId, 100, 60 * 60 * 1000)) return res.status(429).json({ ok: false, message: "Too many editor drafts in an hour. Try again in a little while." });
         const { title, html } = req.body || {};
-        if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) return res.status(400).json({ ok: false, message: "A design up to 1 MB is needed." });
+        if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) return res.status(400).json({ ok: false, message: "A design up to 5 MB is needed." });
         const draft = await FigmaDraft.create({ userId, title: String(title || "").slice(0, 120), html: await withFonts(html, publicBase(req)), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
         res.json({ ok: true, url: `${publicBase(req)}/design/new?draft=${draft._id}` });
     } catch (error) {
