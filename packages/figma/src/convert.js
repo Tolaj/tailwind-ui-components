@@ -69,6 +69,50 @@ function placeClasses(node, bag) {
     if (Math.abs(rotate) >= 0.05) bag.set("rotate", `[${round(rotate, 2)}deg]`);
 }
 
+
+const TOL = 1; // pixels of slack when deciding that things line up
+
+/** A child's box in its parent's space, or null when it is turned (a turned node is not part of a row or column). */
+function boxIn(k) {
+    if (k.svg || k.png) { const b = k.box || k; return { x: b.x ?? 0, y: b.y ?? 0, w: b.width, h: b.height }; }
+    const { x, y, rotate } = placeOf(k);
+    return rotate ? null : { x, y, w: k.width, h: k.height };
+}
+
+/**
+ * A frame without Auto Layout whose children sit in one row or one column (no overlap, evenly spaced, lined up on the other axis)
+ * is written as the flex box a designer would have made. The numbers are read from the positions, so the page still looks the same.
+ * Returns the Auto Layout fields to lay over the frame, or null when it is not clearly a row or a column.
+ */
+function detectFlow(node, kids) {
+    if (kids.length < 2 || kids.some((k) => k.layoutPositioning === "ABSOLUTE")) return null;
+    const boxes = kids.map(boxIn);
+    if (boxes.some((b) => !b || !(b.w > 0) || !(b.h > 0))) return null;
+    for (const row of [true, false]) {
+        const m = row ? { pos: "x", size: "w", cross: "y", crossSize: "h", total: node.height } : { pos: "y", size: "h", cross: "x", crossSize: "w", total: node.width };
+        const order = kids.map((_, i) => i).sort((a, b) => boxes[a][m.pos] - boxes[b][m.pos]);
+        const bs = order.map((i) => boxes[i]);
+        const gaps = bs.slice(1).map((b, i) => b[m.pos] - (bs[i][m.pos] + bs[i][m.size]));
+        if (gaps.some((g) => g < -TOL) || Math.max(...gaps) - Math.min(...gaps) > TOL) continue;
+        const tops = bs.map((b) => b[m.cross]), ends = bs.map((b) => b[m.cross] + b[m.crossSize]), mids = bs.map((b, i) => (tops[i] + ends[i]) / 2);
+        const same = (list) => Math.max(...list) - Math.min(...list) <= TOL;
+        let counter, padCross = 0, padCrossEnd = 0;
+        if (same(tops)) { counter = "MIN"; padCross = tops[0]; }
+        else if (same(mids) && Math.abs(mids[0] - m.total / 2) <= TOL) counter = "CENTER";
+        else if (same(ends) && m.total) { counter = "MAX"; padCrossEnd = m.total - ends[0]; }
+        else continue;
+        const gap = Math.max(0, round(gaps.reduce((a, b) => a + b, 0) / gaps.length, 2));
+        const first = bs[0][m.pos];
+        return {
+            order, layoutMode: row ? "HORIZONTAL" : "VERTICAL", itemSpacing: gap, primaryAxisAlignItems: "MIN", counterAxisAlignItems: counter,
+            ...(row
+                ? { paddingLeft: round(first, 2), paddingTop: round(padCross, 2), paddingBottom: round(padCrossEnd, 2), paddingRight: 0 }
+                : { paddingTop: round(first, 2), paddingLeft: round(padCross, 2), paddingRight: round(padCrossEnd, 2), paddingBottom: 0 }),
+        };
+    }
+    return null;
+}
+
 function convert(node, parent, ctx, isRoot = false) {
     if (node.visible === false) return "";
     if (node.isMask) { ctx.warn(`${node.name}: a mask is not carried over`); return ""; }
@@ -101,11 +145,17 @@ function convert(node, parent, ctx, isRoot = false) {
     }
 
     // a frame, group, rectangle or ellipse: a box
-    const kids = CONTAINERS.has(node.type) ? node.children || [] : [];
-    const auto = isAuto(node);
+    let kids = CONTAINERS.has(node.type) ? node.children || [] : [];
+    let layout = node; // the frame as laid out: its own Auto Layout, or the row/column found in its children's positions
+    if (!isAuto(node) && kids.length > 1) {
+        const shown = kids.filter((k) => k.visible !== false && !k.isMask);
+        const flow = shown.length === kids.length ? detectFlow(node, shown) : null;
+        if (flow) { const { order, ...fields } = flow; layout = { ...node, ...fields }; kids = order.map((i) => shown[i]); ctx.stats.detected++; }
+    }
+    const auto = isAuto(layout);
     if (free) placeClasses(node, bag);
     sizeClasses(node, parent, bag);
-    if (auto) { flexClasses(node, bag); ctx.stats.flex++; }
+    if (auto) { flexClasses(layout, bag); ctx.stats.flex++; }
     else if (kids.length && !bag.has("position")) bag.set("position", "relative");
     if (auto && kids.some((k) => k.layoutPositioning === "ABSOLUTE") && !bag.has("position")) bag.set("position", "relative");
     if (node.clipsContent) bag.set("overflow", "overflow-hidden");
@@ -114,7 +164,7 @@ function convert(node, parent, ctx, isRoot = false) {
     radiusClasses(node, bag);
     effectClasses(node, bag, ctx.warn);
     if (free) ctx.stats.absolute++;
-    const inner = kids.map((k) => convert(k, node, ctx)).join("");
+    const inner = kids.map((k) => convert(k, layout, ctx)).join("");
     return `<div ${bag.attrs()}>${inner}</div>`;
 }
 
@@ -132,7 +182,7 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  */
 export function convertDesign(snapshot, { title } = {}) {
     const warnings = [];
-    const ctx = { warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, absolute: 0, text: 0, assets: 0 } };
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
     const fonts = ctx.fonts;

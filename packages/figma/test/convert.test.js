@@ -144,3 +144,15 @@ test("a picture fill with no data is a warning, not an empty box without notice"
     const { warnings } = convertDesign({ type: "FRAME", name: "Hero", width: 20, height: 20, fills: [{ type: "IMAGE", imageHash: "abc", scaleMode: "FILL" }] });
     assert.ok(warnings.some((w) => /Hero: a picture fill could not be included/.test(w)));
 });
+
+test("children sitting evenly in a row become a flex row; overlapping ones stay placed", () => {
+    const box = (name, x, y, w, h) => ({ type: "RECTANGLE", name, width: w, height: h, transform: at(x, y), fills: [solid(1, 2, 3)] });
+    const row = { type: "FRAME", name: "Row", width: 300, height: 60, fills: [], children: [box("a", 10, 5, 50, 30), box("b", 80, 5, 50, 30), box("c", 150, 5, 50, 30)] };
+    const r = convertDesign(row);
+    const [root, a] = classesOf(r.body);
+    for (const c of ["flex", "flex-row", "items-start", "gap-5", "pl-2.5", "pt-[5px]"]) assert.ok(root.split(" ").includes(c), `row: ${c} in ${root}`);
+    assert.ok(!a.includes("absolute"), a);
+    assert.equal(r.stats.detected, 1);
+    const stacked = { ...row, children: [box("a", 10, 5, 50, 30), box("b", 30, 10, 50, 30)] };
+    assert.equal(convertDesign(stacked).stats.detected, 0);
+});
