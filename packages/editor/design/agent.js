@@ -291,10 +291,11 @@ export function agentMain() {
     const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top", "margin-right", "align-self"];
     const inlineOf = (el, props) => { const o = {}; props.forEach((p) => { o[p] = el.style.getPropertyValue(p); }); return o; };
     /** What the editor needs to turn an element's new inline pixels into classes: the values, its classes, and where each value came from before. */
-    function gestureItem(el, pre, props) {
+    function gestureItem(el, pre, props, clear) {
         const values = {};
         props.forEach((p) => { const v = el.style.getPropertyValue(p); if (v && !el.style.getPropertyPriority(p)) values[p] = v; });
-        return { path: pathOf(el), classes: el.getAttribute("class") || "", made: made.has(el), pre: pre || {}, values };
+        // `clear`: class groups (mt, mx, self...) to take off the element, for the margins and alignment its old place gave it
+        return { path: pathOf(el), classes: el.getAttribute("class") || "", made: made.has(el), pre: pre || {}, values, ...(clear && clear.length ? { clear } : {}) };
     }
     /**
      * The editor's answer: per element, the class string and the class meant to give each property its value. The classes go on
@@ -311,7 +312,7 @@ export function agentMain() {
         post({ type: "convert", items });
     }
     async function applyGesture(m) {
-        const work = (m.items || []).map((it) => ({ it, el: elAt(it.path), props: Object.keys(it.tokens || {}) })).filter((w) => w.el && w.props.length);
+        const work = (m.items || []).map((it) => ({ it, el: elAt(it.path), props: Object.keys(it.tokens || {}) })).filter((w) => w.el && (w.props.length || w.it.cleared));
         work.forEach((w) => { w.prevClass = w.el.getAttribute("class"); w.prevStyle = w.el.getAttribute("style"); w.el.setAttribute("class", w.it.classes); });
         if (!converting) return; // too late: the pixels were already saved
         clearTimeout(convertTimer);
@@ -940,6 +941,94 @@ export function agentMain() {
         ghostBox.style.display = "none"; dropBox.style.display = "none"; insertLine.style.display = "none";
     }
 
+
+    // ── Dropping into another slot or container: the element takes on the spacing there ──────────────────
+    // Margins and alignment that belonged to its old place are cleaned off, it gets the rhythm its new neighbours use (their
+    // margin-top, or margin-bottom), the neighbour it left behind loses the spacing it only had for it, and dropped near the
+    // centre or the end of a column it is centred or pushed there. Everything goes through the same pixels-to-classes step as a move.
+    const inFlow = (k) => !isAbs(k) && getComputedStyle(k).display !== "none";
+    const median = (a) => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; };
+    function dropSmart(g, e, old, wasFirst, wasLast) {
+        const el = g.el, par = el.parentElement;
+        if (!par || el === document.body) return [];
+        const plan = new Map(); // element -> { set: {prop: px | word}, clear: [class groups] }
+        const of = (k) => { if (!plan.has(k)) plan.set(k, { set: {}, clear: [] }); return plan.get(k); };
+        const f = (v) => parseFloat(v) || 0;
+        const has = (k, re) => (k.getAttribute("class") || "").split(/\s+/).some((t) => re.test(t.replace(/^(?:[\w-]+:)*/, "")));
+        const flow = (c) => kidsOf(c, null).filter(inFlow);
+        const lay = layoutOf(par), moved = par !== old;
+        // a margin on one side, as the value it should have: a class that gave it a value is taken off to get 0
+        const want = (k, prop, v) => {
+            const group = prop === "margin-top" ? "mt" : "mb";
+            if (Math.abs(f(getComputedStyle(k)[prop === "margin-top" ? "marginTop" : "marginBottom"]) - v) < 0.5) return;
+            if (v === 0 && has(k, new RegExp(`^${group}-`))) { const c = of(k).clear; if (!c.includes(group)) c.push(group); } else of(k).set[prop] = v;
+        };
+        const noMargins = (k, groups) => groups.forEach((gp) => { if (has(k, new RegExp(`^${gp}-(?!auto$)`)) && !of(k).clear.includes(gp)) of(k).clear.push(gp); });
+        // 1. alignment and auto margins only mean something in the layout they were made for
+        if (moved && lay !== layoutOf(old)) {
+            if (has(el, /^self-/)) of(el).clear.push("self");
+            ["mx", "ml", "mr"].forEach((gp) => { if (has(el, new RegExp(`^${gp}-auto$`))) of(el).clear.push(gp); });
+        }
+        // 2. spacing: a gap already spaces its children, so margins along it would double up; in the flow the neighbours' rhythm is kept
+        const sibs = flow(par).filter((k) => k !== el);
+        if (lay !== "page flow") {
+            const pcs = getComputedStyle(par);
+            if (lay !== "flex row" && f(pcs.rowGap) > 0) noMargins(el, ["mt", "mb", "my"]);
+            if (lay !== "flex column" && f(pcs.columnGap) > 0) noMargins(el, ["ml", "mr", "mx"]);
+            // across the box (a row's top and bottom, a column's sides) a margin only shows as a shift, unless the neighbours use it too
+            if (moved && sibs.length) {
+                const cross = lay === "flex row" || lay === "grid" ? [["marginTop", ["mt", "my"]], ["marginBottom", ["mb", "my"]]] : lay === "flex column" ? [["marginLeft", ["ml", "mx"]], ["marginRight", ["mr", "mx"]]] : [];
+                cross.forEach(([side, groups]) => { if (median(sibs.map((k) => f(getComputedStyle(k)[side]))) === 0) noMargins(el, groups); });
+            }
+        } else if (sibs.length >= 2) {
+            const kids = flow(par), i = kids.indexOf(el), cs = sibs.map((k) => getComputedStyle(k));
+            const mt = median(cs.slice(1).map((c) => f(c.marginTop))), mb = median(cs.slice(0, -1).map((c) => f(c.marginBottom)));
+            if (mt > 0) {
+                want(el, "margin-top", i === 0 ? 0 : mt);
+                if (kids[i + 1]) want(kids[i + 1], "margin-top", mt);
+                if (mb === 0 && f(getComputedStyle(el).marginBottom) > 0) noMargins(el, ["mb"]);
+            } else if (mb > 0) {
+                want(el, "margin-bottom", i === kids.length - 1 ? 0 : mb);
+                if (kids[i - 1]) want(kids[i - 1], "margin-bottom", mb);
+                if (f(getComputedStyle(el).marginTop) > 0) noMargins(el, ["mt"]);
+            }
+        }
+        // 3. the place it left: the neighbour that became first (or last) loses the spacing it only had for the element
+        if (moved && layoutOf(old) === "page flow") {
+            const kids = flow(old);
+            if (kids.length >= 2) {
+                const cs = kids.map((k) => getComputedStyle(k));
+                if (wasFirst && median(cs.slice(1).map((c) => f(c.marginTop))) > 0) want(kids[0], "margin-top", 0);
+                if (wasLast && median(cs.slice(0, -1).map((c) => f(c.marginBottom))) > 0) want(kids[kids.length - 1], "margin-bottom", 0);
+            }
+        }
+        // 4. dropped near the middle or the end of a column: centred, or pushed there
+        if (!e.metaKey && (lay === "page flow" || lay === "flex column") && isFinite(g.sx)) {
+            const r = pageRect(el), tmp = { el };
+            nudgeStart(tmp);
+            const n = tmp.nudge;
+            if (r.w < n.box.w - 1) {
+                const at = g.rect.x + (e.clientX - g.sx), hit = nearestLine(n, "x", at, r.w);
+                if (hit && (hit.k === "centre" || hit.k === "end")) {
+                    const props = lay === "flex column" ? { "align-self": hit.k === "centre" ? "center" : "flex-end" } : hit.k === "centre" ? { "margin-left": "auto", "margin-right": "auto" } : { "margin-left": "auto" };
+                    const was = inlineOf(el, Object.keys(props));
+                    Object.entries(props).forEach(([k, v]) => el.style.setProperty(k, v));
+                    const ok = Math.abs(pageRect(el).x - (at + hit.d)) <= 2;
+                    Object.keys(props).forEach((k) => { if (was[k]) el.style.setProperty(k, was[k]); else el.style.removeProperty(k); });
+                    tidyStyle(el);
+                    if (ok) {
+                        Object.assign(of(el).set, props);
+                        of(el).clear = of(el).clear.filter((gp) => !["mx", "ml", "mr", "self"].includes(gp));
+                    }
+                }
+            }
+        }
+        const work = [];
+        plan.forEach((p, k) => { const props = Object.keys(p.set); if (props.length || p.clear.length) work.push({ k, p, props, pre: sourcesOf(k, props) }); });
+        work.forEach(({ k, p }) => Object.entries(p.set).forEach(([prop, v]) => k.style.setProperty(prop, typeof v === "number" ? `${Math.round(v)}px` : v)));
+        return work.map(({ k, p, props, pre }) => gestureItem(k, pre, props, p.clear));
+    }
+
     function reorderGesture(g, e) {
         const t = dropTarget(g.el, e.clientX, e.clientY);
         if (canNudge(g.el) && sameSlot(g.el, t)) { if (!g.nudge) nudgeStart(g); nudgeGesture(g, e); redraw(); return; }
@@ -1150,9 +1239,12 @@ export function agentMain() {
             return askConvert([gestureItem(g.el, g.nudge.pre, props)]);
         }
         if (g.type === "reorder" && g.moved && g.target) {
+            const was = g.el.parentElement, wasKids = was ? kidsOf(was, null).filter(inFlow) : [];
+            const wasFirst = wasKids[0] === g.el, wasLast = wasKids[wasKids.length - 1] === g.el;
             if (g.pos === "before") g.target.before(g.el); else if (g.pos === "after") g.target.after(g.el); else g.target.appendChild(g.el);
             setSelection([g.el]);
-            return changed();
+            const items = was ? dropSmart(g, e, was, wasFirst, wasLast) : [];
+            return items.length ? askConvert(items) : changed();
         }
         if (g.type === "pan") return;
         if (g.type === "move" && g.freeOnMove) return post({ type: "selected", info: describe(primary()) }); // Alt-click: nothing freed

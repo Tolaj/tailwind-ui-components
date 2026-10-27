@@ -296,7 +296,10 @@ export function convertGesture(items) {
             classes = next;
             tokens[prop] = vp + built;
         });
-        return { path: it.path, classes, tokens };
+        // class groups the element's old place gave it (margins, alignment) come off
+        let cleared = false;
+        if (tw || it.made) (it.clear || []).forEach((group) => { const next = setGroup(classes, group, "", ""); if (next !== null && next !== classes) { classes = next; cleared = true; } });
+        return { path: it.path, classes, tokens, cleared };
     }) });
 }
 
