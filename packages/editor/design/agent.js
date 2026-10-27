@@ -829,10 +829,10 @@ export function agentMain() {
     }
 
 
-    // ── Nudging: a drag that stays in the element's own slot moves it with margins, or aligns it in a flex or grid box ──
-    // Dropping into a different slot still reorders. Staying put is the smart part: the element is placed by its margin (snapped to the
-    // container's edges, its neighbours and the spacing already used), by auto margins (centred, pushed right) or, across the axis of a
-    // flex / grid box, by align-self. Everything is checked against the real layout, since margins collapse and flex adds them up.
+    // ── Nudging: a drag moves the element with a pair of margins, and nothing around it moves ──────────────────
+    // The margin behind the element grows by the distance dragged and the margin ahead of it shrinks by the same amount (below zero
+    // if it has to), so the space it takes in the layout never changes and its neighbours and parent stay exactly where they are.
+    // A drag that is clearly meant to put it somewhere else (see wantsBlockDrag) becomes a block drag instead.
     const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "margin-bottom", "align-self", "width", "height"];
     const ORANGE = "#f59e0b";
     const kidsOf = (c, skip) => Array.prototype.filter.call(c.children, (k) => k !== skip && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
@@ -853,21 +853,18 @@ export function agentMain() {
         const idx = Array.prototype.indexOf.call(par.children, el);
         const others = kidsOf(par, el).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none").map((k) => ({ el: k, r: pageRect(k), before: Array.prototype.indexOf.call(par.children, k) < idx }));
         const r0 = pageRect(el);
-        // the free space it can move in, per axis: up to the neighbours beside it on that axis, or else the parent's own edges (a
-        // negative margin may pull it into the parent's padding). Past that it would cover a neighbour or leave its parent: a block drag.
-        const lim = {};
-        ["x", "y"].forEach((a) => {
-            const b = a === "x" ? "y" : "x", Z = a === "x" ? "w" : "h", W = b === "x" ? "w" : "h";
-            let lo = pr[a], hi = pr[a] + pr[Z] - r0[Z];
-            others.forEach((o) => {
-                if (o.r[b] >= r0[b] + r0[W] - 0.5 || o.r[b] + o.r[W] <= r0[b] + 0.5) return; // not beside it along this axis
-                if (o.r[a] + o.r[Z] <= r0[a] + 0.5) lo = Math.max(lo, o.r[a] + o.r[Z]);
-                else if (o.r[a] >= r0[a] + r0[Z] - 0.5) hi = Math.min(hi, o.r[a] - r0[Z]);
-            });
-            lim[a] = { lo: Math.min(lo, r0[a]), hi: Math.max(hi, r0[a]) };
-        });
-        g.nudge = { w0: cs.width, h0: cs.height, active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, r0, box, outer: pr, lim, lay: layoutOf(par), others };
+        // which sides are auto (ml-auto, mx-auto, mt-auto ...): that side is left alone and the other one moves
+        const tokens = (el.getAttribute("class") || "").split(/\s+/).map((t) => t.replace(/^(?:[\w-]+:)*/, ""));
+        const isAuto = (prop, side, ax) => { const v = el.style.getPropertyValue(prop); return v ? v === "auto" : tokens.some((t) => t === "m-auto" || t === `m${ax}-auto` || t === `m${side}-auto`); };
+        const auto = { l: isAuto("margin-left", "l", "x"), r: isAuto("margin-right", "r", "x"), t: isAuto("margin-top", "t", "y"), b: isAuto("margin-bottom", "b", "y") };
+        // the margins of the neighbours just above and below in the flow, which its own top and bottom margins collapse with
+        const flowKids = kidsOf(par, null).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none"), fi = flowKids.indexOf(el);
+        const side = { above: flowKids[fi - 1] ? f(getComputedStyle(flowKids[fi - 1]).marginBottom) : 0, below: flowKids[fi + 1] ? f(getComputedStyle(flowKids[fi + 1]).marginTop) : 0 };
+        g.nudge = { w0: cs.width, h0: cs.height, active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, f: { x: f(cs.marginRight), y: f(cs.marginBottom) }, auto, side, r0, box, outer: pr, lay: layoutOf(par), others };
     }
+    /** The gap two adjoining vertical margins make (they collapse), and the margin that makes `gap` next to `other`. */
+    const collapse = (p, q) => (p >= 0 && q >= 0 ? Math.max(p, q) : p <= 0 && q <= 0 ? Math.min(p, q) : p + q);
+    const solveCollapse = (gap, other) => (other >= 0 ? (gap >= other ? gap : gap - other) : gap >= 0 ? gap - other : Math.min(gap, other) === gap ? gap : gap - other);
     const sameRect = (p, q) => Math.abs(p.x - q.x) < 1 && Math.abs(p.y - q.y) < 1 && Math.abs(p.w - q.w) < 1 && Math.abs(p.h - q.h) < 1;
     /** Did anything other than the dragged element move? Its neighbours and its parent must stay exactly where they were. */
     const othersStay = (n, el) => n.others.every((o) => sameRect(pageRect(o.el), o.r)) && sameRect(pageRect(el.parentElement), n.outer);
@@ -920,59 +917,43 @@ export function agentMain() {
         NUDGE_PROPS.forEach((p) => restoreProp(el, n, p));
         n.active = true;
         const lines = [], said = [];
-        // Only the dragged element moves: its neighbours and its parent stay where they are. Every way of placing it is tried on the
-        // real layout and kept only if it lands where the pointer says and nothing else shifted.
+        const cur = (p) => parseFloat(el.style.getPropertyValue(p)) || 0, used = (p) => parseFloat(getComputedStyle(el)[p === "margin-right" ? "marginRight" : "marginBottom"]) || 0;
+        const step = (v) => (e.metaKey ? Math.round(v) : Math.round(v / 4) * 4); // on the Tailwind scale; Cmd: to the pixel
         ["x", "y"].forEach((a) => {
-            const Z = a === "x" ? "w" : "h", mProp = a === "x" ? "margin-left" : "margin-top", E = a === "x" ? "margin-right" : "margin-bottom";
-            const size = n.r0[Z], L = n.lim[a];
-            let want = Math.min(Math.max(n.r0[a] + (a === "x" ? dx : dy), L.lo), L.hi); // held at the edge of its free space
-            let hit = e.metaKey ? null : containerLine(n, a, want, size); // Cmd: no snapping
-            if (hit && want + hit.d >= L.lo - 0.5 && want + hit.d <= L.hi + 0.5) want += hit.d; else hit = null;
-            if (Math.abs(want - n.r0[a]) < 0.5) return; // it didn't move along this axis: nothing to write
-            const set = (p, v) => el.style.setProperty(p, v);
-            const lands = () => Math.abs(pageRect(el)[a] - want) <= 2 && othersStay(n, el);
-            // across the axis of a flex or grid box: align-self, if the element keeps its size and lands on the line
-            if (hit && crossAxis(n.lay, a) && ["start", "centre", "end"].includes(hit.k)) {
-                set("align-self", hit.k === "start" ? "flex-start" : hit.k === "end" ? "flex-end" : "center");
-                if (lands() && Math.abs(pageRect(el)[Z] - size) < 1) { said.push(`align ${hit.k === "start" ? "start" : hit.k === "end" ? "end" : "centre"}`); lines.push({ a, at: hit.at }); return; }
-                restoreProp(el, n, "align-self");
+            const d = a === "x" ? dx : dy;
+            if (Math.abs(d) < 0.5) return; // not dragged along this axis: nothing to write
+            const N = a === "x" ? "margin-left" : "margin-top", F = a === "x" ? "margin-right" : "margin-bottom";
+            const autoN = n.auto[a === "x" ? "l" : "t"], autoF = n.auto[a === "x" ? "r" : "b"];
+            // pushed from the far side (ml-auto, mx-auto, mt-auto): the auto side stays auto and the other side moves the opposite way;
+            // mx-auto becomes ml-auto plus a right margin
+            if (autoN) {
+                const v = step(n.f[a] - d), want = n.r0[a] + (n.f[a] - v);
+                setPx(el, F, v);
+                for (let i = 0; i < 2; i++) { const err = want - pageRect(el)[a]; if (Math.abs(err) <= 0.5) break; setPx(el, F, cur(F) - err); }
+                return;
             }
-            // centred, or pushed to the end, along the row: auto margins
-            if (hit && a === "x" && (hit.k === "centre" || hit.k === "end")) {
-                set("margin-left", "auto");
-                if (hit.k === "centre") set("margin-right", "auto");
-                if (lands()) { said.push(hit.k === "centre" ? "centred (mx-auto)" : "to the right (ml-auto)"); lines.push({ a, at: hit.at }); return; }
-                restoreProp(el, n, "margin-left"); restoreProp(el, n, "margin-right");
+            const near = step(n.m[a] + d), dd = near - n.m[a], want = n.r0[a] + dd;
+            if (Math.abs(dd) < 0.5) return;
+            // sideways in the page flow nothing is pushed (blocks stack), and a right margin does nothing there: the left one alone
+            const pair = !autoF && !(a === "x" && n.lay === "page flow");
+            if (a === "y" && n.lay === "page flow") {
+                // down the page a margin collapses with the neighbour's: the gap is the larger of two positive margins, the sum of a
+                // positive and a negative one. So the margins are solved for the gaps wanted above and below, not just added to.
+                setPx(el, N, solveCollapse(collapse(n.side.above, n.m.y) + dd, n.side.above));
+                if (pair) setPx(el, F, solveCollapse(collapse(n.f.y, n.side.below) - dd, n.side.below));
+            } else {
+                setPx(el, N, near);
+                if (pair) setPx(el, F, n.f[a] - dd);
             }
-            // past the middle of its parent it is placed from the far side: an auto margin before it, the distance to the right (or
-            // bottom) edge after it. Kept only where that really places it there without moving anything else.
-            if (want + size / 2 > n.box[a] + n.box[Z] / 2) {
-                let m = n.box[a] + n.box[Z] - (want + size);
-                const q = Math.round(m / 4) * 4;
-                m = !hit && Math.abs(q - m) <= 1.5 ? q : Math.round(m);
-                set(mProp, "auto");
-                if (Math.abs(m) >= 1) setPx(el, E, m);
-                const err = want - pageRect(el)[a];
-                if (Math.abs(err) > 0.5 && Math.abs(m) >= 1) setPx(el, E, m - err);
-                if (lands()) { if (hit) lines.push({ a, at: hit.at }); return; }
-                restoreProp(el, n, mProp); restoreProp(el, n, E);
-            }
-            // a margin before it; the margin after it gives back whatever that pushed, so the neighbours (and the parent) stay put.
-            // Collapsing margins and centred boxes don't add up simply, so both are corrected against the real layout.
-            let m = n.m[a] + (want - n.r0[a]);
-            const q = Math.round(m / 4) * 4;
-            m = !hit && Math.abs(q - m) <= 1.5 ? q : Math.round(m);
-            if (Math.abs(m - n.m[a]) < 0.5) return;
-            setPx(el, mProp, m);
-            const far = () => parseFloat(getComputedStyle(el)[a === "x" ? "marginRight" : "marginBottom"]) || 0;
+            // collapsing margins (page flow) and boxes that are centred or spread out don't add up simply: corrected on the real layout,
+            // the near margin until the element is where it should be, the far one until nothing after it was pushed
             for (let i = 0; i < 3; i++) {
-                const push = pushed(n, el, a);
-                if (Math.abs(push) > 0.5) setPx(el, E, far() - push);
                 const err = want - pageRect(el)[a];
-                if (Math.abs(err) > 0.5) setPx(el, mProp, (parseFloat(el.style.getPropertyValue(mProp)) || 0) + err);
-                if (Math.abs(err) <= 0.5 && Math.abs(pushed(n, el, a)) <= 0.5) break;
+                if (Math.abs(err) > 0.5) setPx(el, N, cur(N) + err);
+                const push = pair ? pushed(n, el, a) : 0;
+                if (Math.abs(push) > 0.5) setPx(el, F, used(F) - push);
+                if (Math.abs(err) <= 0.5 && Math.abs(push) <= 0.5) break;
             }
-            if (hit) lines.push({ a, at: hit.at });
         });
         // Moving must not resize: an auto-width block narrows as its margin grows, a stretched flex item shrinks. Where the size changed
         // it is pinned to what it was; if something else still resizes it (flex-grow), the far margin gives the difference back.
@@ -991,7 +972,8 @@ export function agentMain() {
         // what it shows: the margins as orange boxes with their size, the lines it snapped to, and a note
         guideLayer.innerHTML = "";
         const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0, mb = parseFloat(cs.marginBottom) || 0;
-        const auto = el.style.getPropertyValue("margin-left") === "auto", autoT = el.style.getPropertyValue("margin-top") === "auto";
+        const isAutoNow = (p, fromClass) => { const v = el.style.getPropertyValue(p); return v ? v === "auto" : fromClass; };
+        const auto = isAutoNow("margin-left", n.auto.l), autoT = isAutoNow("margin-top", n.auto.t);
         const tag = (x, y, text) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(11)}px/1 system-ui,sans-serif;padding:${px(3)}px ${px(6)}px;border-radius:${px(4)}px;white-space:nowrap;`)).textContent = text;
         // a margin as an orange box beside the element; a negative one is drawn inside the element's edge and labelled with its minus
         const box = (x, y, w, h, v, vert) => {
@@ -1107,31 +1089,62 @@ export function agentMain() {
     }
 
     /**
-     * Nudging with margins is for short, careful drags inside the element's free space (see nudgeStart). It turns into a block drag
-     * (the box that follows the pointer, the container and the insertion line) when the pointer takes it past that space, into a
-     * neighbour or out of its parent, or when it is thrown: a quick, long drag means "put this block somewhere else", and stays a block
-     * drag until let go. The switch has some give (16px out, back within 4px), so it never flickers at the edge.
+     * When does a margin drag become a block drag (reorder, or move into another container)? From what the drag looks like:
+     *  - area: how much of its original place the dragged box has left (60% or more);
+     *  - speed: a fast drag past that point means "put it somewhere else";
+     *  - holding still: resting 300ms over another place (beside another child, or in another container) once 60% is left;
+     *  - position: the pointer out of the parent, or a quick throw, at any time.
+     * Once a block drag it stays one until let go; let go in its own place, nothing changes.
      */
-    const FLICK = 2, FLICK_MIN = 60; // screen px per ms, measured over the last 100ms; design px moved
+    const BLOCK = { area: 0.6, fast: 1, hold: 300, rest: 80, still: 4, flick: 2, flickMin: 60, out: 8 }; // share, screen px/ms, ms (to switch, and before the outline shows), px, px/ms, px, px
     function wantsBlockDrag(g, e) {
-        const now = performance.now();
-        const tr = g.trail || (g.trail = []);
+        if (g.block) return true;
+        if (!g.nudge) nudgeStart(g);
+        const n = g.nudge, now = performance.now(), tr = g.trail || (g.trail = []);
         tr.push({ t: now, x: e.clientX, y: e.clientY });
         while (tr.length > 1 && now - tr[0].t > 100) tr.shift();
-        const first = tr[0], dt = Math.max(1, now - first.t);
-        const speed = Math.hypot(e.clientX - first.x, e.clientY - first.y) * zoom / dt;
-        if (!g.nudge) nudgeStart(g);
-        const n = g.nudge;
-        let dx = e.clientX - g.sx, dy = e.clientY - g.sy;
-        if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
-        if (speed > FLICK && Math.hypot(dx, dy) > FLICK_MIN) g.flick = true;
-        const T = g.block ? px(4) : px(16);
-        const out = (a, d) => { const p = n.r0[a] + d, L = n.lim[a]; return p < L.lo - T || p > L.hi + T; };
-        g.block = !!g.flick || out("x", dx) || out("y", dy);
+        const speed = Math.hypot(e.clientX - tr[0].x, e.clientY - tr[0].y) * zoom / Math.max(1, now - tr[0].t);
+        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+        // how much of its place is left: the box where the pointer would put it against where it was
+        const r = n.r0, ox = Math.max(0, Math.min(r.x + r.w, r.x + dx + r.w) - Math.max(r.x, r.x + dx)), oy = Math.max(0, Math.min(r.y + r.h, r.y + dy + r.h) - Math.max(r.y, r.y + dy));
+        const left = r.w * r.h > 0 ? 1 - (ox * oy) / (r.w * r.h) : 1;
+        const o = n.outer, px0 = e.clientX + window.scrollX, py0 = e.clientY + window.scrollY, m = px(BLOCK.out);
+        const outside = px0 < o.x - m || px0 > o.x + o.w + m || py0 < o.y - m || py0 > o.y + o.h + m;
+        const thrown = speed > BLOCK.flick && Math.hypot(dx, dy) > BLOCK.flickMin;
+        // holding still: from where the pointer came to rest; a timer checks again when the time is up, since a still pointer sends nothing
+        if (!g.still || Math.hypot(e.clientX - g.still.x, e.clientY - g.still.y) > BLOCK.still) {
+            g.still = { x: e.clientX, y: e.clientY, t: now };
+            clearTimeout(g.holdTimer);
+            g.holdTimer = setTimeout(() => { if (gesture === g && !g.block && g.lastE) reorderGesture(g, g.lastE); }, BLOCK.rest + 10);
+        }
+        g.lastE = e;
+        let held = false;
+        g.holding = null;
+        if (left >= BLOCK.area) {
+            const t = dropTarget(g.el, e.clientX, e.clientY); // the margins moved only this element, so what is under the pointer is real
+            if (!sameSlot(g.el, t)) {
+                const time = now - g.still.t;
+                held = time >= BLOCK.hold;
+                if (time >= BLOCK.rest) g.holding = { t, share: Math.min(1, time / BLOCK.hold) };
+            }
+        }
+        g.block = outside || thrown || (left >= BLOCK.area && (speed > BLOCK.fast || held));
+        clearTimeout(g.tick);
+        if (g.block) { clearTimeout(g.holdTimer); g.holding = null; }
+        else if (g.holding) g.tick = setTimeout(() => { if (gesture === g && !g.block) reorderGesture(g, g.lastE); }, 60); // the outline fills in
         return g.block;
     }
+    /** Resting over another place: its outline fills in over the hold time, so the switch is seen coming (and avoided by moving on). */
+    function showHolding(g) {
+        const h = g.holding;
+        if (!h) return;
+        const cr = pageRect(h.t.container), tag = h.t.container === document.body ? "page" : h.t.container.tagName.toLowerCase();
+        Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px`, opacity: String(0.25 + 0.75 * h.share) });
+        dropHint.textContent = `Hold to move into ${tag} · ${Math.round(h.share * 100)}%`;
+    }
     function reorderGesture(g, e) {
-        if (canNudge(g.el) && !wantsBlockDrag(g, e)) { nudgeGesture(g, e); redraw(); return; }
+        if (canNudge(g.el) && !wantsBlockDrag(g, e)) { nudgeGesture(g, e); showHolding(g); redraw(); return; }
+        dropBox.style.opacity = "";
         restoreNudge(g); // the drop place is worked out on the layout as it really is, not the one the nudge had shifted
         const t = dropTarget(g.el, e.clientX, e.clientY);
         g.same = sameSlot(g.el, t);
@@ -1341,17 +1354,23 @@ export function agentMain() {
             else if (!g.shift) post({ type: "frameClick" }); // a click on the empty part of the design: the frame itself
             return;
         }
+        if (g.type === "reorder") { clearTimeout(g.holdTimer); clearTimeout(g.tick); dropBox.style.opacity = ""; }
         if (g.type === "reorder" && g.moved && g.nudge && g.nudge.active) {
-            const props = NUDGE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.nudge.inl0[p]); // what the nudge wrote
-            tidyStyle(g.el);
+            const el = g.el, n = g.nudge;
+            // a value that changes nothing is not kept: each written margin (the far one of a pair across a row that something else sets
+            // the height of, a pinned width that was already that) is taken off and kept off if nothing on the page moved
+            const look = () => [el, ...n.others.map((o) => o.el), el.parentElement].map(pageRect);
+            ["margin-right", "margin-bottom", "width", "height", "margin-left", "margin-top"].forEach((p) => {
+                const v = el.style.getPropertyValue(p);
+                if (v === n.inl0[p]) return;
+                const before = look();
+                restoreProp(el, n, p);
+                if (!look().every((r, i) => sameRect(r, before[i]))) el.style.setProperty(p, v);
+            });
+            const props = NUDGE_PROPS.filter((p) => el.style.getPropertyValue(p) !== n.inl0[p]); // what the nudge wrote
+            tidyStyle(el);
             if (!props.length) return redraw(); // back where it was
-            // moved back to the near side: the far-side margin it had (mr-8 beside ml-auto, mb-4 beside mt-auto) comes off
-            const clear = [];
-            const cls = (re) => (g.el.getAttribute("class") || "").split(/\s+/).some((t) => re.test(t.replace(/^(?:[\w-]+:)*/, "")));
-            const inl = (p) => g.el.style.getPropertyValue(p);
-            if (props.includes("margin-left") && inl("margin-left") !== "auto" && !inl("margin-right") && cls(/^ml-auto$|^mx-auto$/) && cls(/^mr-(?!auto$)/)) clear.push("mr");
-            if (props.includes("margin-top") && inl("margin-top") !== "auto" && !inl("margin-bottom") && cls(/^mt-auto$|^my-auto$/) && cls(/^mb-(?!auto$)/)) clear.push("mb");
-            return askConvert([gestureItem(g.el, g.nudge.pre, props, clear)]);
+            return askConvert([gestureItem(el, n.pre, props)]);
         }
         if (g.type === "reorder" && g.moved && g.same) { redraw(); return; } // a block drag that ended in its own slot: nothing moves
         if (g.type === "reorder" && g.moved && g.target) {
