@@ -46,21 +46,21 @@ router.get("/:id", async (req, res) => {
     try {
         if (!mongoose.isValidObjectId(req.params.id)) return notFound(req, res);
         const c = await Component.findOne({ _id: req.params.id, createdBy: req.session.user.id })
-            .select("title htmlCode version category description tags isPublished project kind parent board group")
+            .select("title htmlCode version category description tags isPublished project kind parent board group frameW")
             .lean();
         if (!c) return notFound(req, res);
         const projects = await projectList(req.session.user.id);
         // Everything in the same project shares one infinite plane with this design.
         const plane = c.project ? (await Component.find({ createdBy: req.session.user.id, project: c.project })
-            .select("title htmlCode version category description tags isPublished kind parent board group")
+            .select("title htmlCode version category description tags isPublished kind parent board group frameW")
             .sort("order createdAt").limit(60).lean()).map((p) => ({
-            id: String(p._id), title: p.title, group: p.group || "", version: p.version || 1, kind: p.kind, parent: p.parent ? String(p.parent) : null,
+            id: String(p._id), title: p.title, group: p.group || "", frameW: p.frameW || null, version: p.version || 1, kind: p.kind, parent: p.parent ? String(p.parent) : null,
             board: boardOf(p), category: p.category, description: p.description, tags: p.tags || [], isPublished: p.isPublished,
             htmlCode: String(p._id) === String(c._id) ? "" : p.htmlCode,
         })) : [];
         renderEditor(res, {
             project: c.project ? projects.find((p) => p.id === String(c.project)) || null : null, projects,
-            id: String(c._id), title: c.title, group: c.group || "", version: c.version || 1, htmlCode: c.htmlCode,
+            id: String(c._id), title: c.title, group: c.group || "", frameW: c.frameW || null, version: c.version || 1, htmlCode: c.htmlCode,
             category: c.category, description: c.description, tags: c.tags || [], isPublished: c.isPublished,
             kind: c.kind, parent: c.parent ? String(c.parent) : null, board: boardOf(c), plane,
         }, c.title);

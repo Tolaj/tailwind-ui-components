@@ -65,7 +65,7 @@ router.post("/send", async (req, res) => {
     try {
         const userId = await bearer(req, res);
         if (!userId) return;
-        const { title, html, project, mode } = req.body || {};
+        const { title, html, project, mode, width } = req.body || {};
         if (typeof title !== "string" || typeof html !== "string" || !title.trim() || !html.trim()) return res.status(400).json({ ok: false, message: "title and html are required" });
         if (html.length > MAX_HTML) return res.status(413).json({ ok: false, message: "This page is over 1 MB: use fewer or smaller pictures." });
         if (typeof project !== "string" || !project.trim()) return res.status(400).json({ ok: false, message: "Choose a project to save in, or give a name to create one." });
@@ -73,7 +73,7 @@ router.post("/send", async (req, res) => {
         const baseTitle = title.trim().slice(0, 110);
         let name = baseTitle;
         for (let n = 2; n < 12; n++) {
-            const args = { title: name, html: withFont, project: project.trim(), note: "From Figma" };
+            const args = { title: name, html: withFont, project: project.trim(), note: "From Figma", ...(Number.isFinite(width) && width >= 200 && width <= 10000 ? { width } : {}) };
             let out = await callTool(userId, "save_design", mode === "replace" ? { ...args, force: true } : args);
             const raw = out?.content?.[0]?.text || "";
             const clash = out?.isError && /already exists \(id ([a-f0-9]{24}), v(\d+)\)/.exec(raw);

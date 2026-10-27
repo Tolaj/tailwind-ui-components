@@ -97,6 +97,7 @@ export const TOOLS = [
                 baseVersion: { type: "number", description: "When saving an existing page again: the version you started from" },
                 force: { type: "boolean", description: "Replace the page even if it changed since baseVersion (only when the user says so)" },
                 note: { type: "string", description: "What changed, for the version history" },
+                width: { type: "number", description: "The width in pixels this screen was designed at (for example 1440 or 1920): its frame on the board and in the editor opens at this width instead of the default 1280. Optional." },
             },
             required: ["title", "html"],
         },
@@ -264,6 +265,7 @@ export async function callTool(userId, name, args = {}) {
                     title: args.title, html: args.html, description: args.description,
                     tags: args.tags, split: args.split === true, project: proj ? proj._id : null,
                     id: args.id, baseVersion: args.baseVersion, force: args.force === true, note: args.note, group: args.group,
+                    frameW: Number.isFinite(args.width) ? args.width : undefined,
                 });
                 if (proj && result.page.created) await orderPages(userId, proj._id, [{ id: result.page.id, created: true }]); // a new page goes after the others
                 const what = result.page.created ? "Saved" : result.page.updated ? `Saved v${result.page.version} of` : "No change to";

@@ -63,6 +63,8 @@ const componentSchema = new mongoose.Schema(
             default: 0
         },
         // the group a page belongs to in its project ("Public site", "Customer area"); empty for none
+        // the width (px) the page was designed at (a Figma frame is 1920 wide): its frame on the board and in the editor starts at this width
+        frameW: { type: Number, default: null, min: 200, max: 10000 },
         group: {
             type: String,
             default: "",

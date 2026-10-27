@@ -302,7 +302,7 @@
             const i = indexes[n];
             $("doSave").textContent = indexes.length > 1 ? `Saving ${n + 1} of ${indexes.length}…` : "Saving…";
             try {
-                const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode }) });
+                const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode, width: pages[i].width }) });
                 const body = await res.json().catch(() => ({}));
                 if (res.ok && body.ok) { lastUrl.set(i, body.url); cfg.project = body.project || project; }
                 else if (body.conflict) held.push(i);

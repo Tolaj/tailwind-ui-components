@@ -21,7 +21,7 @@ const wraps = new Map();
 const byId = (id) => items.find((i) => i.id === id);
 const pages = () => items.filter((i) => i.kind !== "section" || !items.some((p) => p.id === i.parent));
 const sectionsOf = (id) => items.filter((i) => i.kind === "section" && i.parent === id);
-const widthOf = (it) => (it.board && it.board.w) || FRAME_W;
+const widthOf = (it) => (it.board && it.board.w) || it.frameW || FRAME_W;
 const heightOf = (it) => (it.board && it.board.h) || heights[it.id] || (it.kind === "section" ? SEC_H : PAGE_H);
 
 function computeLayout() {

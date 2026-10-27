@@ -406,11 +406,11 @@ async function ensureProject() {
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
 export function init() {
 
-    docs.set(S.curKey, { key: S.curKey, meta: takeMeta(), kind: data.kind || (data.project ? "page" : "component"), parent: data.parent || null, board: data.board || null, parsed: S.parsed, markup: model.markup, history: S.history, hIndex: S.hIndex, isNew: S.isNew, savedMarkup: S.savedMarkup, height: 0, loaded: true });
+    docs.set(S.curKey, { key: S.curKey, meta: takeMeta(), kind: data.kind || (data.project ? "page" : "component"), parent: data.parent || null, board: data.board || null, frameW: data.frameW || null, parsed: S.parsed, markup: model.markup, history: S.history, hIndex: S.hIndex, isNew: S.isNew, savedMarkup: S.savedMarkup, height: 0, loaded: true });
     (data.plane || []).forEach((it) => {
         if (it.id === S.curKey) return;
         docs.set(it.id, {
-            key: it.id, kind: it.kind, parent: it.parent, board: it.board, source: it.htmlCode, loaded: false, isNew: false, height: 0,
+            key: it.id, kind: it.kind, parent: it.parent, board: it.board, frameW: it.frameW || null, source: it.htmlCode, loaded: false, isNew: false, height: 0,
             meta: { id: it.id, title: it.title, group: it.group || "", version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
         });
     });

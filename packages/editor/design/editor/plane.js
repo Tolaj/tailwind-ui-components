@@ -12,7 +12,7 @@ export const canvas = $("canvas");
 
 export const MIN_H = 720;
 // a frame has its own width, and a height that follows its content unless it was set by hand
-export const widthOf = (d) => (d.board && d.board.w) || DEFAULT_W;
+export const widthOf = (d) => (d.board && d.board.w) || d.frameW || DEFAULT_W;
 export const curWidth = () => widthOf(docs.get(S.curKey));
 export const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === S.curKey ? Math.max(MIN_H, S.frameHeight) : Math.max(MIN_H, d.height || 0));
 export const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];

@@ -30,7 +30,7 @@ projectPages.get("/:id", async (req, res) => {
             project: { id: String(project._id), name: project.name, description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
-                version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
+                version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, frameW: c.frameW || null, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
             })),
         };
         res.render("main/project", {
