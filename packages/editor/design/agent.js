@@ -955,6 +955,14 @@ export function agentMain() {
                 if (Math.abs(err) <= 0.5 && Math.abs(push) <= 0.5) break;
             }
         });
+        // the far half of a pair that changes nothing (a right margin in a column, a bottom one that sets no height) is left off
+        ["margin-right", "margin-bottom"].forEach((p) => {
+            const v = el.style.getPropertyValue(p);
+            if (!v || v === n.inl0[p]) return;
+            const look = () => [el, ...n.others.map((o) => o.el), el.parentElement].map(pageRect), before = look();
+            restoreProp(el, n, p);
+            if (!look().every((q, i) => sameRect(q, before[i]))) el.style.setProperty(p, v);
+        });
         // Moving must not resize: an auto-width block narrows as its margin grows, a stretched flex item shrinks. Where the size changed
         // it is pinned to what it was; if something else still resizes it (flex-grow), the far margin gives the difference back.
         let kept = "";
@@ -969,34 +977,31 @@ export function agentMain() {
         }
         if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) { el.style.setProperty("height", n.h0); if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) restoreProp(el, n, "height"); else kept = kept || `height kept ${Math.round(n.r0.h)}px`; }
         if (kept) said.push(kept);
-        // what it shows: the margins as orange boxes with their size, the lines it snapped to, and a note
+        // what it shows: each margin as an orange measuring line with its number (as Figma shows distances), and the lines it snapped to
         guideLayer.innerHTML = "";
         const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0, mb = parseFloat(cs.marginBottom) || 0;
         const isAutoNow = (p, fromClass) => { const v = el.style.getPropertyValue(p); return v ? v === "auto" : fromClass; };
         const auto = isAutoNow("margin-left", n.auto.l), autoT = isAutoNow("margin-top", n.auto.t);
-        const tag = (x, y, text) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(11)}px/1 system-ui,sans-serif;padding:${px(3)}px ${px(6)}px;border-radius:${px(4)}px;white-space:nowrap;`)).textContent = text;
-        // a margin as an orange box beside the element; a negative one is drawn inside the element's edge and labelled with its minus
-        const box = (x, y, w, h, v, vert) => {
-            const L = Math.abs(v);
-            guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${ORANGE}${v < 0 ? "55" : "33"};border:${px(1)}px ${v < 0 ? "solid" : "dashed"} ${ORANGE};box-sizing:border-box;`));
-            tag(x + w / 2, y + h / 2, `${v < 0 ? "−" : ""}${Math.round(L)}`);
+        const tag = (x, y, text) => { const b = guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(10)}px/1 system-ui,sans-serif;padding:${px(2)}px ${px(4)}px;border-radius:${px(3)}px;white-space:nowrap;`)); b.textContent = text; return b; };
+        // a margin as a line across its length with a tick at each end, through the middle of the element's side, and its number on it;
+        // a negative margin runs over the element's own edge and its number has a minus
+        const t = px(1), cap = px(6);
+        const measure = (a, from, len, at, v) => {
+            const css = (x, y, w, h) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${ORANGE};`));
+            const label = `${v < 0 ? "−" : ""}${Math.round(Math.abs(v))}`;
+            if (a === "x") { css(from, at - t / 2, len, t); css(from - t / 2, at - cap / 2, t, cap); css(from + len - t / 2, at - cap / 2, t, cap); tag(from + len / 2, at - px(12), label); }
+            else { css(at - t / 2, from, t, len); css(at - cap / 2, from - t / 2, cap, t); css(at - cap / 2, from + len - t / 2, cap, t); tag(at + px(8), from + len / 2, label).style.transform = "translate(0,-50%)"; }
         };
         const real = (p) => { const v = el.style.getPropertyValue(p); return v && v !== "auto"; };
-        if (Math.abs(ml) >= 1 && !auto) box(ml > 0 ? r.x - ml : r.x, r.y, Math.abs(ml), r.h, ml);
-        if (Math.abs(mr) >= 1 && real("margin-right")) box(mr > 0 ? r.x + r.w : r.x + r.w + mr, r.y, Math.abs(mr), r.h, mr);
-        if (Math.abs(mb) >= 1 && real("margin-bottom")) box(r.x, mb > 0 ? r.y + r.h : r.y + r.h + mb, r.w, Math.abs(mb), mb);
-        if (Math.abs(mt) >= 1 && !autoT) box(r.x, mt > 0 ? r.y - mt : r.y, r.w, Math.abs(mt), mt);
+        const cy = r.y + r.h / 2, cx = r.x + r.w / 2;
+        if (Math.abs(ml) >= 1 && !auto) measure("x", ml > 0 ? r.x - ml : r.x, Math.abs(ml), cy, ml);
+        if (Math.abs(mr) >= 1 && real("margin-right")) measure("x", mr > 0 ? r.x + r.w : r.x + r.w + mr, Math.abs(mr), cy, mr);
+        if (Math.abs(mt) >= 1 && !autoT) measure("y", mt > 0 ? r.y - mt : r.y, Math.abs(mt), cx, mt);
+        if (Math.abs(mb) >= 1 && real("margin-bottom")) measure("y", mb > 0 ? r.y + r.h : r.y + r.h + mb, Math.abs(mb), cx, mb);
         lines.forEach((l) => guideLayer.appendChild(mk(l.a === "x"
             ? `position:absolute;left:${l.at}px;top:${n.box.y}px;width:${px(1)}px;height:${n.box.h}px;background:${RED};`
             : `position:absolute;top:${l.at}px;left:${n.box.x}px;height:${px(1)}px;width:${n.box.w}px;background:${RED};`)));
-        const parts = said.slice();
-        if (Math.abs(ml) >= 1 && !auto) parts.push(`margin-left ${Math.round(ml)}px`);
-        if (Math.abs(mt) >= 1 && !autoT) parts.push(`margin-top ${Math.round(mt)}px`);
-        if (real("margin-right") && Math.abs(mr) >= 1) parts.push(`margin-right ${Math.round(mr)}px`);
-        if (real("margin-bottom") && Math.abs(mb) >= 1) parts.push(`margin-bottom ${Math.round(mb)}px`);
-        const pr = pageRect(el.parentElement);
-        dropHint.textContent = parts.length ? parts.join(" · ") : "Back where it was";
-        Object.assign(dropHint.style, { display: "block", left: `${pr.x}px`, top: `${Math.max(0, pr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+        dropHint.style.display = "none"; // the numbers on the lines say it all
         ghostBox.style.display = "none"; dropBox.style.display = "none"; insertLine.style.display = "none";
     }
 
@@ -1141,6 +1146,7 @@ export function agentMain() {
         const cr = pageRect(h.t.container), tag = h.t.container === document.body ? "page" : h.t.container.tagName.toLowerCase();
         Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px`, opacity: String(0.25 + 0.75 * h.share) });
         dropHint.textContent = `Hold to move into ${tag} · ${Math.round(h.share * 100)}%`;
+        Object.assign(dropHint.style, { display: "block", left: `${cr.x}px`, top: `${Math.max(0, cr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
     }
     function reorderGesture(g, e) {
         if (canNudge(g.el) && !wantsBlockDrag(g, e)) { nudgeGesture(g, e); showHolding(g); redraw(); return; }
