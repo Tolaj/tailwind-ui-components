@@ -79,6 +79,13 @@ app.use((err, req, res, next) => {
     if (req.path.startsWith("/oauth")) {
         return res.status(status).json({ error: status === 400 ? "invalid_request" : "server_error", error_description: err.message });
     }
+    // A page the browser asked for with fetch (the editor, the Figma plugin) must get a message it can show, not an HTML error page it
+    // cannot read. The reason is short and has no addresses in it.
+    if (req.method !== "GET" && (req.path.startsWith("/api/") || /json/.test(req.get("content-type") || ""))) {
+        console.error("Request failed:", req.method, req.originalUrl, err);
+        const reason = String((err && err.message) || err).replace(/mongodb(\+srv)?:\/\/\S+/gi, "[database]").replace(/\b\d{1,3}(\.\d{1,3}){3}(:\d+)?\b/g, "[address]").slice(0, 140);
+        return res.status(status).json({ success: false, ok: false, message: `Server error (${(err && err.name) || "Error"}): ${reason}` });
+    }
     return next(err);
 });
 
