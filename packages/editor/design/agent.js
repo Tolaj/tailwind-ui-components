@@ -288,7 +288,7 @@ export function agentMain() {
      * "css" writes the inline style, made !important when the design's own CSS would still win.
      */
     // ── After a drag, resize or draw: pixels become Tailwind classes (the editor builds them, this frame checks them) ──
-    const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top", "margin-right", "align-self"];
+    const GESTURE_PROPS = ["width", "height", "left", "top", "margin-left", "margin-top", "margin-right", "margin-bottom", "align-self"];
     const inlineOf = (el, props) => { const o = {}; props.forEach((p) => { o[p] = el.style.getPropertyValue(p); }); return o; };
     /** What the editor needs to turn an element's new inline pixels into classes: the values, its classes, and where each value came from before. */
     function gestureItem(el, pre, props, clear) {
@@ -829,7 +829,7 @@ export function agentMain() {
     // Dropping into a different slot still reorders. Staying put is the smart part: the element is placed by its margin (snapped to the
     // container's edges, its neighbours and the spacing already used), by auto margins (centred, pushed right) or, across the axis of a
     // flex / grid box, by align-self. Everything is checked against the real layout, since margins collapse and flex adds them up.
-    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "align-self"];
+    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "margin-bottom", "align-self"];
     const ORANGE = "#f59e0b";
     const kidsOf = (c, skip) => Array.prototype.filter.call(c.children, (k) => k !== skip && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
     const canNudge = (el) => !!el.parentElement && el !== document.body && !isAbs(el) && getComputedStyle(el).display !== "inline";
@@ -913,6 +913,22 @@ export function agentMain() {
                 if (Math.abs(pageRect(el).x - want) <= 2) { said.push(hit.k === "centre" ? "centred (mx-auto)" : "to the right (ml-auto)"); lines.push({ a, at: hit.at }); return; }
                 restoreProp(el, n, "margin-left"); restoreProp(el, n, "margin-right");
             }
+            // past the middle of the container the element is placed from the far side: auto margin before it, the distance from the
+            // right (or bottom) edge as the margin after it. The real position is checked; a box with no room to push into (the height
+            // of a block-flow parent) falls back to the near side.
+            const E = a === "x" ? "margin-right" : "margin-bottom", size = n.r0[Z];
+            if (want + size / 2 > n.box[a] + n.box[Z] / 2 && (a === "x" ? n.r0.w < n.box.w - 1 : n.lay !== "page flow")) {
+                let m = Math.max(0, n.box[a] + n.box[Z] - (want + size));
+                const atEdge = want + size >= n.box[a] + n.box[Z]; // dragged to or past the far edge: it sits on the edge
+                const q = Math.round(m / 4) * 4;
+                m = !hit && Math.abs(q - m) <= 1.5 ? q : Math.round(m);
+                set(mProp, "auto");
+                if (m >= 1) setPx(el, E, m);
+                const err = want - pageRect(el)[a];
+                if (Math.abs(err) > 0.5 && m >= 1) setPx(el, E, Math.max(0, m - err));
+                if (atEdge || Math.abs(pageRect(el)[a] - want) <= 2) { if (hit) lines.push({ a, at: hit.at }); return; }
+                restoreProp(el, n, mProp); restoreProp(el, n, E);
+            }
             // a margin, nudged until the real position matches (collapsing margins eat part of a change)
             let m = Math.max(0, n.m[a] + (want - n.r0[a]));
             const q = Math.round(m / 4) * 4;
@@ -925,16 +941,21 @@ export function agentMain() {
         });
         // what it shows: the margins as orange boxes with their size, the lines it snapped to, and a note
         guideLayer.innerHTML = "";
-        const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, auto = el.style.getPropertyValue("margin-left") === "auto";
+        const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0, mb = parseFloat(cs.marginBottom) || 0;
+        const auto = el.style.getPropertyValue("margin-left") === "auto", autoT = el.style.getPropertyValue("margin-top") === "auto";
         const tag = (x, y, text) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(11)}px/1 system-ui,sans-serif;padding:${px(3)}px ${px(6)}px;border-radius:${px(4)}px;white-space:nowrap;`)).textContent = text;
         if (ml >= 1 && !auto) { guideLayer.appendChild(mk(`position:absolute;left:${r.x - ml}px;top:${r.y}px;width:${ml}px;height:${r.h}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x - ml / 2, r.y + r.h / 2, `${Math.round(ml)}`); }
-        if (mt >= 1) { guideLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y - mt}px;width:${r.w}px;height:${mt}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x + r.w / 2, r.y - mt / 2, `${Math.round(mt)}`); }
+        if (mr >= 1 && el.style.getPropertyValue("margin-right") && el.style.getPropertyValue("margin-right") !== "auto") { guideLayer.appendChild(mk(`position:absolute;left:${r.x + r.w}px;top:${r.y}px;width:${mr}px;height:${r.h}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x + r.w + mr / 2, r.y + r.h / 2, `${Math.round(mr)}`); }
+        if (mb >= 1 && el.style.getPropertyValue("margin-bottom") && el.style.getPropertyValue("margin-bottom") !== "auto") { guideLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y + r.h}px;width:${r.w}px;height:${mb}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x + r.w / 2, r.y + r.h + mb / 2, `${Math.round(mb)}`); }
+        if (mt >= 1 && !autoT) { guideLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y - mt}px;width:${r.w}px;height:${mt}px;background:${ORANGE}33;border:${px(1)}px dashed ${ORANGE};box-sizing:border-box;`)); tag(r.x + r.w / 2, r.y - mt / 2, `${Math.round(mt)}`); }
         lines.forEach((l) => guideLayer.appendChild(mk(l.a === "x"
             ? `position:absolute;left:${l.at}px;top:${n.box.y}px;width:${px(1)}px;height:${n.box.h}px;background:${RED};`
             : `position:absolute;top:${l.at}px;left:${n.box.x}px;height:${px(1)}px;width:${n.box.w}px;background:${RED};`)));
         const parts = said.slice();
         if (ml >= 1 && !auto) parts.push(`margin-left ${Math.round(ml)}px`);
-        if (mt >= 1) parts.push(`margin-top ${Math.round(mt)}px`);
+        if (mt >= 1 && !autoT) parts.push(`margin-top ${Math.round(mt)}px`);
+        if (el.style.getPropertyValue("margin-right") && el.style.getPropertyValue("margin-right") !== "auto" && mr >= 1) parts.push(`margin-right ${Math.round(mr)}px`);
+        if (el.style.getPropertyValue("margin-bottom") && el.style.getPropertyValue("margin-bottom") !== "auto" && mb >= 1) parts.push(`margin-bottom ${Math.round(mb)}px`);
         const pr = pageRect(el.parentElement);
         dropHint.textContent = parts.length ? parts.join(" · ") : "Back where it was";
         Object.assign(dropHint.style, { display: "block", left: `${pr.x}px`, top: `${Math.max(0, pr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
@@ -1236,7 +1257,13 @@ export function agentMain() {
             const props = NUDGE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.nudge.inl0[p]); // what the nudge wrote
             tidyStyle(g.el);
             if (!props.length) return redraw(); // back where it was
-            return askConvert([gestureItem(g.el, g.nudge.pre, props)]);
+            // moved back to the near side: the far-side margin it had (mr-8 beside ml-auto, mb-4 beside mt-auto) comes off
+            const clear = [];
+            const cls = (re) => (g.el.getAttribute("class") || "").split(/\s+/).some((t) => re.test(t.replace(/^(?:[\w-]+:)*/, "")));
+            const inl = (p) => g.el.style.getPropertyValue(p);
+            if (props.includes("margin-left") && inl("margin-left") !== "auto" && !inl("margin-right") && cls(/^ml-auto$|^mx-auto$/) && cls(/^mr-(?!auto$)/)) clear.push("mr");
+            if (props.includes("margin-top") && inl("margin-top") !== "auto" && !inl("margin-bottom") && cls(/^mt-auto$|^my-auto$/) && cls(/^mb-(?!auto$)/)) clear.push("mb");
+            return askConvert([gestureItem(g.el, g.nudge.pre, props, clear)]);
         }
         if (g.type === "reorder" && g.moved && g.target) {
             const was = g.el.parentElement, wasKids = was ? kidsOf(was, null).filter(inFlow) : [];
