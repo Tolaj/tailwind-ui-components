@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { describeComponent } from "@windcraft/ai";
 import Component from "../models/component.model.js";
 import User from "../models/user.model.js";
 import { splitSource } from "@windcraft/core/exporters.js";
@@ -147,32 +147,6 @@ export function profileToMarkdown(component) {
 
 // ── Optional AI-written summary (uses the owner's own AI settings) ───────────
 
-const ENRICH_SYSTEM = `You write short metadata for a UI component so other AI tools can decide whether to reuse it.
-Reply with ONLY a JSON object: {"summary": string, "useWhen": string, "avoidWhen": string}.
-Each value is one plain sentence under 160 characters. No markdown.`;
-
-async function complete(settings, system, userMessage) {
-    if (settings.provider === "anthropic") {
-        if (!settings.anthropicApiKey) return null;
-        const client = new Anthropic({ apiKey: settings.anthropicApiKey });
-        const res = await client.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 400,
-            system,
-            messages: [{ role: "user", content: userMessage }],
-        });
-        return res.content.map((b) => b.text || "").join("");
-    }
-    if (!settings.localLlmUrl) return null;
-    const res = await fetch(`${settings.localLlmUrl}/v1/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "system", content: system }, { role: "user", content: userMessage }], max_tokens: 400, temperature: 0.2, stream: false }),
-    });
-    const json = await res.json();
-    return json.choices?.[0]?.message?.content || null;
-}
-
 /** Fire and forget. Never throws, never blocks saving. */
 export async function enrichProfileWithAI(componentId, userId) {
     try {
@@ -182,21 +156,14 @@ export async function enrichProfileWithAI(componentId, userId) {
         if (!component) return;
 
         const codeAtStart = component.htmlCode;
-        const text = await complete(
-            user.llmSettings,
-            ENRICH_SYSTEM,
-            `Title: ${component.title}\nCategory: ${component.category}\nDescription: ${component.description}\n\nHTML:\n${component.htmlCode.slice(0, 6000)}`
-        );
-        const json = JSON.parse((text || "").match(/\{[\s\S]*\}/)?.[0] || "null");
+        const json = await describeComponent(user.llmSettings, component);
         if (!json) return;
 
         const fresh = await Component.findById(componentId);
         if (!fresh || fresh.htmlCode !== codeAtStart) return;
         fresh.profile = {
             ...(fresh.profile || extractProfile(fresh.htmlCode)),
-            summary: String(json.summary || "").slice(0, 240),
-            useWhen: String(json.useWhen || "").slice(0, 240),
-            avoidWhen: String(json.avoidWhen || "").slice(0, 240),
+            ...json,
         };
         await fresh.save();
     } catch (error) {

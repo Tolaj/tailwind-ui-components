@@ -1,0 +1,16 @@
+{
+    "name": "@windcraft/mcp",
+    "version": "0.1.0",
+    "description": "A small MCP server for Express: JSON-RPC, tool listing with safety hints, CORS and a Bearer-token challenge. You give it the tools and how to run them.",
+    "type": "module",
+    "private": true,
+    "license": "UNLICENSED",
+    "main": "index.js",
+    "exports": {
+        ".": "./index.js",
+        "./*": "./*"
+    },
+    "peerDependencies": {
+        "express": ">=4"
+    }
+}

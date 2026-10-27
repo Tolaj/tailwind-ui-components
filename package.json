@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test test/ packages/core/test/ packages/editor/test/",
+    "test": "node --test test/ packages/core/test/ packages/editor/test/ packages/ai/test/ packages/mcp/test/",
     "licenses": "node scripts/check-licenses.js",
     "demo": "node packages/editor/demo/serve.js",
     "typecheck": "tsc -p tsconfig.json",
@@ -21,7 +21,6 @@
   "license": "UNLICENSED",
   "type": "module",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.75.0",
     "bcrypt": "^6.0.0",
     "connect-mongo": "^6.0.0",
     "dotenv": "^17.2.3",

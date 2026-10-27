@@ -1,0 +1,16 @@
+{
+    "name": "@windcraft/ai",
+    "version": "0.1.0",
+    "description": "Windcraft's AI calls: drafting and changing HTML with Tailwind, and writing a component's metadata. Anthropic or a local OpenAI-compatible server. No database, no web framework.",
+    "type": "module",
+    "private": true,
+    "license": "UNLICENSED",
+    "main": "index.js",
+    "exports": {
+        ".": "./index.js",
+        "./*": "./*"
+    },
+    "dependencies": {
+        "@anthropic-ai/sdk": "^0.75.0"
+    }
+}
