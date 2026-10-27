@@ -164,6 +164,17 @@ function convert(node, parent, ctx, isRoot = false) {
     radiusClasses(node, bag);
     effectClasses(node, bag, ctx.warn);
     if (free) ctx.stats.absolute++;
+    // a frame that clips its content does not show what lies wholly outside it (Figma does not either): leave those layers out
+    if (node.clipsContent) {
+        const kept = kids.filter((k) => {
+            if (auto && k.layoutPositioning !== "ABSOLUTE") return true; // in the flow: its place is not a position
+            const b = boxIn(k);
+            const out = b && (b.x >= node.width || b.y >= node.height || b.x + b.w <= 0 || b.y + b.h <= 0);
+            if (out && k.visible !== false) ctx.stats.skipped++;
+            return !out;
+        });
+        kids = kept;
+    }
     const inner = kids.map((k) => convert(k, layout, ctx)).join("");
     return `<div ${bag.attrs()}>${inner}</div>`;
 }
@@ -182,10 +193,11 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  */
 export function convertDesign(snapshot, { title } = {}) {
     const warnings = [];
-    const ctx = { warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, absolute: 0, text: 0, assets: 0 } };
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
     const fonts = ctx.fonts;
+    if (ctx.stats.skipped) warnings.push(`${ctx.stats.skipped} layer${ctx.stats.skipped === 1 ? "" : "s"} lying outside their frame ${ctx.stats.skipped === 1 ? "was" : "were"} left out: ${ctx.stats.skipped === 1 ? "it is" : "they are"} not visible in Figma either.`);
     if (fonts.replaced && fonts.replaced.size) warnings.push(`Not on Google Fonts, so a close match is shown instead: ${[...fonts.replaced].map(([a, b]) => `${a} → ${b}`).join(", ")}. Add the real font file to get an exact match.`);
     if (fonts.size) warnings.push(`Fonts: ${[...fonts.keys()].join(", ")}. Those on Google Fonts load; any other (a paid or custom font) shows the generic fallback until its font file is added.`);
     const html = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${escapeAttr(name)}</title>\n<script src="https://cdn.tailwindcss.com"></script>\n<style>body{margin:0;line-height:normal;-webkit-font-smoothing:antialiased}img{object-fit:cover}</style>\n${fonts.size ? `<link rel="preconnect" href="https://fonts.googleapis.com">\n${fontLinks(fonts)}\n` : ""}</head>\n<body>\n${body}\n</body>\n</html>\n`;

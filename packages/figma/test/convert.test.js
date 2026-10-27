@@ -157,3 +157,15 @@ test("children sitting evenly in a row become a flex row; overlapping ones stay 
     const stacked = { ...row, children: [box("a", 10, 5, 50, 30), box("b", 30, 10, 50, 30)] };
     assert.equal(convertDesign(stacked).stats.detected, 0);
 });
+
+test("layers wholly outside a frame that clips are left out; a frame that does not clip keeps them", () => {
+    const box = (name, x, y) => ({ type: "RECTANGLE", name, width: 40, height: 40, transform: at(x, y), fills: [solid(1, 2, 3)] });
+    const kids = [box("inside", 10, 10), box("right", 500, 10), box("left", -200, 10), box("below", 10, 400), box("edge", 90, 90)];
+    const clipped = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, clipsContent: true, fills: [], children: kids });
+    assert.equal((clipped.body.match(/<div/g) || []).length, 3, clipped.body); // the frame, "inside" and "edge" (it crosses the border)
+    assert.equal(clipped.stats.skipped, 3);
+    assert.ok(clipped.warnings.some((w) => w.includes("3 layers lying outside")), clipped.warnings.join("|"));
+    const open = convertDesign({ type: "FRAME", name: "F", width: 100, height: 100, clipsContent: false, fills: [], children: kids });
+    assert.equal(open.stats.skipped, 0);
+    assert.equal((open.body.match(/<div/g) || []).length, 6);
+});
