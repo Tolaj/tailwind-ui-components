@@ -249,9 +249,9 @@
         $("edit").disabled = true; $("edit").textContent = "Opening…";
         try {
             const up = $("keepSource").checked ? await uploadSnapshot(current) : null; // with the data, Windcraft makes the code for the editor
-            const packed = up ? { body: JSON.stringify({ title: pages[current].title, uploadId: up.uploadId, chunks: up.count }), headers: {} } : await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html }));
+            const packed = up ? { body: JSON.stringify({ title: pages[current].title, uploadId: up.uploadId, chunks: up.count }), headers: {} } : await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html, width: pages[current].width }));
             let res = await api("/draft", { method: "POST", ...packed });
-            if (up && !res.ok && ![401, 429].includes(res.status)) { const plain = await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html })); res = await api("/draft", { method: "POST", ...plain }); }
+            if (up && !res.ok && ![401, 429].includes(res.status)) { const plain = await gzipBody(JSON.stringify({ title: pages[current].title, html: pages[current].html, width: pages[current].width })); res = await api("/draft", { method: "POST", ...plain }); }
             const body = await res.json().catch(() => ({}));
             if (res.ok && body.ok) post({ type: "open", url: body.url }); else say(body.message || "Could not open the editor.", "err");
         } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }

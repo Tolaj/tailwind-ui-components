@@ -5,6 +5,7 @@ const figmaDraftSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, default: "", maxlength: 120 },
     html: { type: String, required: true },
+    width: { type: Number, default: null }, // the frame's width in Figma: the page made from this draft opens at it on the board
     expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
 });
 

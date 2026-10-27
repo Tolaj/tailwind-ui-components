@@ -1,6 +1,7 @@
 import zlib from "zlib";
 import FigmaSource from "../models/figmaSource.model.js";
 import FigmaDraftSource from "../models/figmaDraftSource.model.js";
+import FigmaDraft from "../models/figmaDraft.model.js";
 import Component from "../models/component.model.js";
 import { importDesign } from "./import.service.js";
 import { withFonts } from "./fonts.service.js";
@@ -20,6 +21,9 @@ export async function figmaSourceInfo(componentId) {
  */
 export async function adoptDraftSource(userId, draftId, componentId) {
     if (!/^[a-f0-9]{24}$/i.test(String(draftId || ""))) return null;
+    // the page opens on the board at the width the frame has in Figma (a page with no saved width is drawn 1280 wide, and a wider design is cut off)
+    const draft = await FigmaDraft.findOne({ _id: draftId, userId }).select("width").lean();
+    if (draft && Number.isFinite(draft.width)) await Component.updateOne({ _id: componentId, createdBy: userId }, { frameW: Math.round(draft.width) });
     const kept = await FigmaDraftSource.findOneAndDelete({ draft: draftId, userId });
     if (!kept) return null;
     await FigmaSource.findOneAndUpdate({ component: componentId }, { userId, converter: kept.converter, rulesVersion: kept.rulesVersion, width: kept.width, height: kept.height, snapshotGz: kept.snapshotGz }, { upsert: true });

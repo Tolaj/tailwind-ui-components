@@ -180,7 +180,8 @@ router.post("/draft", async (req, res) => {
         } else if (typeof html === "string") html = await withFonts(html, base);
         if (typeof html !== "string" || !html.trim() || html.length > MAX_HTML) return res.status(400).json({ ok: false, message: "A design up to 5 MB is needed." });
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        const draft = await FigmaDraft.create({ userId, title: String(title || "").slice(0, 120), html, expiresAt });
+        const width = kept ? kept.snapshot.width : req.body.width;
+        const draft = await FigmaDraft.create({ userId, title: String(title || "").slice(0, 120), html, expiresAt, ...(Number.isFinite(width) && width >= 200 && width <= 10000 ? { width } : {}) });
         if (kept) await FigmaDraftSource.create({ userId, draft: draft._id, converter: kept.result.converter, rulesVersion: kept.result.rulesVersion, width: kept.snapshot.width, height: kept.snapshot.height, snapshotGz: kept.gz, expiresAt });
         res.json({ ok: true, url: `${base}/design/new?draft=${draft._id}` });
     } catch (error) {
