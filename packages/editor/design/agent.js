@@ -829,7 +829,7 @@ export function agentMain() {
     // Dropping into a different slot still reorders. Staying put is the smart part: the element is placed by its margin (snapped to the
     // container's edges, its neighbours and the spacing already used), by auto margins (centred, pushed right) or, across the axis of a
     // flex / grid box, by align-self. Everything is checked against the real layout, since margins collapse and flex adds them up.
-    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "margin-bottom", "align-self"];
+    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "margin-bottom", "align-self", "width", "height"];
     const ORANGE = "#f59e0b";
     const kidsOf = (c, skip) => Array.prototype.filter.call(c.children, (k) => k !== skip && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
     const canNudge = (el) => !!el.parentElement && el !== document.body && !isAbs(el) && getComputedStyle(el).display !== "inline";
@@ -848,7 +848,7 @@ export function agentMain() {
         const box = { x: pr.x + bx, y: pr.y + bt, w: pr.w - bx - f(pcs.borderRightWidth) - f(pcs.paddingRight), h: pr.h - bt - f(pcs.borderBottomWidth) - f(pcs.paddingBottom) };
         const idx = Array.prototype.indexOf.call(par.children, el);
         const others = kidsOf(par, el).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none").map((k) => ({ r: pageRect(k), before: Array.prototype.indexOf.call(par.children, k) < idx }));
-        g.nudge = { active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, r0: pageRect(el), box, lay: layoutOf(par), others };
+        g.nudge = { w0: cs.width, h0: cs.height, active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, r0: pageRect(el), box, lay: layoutOf(par), others };
     }
     const restoreProp = (el, n, p) => { if (n.inl0[p]) el.style.setProperty(p, n.inl0[p]); else el.style.removeProperty(p); };
     function restoreNudge(g) {
@@ -898,6 +898,7 @@ export function agentMain() {
             let want = n.r0[a] + (a === "x" ? dx : dy);
             const hit = e.metaKey ? null : containerLine(n, a, want, n.r0[Z]); // Cmd: no snapping
             if (hit) want += hit.d;
+            if (Math.abs(want - n.r0[a]) < 0.5) return; // it didn't move along this axis: nothing to write
             const set = (p, v) => el.style.setProperty(p, v);
             // across the axis of a flex or grid box: align-self, if the element keeps its size and lands on the line
             if (hit && crossAxis(n.lay, a) && ["start", "centre", "end"].includes(hit.k)) {
@@ -918,6 +919,7 @@ export function agentMain() {
             // of a block-flow parent) falls back to the near side.
             const E = a === "x" ? "margin-right" : "margin-bottom", size = n.r0[Z];
             if (want + size / 2 > n.box[a] + n.box[Z] / 2 && (a === "x" ? n.r0.w < n.box.w - 1 : n.lay !== "page flow")) {
+                if (Math.abs(Math.min(want, n.box[a] + n.box[Z] - size) - n.r0[a]) < 0.5) return; // already as far as it goes
                 let m = Math.max(0, n.box[a] + n.box[Z] - (want + size));
                 const atEdge = want + size >= n.box[a] + n.box[Z]; // dragged to or past the far edge: it sits on the edge
                 const q = Math.round(m / 4) * 4;
@@ -939,6 +941,20 @@ export function agentMain() {
             if (Math.abs(err) > 0.5) setPx(el, mProp, Math.max(0, m + err));
             if (hit) lines.push({ a, at: hit.at });
         });
+        // Moving must not resize: an auto-width block narrows as its margin grows, a stretched flex item shrinks. Where the size changed
+        // it is pinned to what it was; if something else still resizes it (flex-grow), the far margin gives the difference back.
+        let kept = "";
+        const rs = pageRect(el);
+        if (Math.abs(rs.w - n.r0.w) > 0.5) {
+            el.style.setProperty("width", n.w0);
+            const again = pageRect(el).w;
+            if (Math.abs(again - n.r0.w) > 0.5) {
+                restoreProp(el, n, "width");
+                setPx(el, "margin-right", (parseFloat(getComputedStyle(el).marginRight) || 0) - (n.r0.w - pageRect(el).w));
+            } else kept = `width kept ${Math.round(n.r0.w)}px`;
+        }
+        if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) { el.style.setProperty("height", n.h0); if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) restoreProp(el, n, "height"); else kept = kept || `height kept ${Math.round(n.r0.h)}px`; }
+        if (kept) said.push(kept);
         // what it shows: the margins as orange boxes with their size, the lines it snapped to, and a note
         guideLayer.innerHTML = "";
         const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0, mb = parseFloat(cs.marginBottom) || 0;
@@ -1050,9 +1066,32 @@ export function agentMain() {
         return work.map(({ k, p, props, pre }) => gestureItem(k, pre, props, p.clear));
     }
 
+    /**
+     * Nudging with margins is for short, careful drags. It turns into a block drag (the box that follows the pointer, the container
+     * and the insertion line) when the element would leave its parent, would go further than a margin should, or is flicked quickly:
+     * a quick drag means "put this block somewhere else". Once a block drag, it stays one until the pointer slows down and is back
+     * within the limits.
+     */
+    const FLICK = 1.6, SLOW = 0.4, MARGIN_CAP = 240; // screen px per ms; the longest margin a block-flow drag sets, in design px
+    function wantsBlockDrag(g, e) {
+        const now = performance.now();
+        const tr = g.trail || (g.trail = []);
+        tr.push({ t: now, x: e.clientX, y: e.clientY });
+        while (tr.length > 1 && now - tr[0].t > 100) tr.shift();
+        const first = tr[0], dt = Math.max(1, now - first.t);
+        const speed = Math.hypot(e.clientX - first.x, e.clientY - first.y) * zoom / dt;
+        if (!g.nudge) nudgeStart(g);
+        const n = g.nudge, dx = e.clientX - g.sx, dy = e.clientY - g.sy, tol = px(24);
+        const over = (dx > 0 && n.r0.x + n.r0.w + dx > n.box.x + n.box.w + tol) || (dx < 0 && n.r0.x + dx < n.box.x - tol)
+            || (n.lay !== "page flow" && ((dy > 0 && n.r0.y + n.r0.h + dy > n.box.y + n.box.h + tol) || (dy < 0 && n.r0.y + dy < n.box.y - tol)))
+            || (n.lay === "page flow" && Math.abs(dy) > MARGIN_CAP);
+        if (g.block) { if (speed < SLOW && !over) g.block = false; } else if (over || (speed > FLICK && Math.hypot(dx, dy) > 40)) g.block = true;
+        return g.block;
+    }
     function reorderGesture(g, e) {
         const t = dropTarget(g.el, e.clientX, e.clientY);
-        if (canNudge(g.el) && sameSlot(g.el, t)) { if (!g.nudge) nudgeStart(g); nudgeGesture(g, e); redraw(); return; }
+        g.same = sameSlot(g.el, t);
+        if (canNudge(g.el) && g.same && !wantsBlockDrag(g, e)) { nudgeGesture(g, e); redraw(); return; }
         restoreNudge(g);
         g.target = t.ref || t.container;
         g.pos = t.ref ? (t.before ? "before" : "after") : "inside";
@@ -1265,6 +1304,7 @@ export function agentMain() {
             if (props.includes("margin-top") && inl("margin-top") !== "auto" && !inl("margin-bottom") && cls(/^mt-auto$|^my-auto$/) && cls(/^mb-(?!auto$)/)) clear.push("mb");
             return askConvert([gestureItem(g.el, g.nudge.pre, props, clear)]);
         }
+        if (g.type === "reorder" && g.moved && g.same) { redraw(); return; } // a block drag that ended in its own slot: nothing moves
         if (g.type === "reorder" && g.moved && g.target) {
             const was = g.el.parentElement, wasKids = was ? kidsOf(was, null).filter(inFlow) : [];
             const wasFirst = wasKids[0] === g.el, wasLast = wasKids[wasKids.length - 1] === g.el;
