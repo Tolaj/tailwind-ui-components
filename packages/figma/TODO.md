@@ -38,6 +38,10 @@
 | Capture Figma's own CSS per layer (`getCSSAsync`) as a cross-check | Slow for thousands of layers: needs a depth or size limit |
 | Tests that run the upload and update routes against a real database | The routes were written and checked by reading and by the pure parts; an end-to-end test needs a test database |
 
+| Check Figma's own Grid layout against a real file (the properties are the documented ones, the mapping is only unit-tested) | Needs a design that uses Grid auto layout |
+| Grid detection for items of unequal widths, and for a matrix with a missing cell | Equal widths keep `grid-cols-N` exact; the rest needs explicit track sizes |
+| Reverse stacking order (`itemReverseZIndex`), text direction (right to left), OpenType features and font variations | Rare so far |
+
 ## Done from earlier lists
 
 Masks, blend modes, centred and outside strokes, angular gradients, vertical text alignment, cut-off lines, links, mirrored layers, min and max sizes, text shadows, underline details, paragraph spacing and indent, real tags and alt text, 5 MB designs, frames up to 12000 layers, the server converts from the sent Figma data, and a design opened with Edit keeps its Figma data when it is first saved in the editor.

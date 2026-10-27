@@ -425,3 +425,64 @@ test("a section needs text in it (a gradient called Hero is not one); a child st
     assert.ok(!r.warnings.some((w) => /Could not write/.test(w)), r.warnings.join("|"));
     assert.equal(r.stats.detected, 0, "a row whose top is above its frame stays placed exactly");
 });
+
+const cardAt = (name, x, y, w = 100, h = 60) => ({ type: "RECTANGLE", name, width: w, height: h, transform: at(x, y), fills: [solid(10, 20, 30)] });
+
+test("items in a matrix of equal cells become a grid, with the padding and gaps read from the positions", () => {
+    // 3 columns x 2 rows of 100x60 cards: 20px between columns, 16px between rows, 10px left, 12px top; the frame is 380 wide, 180 tall
+    const cards = [];
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) cards.push(cardAt(`c${r}${c}`, 10 + c * 120, 12 + r * 76));
+    const r = convertDesign({ type: "FRAME", name: "G", width: 380, height: 180, fills: [], children: [...cards].reverse() }); // given out of order: the grid puts them in row order
+    const [root, first] = classesOf(r.body);
+    for (const c of ["grid", "grid-cols-3", "gap-x-5", "gap-y-4", "items-start", "justify-items-start", "pl-2.5", "pt-3", "pr-[30px]", "pb-8"]) assert.ok(root.split(" ").includes(c), `${c} in ${root}`);
+    assert.ok(!first.includes("absolute"), first);
+    assert.equal(r.stats.grid, 1);
+    assert.ok(r.body.indexOf("w-[100px]") > 0 && (r.body.match(/<div/g) || []).length === 7);
+    // not a grid: a missing cell, unequal widths, uneven gaps, a cell too close
+    const without = convertDesign({ type: "FRAME", name: "G", width: 380, height: 180, fills: [], children: cards.slice(0, 5) });
+    assert.equal(without.stats.grid, 0);
+    const uneven = cards.map((c, i) => (i === 4 ? { ...c, width: 130 } : c));
+    assert.equal(convertDesign({ type: "FRAME", name: "G", width: 380, height: 180, fills: [], children: uneven }).stats.grid, 0);
+    const gaps = cards.map((c, i) => (i % 3 === 2 ? { ...c, transform: at(10 + 2 * 120 + 14, 12 + Math.floor(i / 3) * 76) } : c));
+    assert.equal(convertDesign({ type: "FRAME", name: "G", width: 380, height: 180, fills: [], children: gaps }).stats.grid, 0);
+});
+
+test("Figma's own grid layout: columns, gaps, spans and pinned cells", () => {
+    const child = (name, extra) => ({ ...cardAt(name, 0, 0, 80, 40), ...extra });
+    const r = convertDesign({
+        type: "FRAME", name: "NG", width: 600, height: 300, fills: [], layoutMode: "GRID", gridColumnCount: 3, gridRowCount: 2, gridColumnGap: 16, gridRowGap: 24, paddingLeft: 20, paddingRight: 20, paddingTop: 20, paddingBottom: 20,
+        children: [child("a", { gridColumnSpan: 2 }), child("b", { gridRowSpan: 2, layoutSizingHorizontal: "FILL", layoutSizingVertical: "FILL" }), child("c", { gridColumnAnchorIndex: 1, gridRowAnchorIndex: 1 })],
+    });
+    const [root, a, b, c] = classesOf(r.body);
+    for (const x of ["grid", "grid-cols-3", "gap-x-4", "gap-y-6", "p-5"]) assert.ok(root.split(" ").includes(x), `${x} in ${root}`);
+    assert.ok(a.includes("col-span-2") && !a.includes("absolute"), a);
+    assert.ok(b.includes("row-span-2") && b.includes("w-full") && b.includes("h-full"), b);
+    assert.ok(c.includes("col-start-2") && c.includes("row-start-2"), c);
+    // tracks with their own sizes
+    const sized = convertDesign({ type: "FRAME", name: "NG", width: 600, height: 300, fills: [], layoutMode: "GRID", gridColumnSizes: [{ type: "FIXED", value: 200 }, { type: "FLEX", value: 1 }, { type: "HUG" }], gridRowSizes: [{ type: "FIXED", value: 80 }, { type: "HUG" }], gridColumnGap: 10, gridRowGap: 10, children: [child("a", {})] }).body;
+    assert.match(sized, /grid-cols-\[200px_minmax\(0,1fr\)_auto\]/);
+    assert.match(sized, /grid-rows-\[80px_auto\]/);
+});
+
+test("justified text is text-justify", () => {
+    const t = { type: "TEXT", name: "t", characters: "Some words here", width: 100, height: 40, transform: at(0, 0), fontSize: 14, fontName: { family: "Inter", style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "HEIGHT", textAlignHorizontal: "JUSTIFIED" };
+    assert.match(convertDesign({ type: "FRAME", name: "F", width: 200, height: 100, fills: [], children: [t] }).body, /\btext-justify\b/);
+});
+
+test("more styling: scroll areas, spread wrapped rows, small caps, gradient text, outlined text", () => {
+    const text = (extra) => ({ type: "TEXT", name: "t", characters: "Hello", width: 120, height: 30, transform: at(0, 0), fontSize: 24, fontName: { family: "Inter", style: "Bold" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT", ...extra });
+    const page = (kid) => convertDesign({ type: "FRAME", name: "F", width: 300, height: 200, fills: [], children: [kid] }).body;
+    const frame = (extra) => ({ type: "FRAME", name: "Row", width: 200, height: 100, transform: at(0, 0), fills: [], clipsContent: true, layoutMode: "HORIZONTAL", children: [cardAt("a", 0, 0)], ...extra });
+    const scrolling = page(frame({ meta: { overflowDirection: "HORIZONTAL_SCROLLING" } }));
+    assert.match(scrolling, /overflow-x-auto/);
+    assert.ok(!/overflow-hidden/.test(classesOf(scrolling)[1]), "a scroll area does not also clip");
+    assert.match(page(frame({ layoutWrap: "WRAP", counterAxisAlignContent: "SPACE_BETWEEN" })), /\bcontent-between\b/);
+    assert.match(page(text({ textCase: "SMALL_CAPS" })), /\[font-variant-caps:small-caps\]/);
+    const gradient = { type: "GRADIENT_LINEAR", gradientTransform: [[1, 0, 0], [0, 1, 0]], gradientStops: [{ position: 0, color: { r: 1, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }], opacity: 1 };
+    const gradientText = page(text({ fills: [gradient] }));
+    assert.match(gradientText, /bg-\[linear-gradient\(/);
+    assert.match(gradientText, /bg-clip-text/);
+    assert.match(gradientText, /text-transparent/);
+    assert.ok(!/text-\[#/.test(gradientText), "no solid text colour is written over the gradient");
+    assert.match(page(text({ strokes: [solid(255, 0, 0)], strokeWeight: 2 })), /\[-webkit-text-stroke:2px_#ff0000\]/);
+});

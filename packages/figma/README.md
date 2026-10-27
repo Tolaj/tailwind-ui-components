@@ -20,6 +20,8 @@ Also carried over: masks (the layers after a mask are shown through its shape; n
 
 Real HTML, not only `<div>`s: layers named like a button, link, nav bar, header or footer become `<button>`, `<a>`, `<nav>`, `<header>`, `<footer>` (the last three only when they span half the page); the biggest sizes of real words are `<h1>` to `<h3>`; a picture's `alt` is its layer name unless that says nothing ("Rectangle 12"). Also: mirrored layers, min and max sizes, text shadows that follow the letters, underline style, thickness, offset and colour, first-line indent and space between paragraphs.
 
+**Grid:** a frame without Auto Layout whose children fill a matrix of equal-width cells (columns in line, equal gaps) becomes `grid grid-cols-N` with the gaps and padding read from the positions (a render of it matches the absolutely placed version 100/100); Figma's own Grid layout maps to `grid` too (column and row tracks, gaps, spans, pinned cells; written from Figma's documented properties and not yet checked against a real grid file). More styling: scroll areas, wrapped rows spread over the frame, small caps, gradient-filled text (`bg-clip-text`), outlined text, justified text.
+
 Not carried over yet (the plugin lists these as warnings, and `TODO.md` has the plan): diamond gradients (the first colour is used), gradient strokes, constraints (right/bottom anchoring), lists, image crop and filters, fixed and sticky layers.
 
 ## Build and run the plugin

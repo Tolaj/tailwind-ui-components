@@ -5,6 +5,7 @@
 //   const { html, warnings, stats } = convertDesign(snapshot, { title })
 import { ClassBag, round, px } from "./classes.js";
 import { fillClasses, strokeClasses, radiusClasses, effectClasses } from "./paint.js";
+import { solidValue } from "./color.js";
 import { textElement } from "./text.js";
 import { recolourable } from "./icons.js";
 import { compileRules } from "./rules.js";
@@ -12,10 +13,12 @@ import { pickSubstitutes } from "./fonts.js";
 import { substituteFor } from "./text.js";
 
 /** Which version of the conversion rules made a page (shared samples carry it, so a regression can be traced to a release). */
-export const CONVERTER_VERSION = "0.3.0";
+export const CONVERTER_VERSION = "0.4.0";
 
 const CONTAINERS = new Set(["FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"]);
 const isAuto = (n) => n.layoutMode === "HORIZONTAL" || n.layoutMode === "VERTICAL";
+const isGrid = (n) => n.layoutMode === "GRID"; // Figma's own grid layout, or a grid found in the positions (detectGrid)
+const inFlow = (n) => isAuto(n) || isGrid(n);
 const escapeAttr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
 /** A mirrored node has a transform with a negative determinant. */
@@ -52,17 +55,22 @@ function sizeClasses(node, parent, bag, { textAuto = false } = {}) {
         let mode = sizing(axis);
         if (textAuto && node.textAutoResize === "WIDTH_AND_HEIGHT") mode = "HUG";
         if (textAuto && node.textAutoResize === "HEIGHT" && axis === "Vertical") mode = "HUG";
-        if (!inFlex) { if (mode !== "HUG") bag.set(key, px(key, size)); continue; } // placed freely: its own size
+        if (!inFlex) { // placed freely, or in a grid cell: its own size (a grid child that fills its cell is as big as the cell)
+            if (mode === "FILL" && parent && isGrid(parent) && node.layoutPositioning !== "ABSOLUTE") bag.set(key, "full");
+            else if (mode !== "HUG") bag.set(key, px(key, size));
+            continue;
+        }
         const onMain = (axis === "Horizontal") === Boolean(mainH);
         if (mode === "FILL") { if (onMain) bag.set("flexNum", "flex-1"); else bag.set("self", "self-stretch"); }
         else if (mode === "FIXED") { bag.set(key, px(key, size)); if (onMain) bag.set("shrink", "shrink-0"); }
     }
+    if (parent && isGrid(parent) && node.layoutPositioning !== "ABSOLUTE") gridChildClasses(node, bag);
 }
 
 /** An Auto Layout frame's own flex classes. */
 function flexClasses(node, bag) {
     bag.set("display", "flex").set("flexDir", node.layoutMode === "VERTICAL" ? "flex-col" : "flex-row");
-    if (node.layoutWrap === "WRAP") bag.set("flexWrap", "flex-wrap");
+    if (node.layoutWrap === "WRAP") { bag.set("flexWrap", "flex-wrap"); if (node.counterAxisAlignContent === "SPACE_BETWEEN") bag.set("content", "content-between"); } // wrapped rows spread over the frame
     const justify = { CENTER: "justify-center", MAX: "justify-end", SPACE_BETWEEN: "justify-between" }[node.primaryAxisAlignItems];
     if (justify) bag.set("justify", justify);
     bag.set("items", { MIN: "items-start", CENTER: "items-center", MAX: "items-end", BASELINE: "items-baseline" }[node.counterAxisAlignItems] || "items-start");
@@ -71,12 +79,46 @@ function flexClasses(node, bag) {
         if (main === cross) { if (main) bag.set("gap", px("gap", main)); }
         else { const row = node.layoutMode === "HORIZONTAL"; if (main) bag.set(row ? "gapX" : "gapY", px("gap", main)); if (cross) bag.set(row ? "gapY" : "gapX", px("gap", cross)); }
     }
+    paddingClasses(node, bag);
+}
+
+/** The frame's padding as the fewest classes (p, px/py, or each side). */
+function paddingClasses(node, bag) {
     const { paddingTop: t = 0, paddingRight: r = 0, paddingBottom: b = 0, paddingLeft: l = 0 } = node;
     if (t === r && r === b && b === l) { if (t) bag.set("p", px("p", t)); }
     else {
         if (l === r && l) bag.set("px", px("px", l)); else { if (l) bag.set("pl", px("pl", l)); if (r) bag.set("pr", px("pr", r)); }
         if (t === b && t) bag.set("py", px("py", t)); else { if (t) bag.set("pt", px("pt", t)); if (b) bag.set("pb", px("pb", b)); }
     }
+}
+
+/** One track of a grid (Figma: FLEX share, FIXED pixels, HUG its content) as CSS. */
+const trackCss = (t) => (t && t.type === "FIXED" ? `${round(t.value)}px` : t && t.type === "HUG" ? "auto" : `minmax(0,${t && t.value && t.value !== 1 ? round(t.value) : 1}fr)`);
+
+/** A grid frame: columns (a count of equal ones, or each track's own size), rows only when they are sized, the gaps, the padding. */
+function gridClasses(node, bag) {
+    bag.set("display", "grid");
+    const cols = Array.isArray(node.gridColumnSizes) && node.gridColumnSizes.length ? node.gridColumnSizes : null;
+    const count = cols ? cols.length : node.gridColumnCount;
+    if (count) {
+        if (cols && cols.some((t) => t.type !== "FLEX" || (t.value && t.value !== 1))) bag.set("gridCols", `[${cols.map(trackCss).join("_")}]`);
+        else bag.set("gridCols", count <= 12 ? String(count) : `[repeat(${count},minmax(0,1fr))]`);
+    }
+    const rows = Array.isArray(node.gridRowSizes) && node.gridRowSizes.length ? node.gridRowSizes : null;
+    if (rows && rows.some((t) => t.type !== "HUG")) bag.set("gridRows", `[${rows.map(trackCss).join("_")}]`);
+    const gx = node.gridColumnGap || 0, gy = node.gridRowGap || 0;
+    if (gx === gy) { if (gx) bag.set("gap", px("gap", gx)); } else { if (gx) bag.set("gapX", px("gap", gx)); if (gy) bag.set("gapY", px("gap", gy)); }
+    bag.set("items", "items-start").add("justify-items-start"); // a cell's item keeps its own size, from the cell's top left
+    paddingClasses(node, bag);
+}
+
+/** What a grid's child says about its cell: how many it spans, and where it starts when Figma pins it. */
+function gridChildClasses(node, bag) {
+    const start = (axis, i) => bag.add(i < 13 ? `${axis}-start-${i + 1}` : `${axis}-start-[${i + 1}]`);
+    if (node.gridColumnSpan > 1) bag.set("colSpan", String(node.gridColumnSpan));
+    if (node.gridRowSpan > 1) bag.set("rowSpan", String(node.gridRowSpan));
+    if (Number.isInteger(node.gridColumnAnchorIndex)) start("col", node.gridColumnAnchorIndex);
+    if (Number.isInteger(node.gridRowAnchorIndex)) start("row", node.gridRowAnchorIndex);
 }
 
 /** Free placement: `absolute` with the offsets and, for a rotated node, its turn. */
@@ -89,6 +131,48 @@ function placeClasses(node, bag) {
 
 
 const TOL = 1; // pixels of slack when deciding that things line up
+
+/**
+ * A frame without Auto Layout whose children fill a matrix of equal-width cells (every column in line, rows with equal gaps) is a grid.
+ * Equal widths make `grid-cols-N` exact: with the padding read from the first and last cell, each 1fr column is as wide as the cell was.
+ * Returns the grid fields to lay over the frame (children in row order), or null.
+ */
+function detectGrid(node, kids) {
+    if (kids.length < 4 || kids.some((k) => k.layoutPositioning === "ABSOLUTE")) return null;
+    const boxes = kids.map(boxIn);
+    if (boxes.some((b) => !b || !(b.w > 0) || !(b.h > 0))) return null;
+    const w0 = boxes[0].w;
+    if (boxes.some((b) => Math.abs(b.w - w0) > TOL)) return null;
+    const cluster = (values) => { // positions that are the same within a pixel, as their averages
+        const out = [];
+        for (const v of [...values].sort((a, b) => a - b)) {
+            const last = out[out.length - 1];
+            if (last && v - last.max <= TOL) { last.max = v; last.sum += v; last.n++; } else out.push({ max: v, sum: v, n: 1 });
+        }
+        return out.map((c) => c.sum / c.n);
+    };
+    const xs = cluster(boxes.map((b) => b.x)), ys = cluster(boxes.map((b) => b.y));
+    if (xs.length < 2 || ys.length < 2 || xs.length * ys.length !== kids.length) return null;
+    const cells = Array.from({ length: ys.length }, () => Array(xs.length).fill(-1));
+    for (let i = 0; i < boxes.length; i++) {
+        const c = xs.findIndex((x) => Math.abs(x - boxes[i].x) <= TOL), r = ys.findIndex((y) => Math.abs(y - boxes[i].y) <= TOL);
+        if (c < 0 || r < 0 || cells[r][c] !== -1) return null;
+        cells[r][c] = i;
+    }
+    const spread = (list) => (list.length ? Math.max(...list) - Math.min(...list) : 0);
+    const colGaps = xs.slice(1).map((x, i) => x - (xs[i] + w0));
+    const rowHeights = cells.map((row) => Math.max(...row.map((i) => boxes[i].h)));
+    const rowGaps = ys.slice(1).map((y, i) => y - (ys[i] + rowHeights[i]));
+    if (colGaps.some((g) => g < -TOL) || rowGaps.some((g) => g < -TOL) || spread(colGaps) > TOL || spread(rowGaps) > TOL) return null;
+    const padL = xs[0], padT = ys[0], padR = node.width - (xs[xs.length - 1] + w0), padB = node.height - (ys[ys.length - 1] + rowHeights[rowHeights.length - 1]);
+    if (padL < -TOL || padT < -TOL || padR < -TOL || padB < -TOL) return null;
+    const mean = (list) => Math.max(0, round(list.reduce((a, b) => a + b, 0) / list.length, 2));
+    const pad = (v) => Math.max(0, round(v, 2));
+    return {
+        order: cells.flat(), layoutMode: "GRID", gridColumnCount: xs.length, gridRowCount: ys.length, gridColumnGap: mean(colGaps), gridRowGap: mean(rowGaps),
+        paddingLeft: pad(padL), paddingTop: pad(padT), paddingRight: pad(padR), paddingBottom: pad(padB),
+    };
+}
 
 /** A child's box in its parent's space, or null when it is turned (a turned node is not part of a row or column). */
 function boxIn(k) {
@@ -246,7 +330,7 @@ function convert(node, parent, ctx, isRoot = false) {
     if (node.isMask) { ctx.warn(`${node.name}: a mask is not carried over`); return ""; }
     ctx.stats.nodes++;
     const bag = new ClassBag(ctx.warn);
-    const free = !isRoot && (!parent || !isAuto(parent) || node.layoutPositioning === "ABSOLUTE");
+    const free = !isRoot && (!parent || !inFlow(parent) || node.layoutPositioning === "ABSOLUTE");
 
     // a vector, or a shape with a picture: the plugin exported it
     if (node.svg || node.png) {
@@ -284,6 +368,8 @@ function convert(node, parent, ctx, isRoot = false) {
         textBag.raw.forEach((c) => bag.add(c));
         limitClasses(node, bag);
         effectClasses(node, bag, ctx.warn, { text: true });
+        const outline = (node.strokes || []).find((p) => p.visible !== false && p.type === "SOLID"); // an outline on the letters
+        if (outline && node.strokeWeight) bag.add(`[-webkit-text-stroke:${round(node.strokeWeight)}px_${solidValue(outline)}]`);
         return `<${tag} ${bag.attrs()}>${inner}</${tag}>`;
     }
 
@@ -292,16 +378,20 @@ function convert(node, parent, ctx, isRoot = false) {
     let layout = node; // the frame as laid out: its own Auto Layout, or the row/column found in its children's positions
     if (!isAuto(node) && kids.length > 1) {
         const shown = kids.filter((k) => k.visible !== false && !k.isMask);
-        const flow = shown.length === kids.length ? detectFlow(node, shown) : null;
+        const flow = shown.length === kids.length ? detectFlow(node, shown) || detectGrid(node, shown) : null;
         if (flow) { const { order, ...fields } = flow; layout = { ...node, ...fields }; kids = order.map((i) => shown[i]); ctx.stats.detected++; }
     }
-    const auto = isAuto(layout);
+    const auto = isAuto(layout), grid = isGrid(layout);
     if (free) placeClasses(node, bag);
     sizeClasses(node, parent, bag);
     if (auto) { flexClasses(layout, bag); ctx.stats.flex++; }
+    else if (grid) { gridClasses(layout, bag); ctx.stats.grid++; }
     else if (kids.length && !bag.has("position")) bag.set("position", "relative");
-    if (auto && kids.some((k) => k.layoutPositioning === "ABSOLUTE") && !bag.has("position")) bag.set("position", "relative");
+    if ((auto || grid) && kids.some((k) => k.layoutPositioning === "ABSOLUTE") && !bag.has("position")) bag.set("position", "relative");
     if (node.clipsContent) bag.set("overflow", "overflow-hidden");
+    // a frame that scrolls in Figma's prototype scrolls here too (the clip becomes a scroll area)
+    const scroll = { HORIZONTAL_SCROLLING: "overflow-x-auto", VERTICAL_SCROLLING: "overflow-y-auto", HORIZONTAL_AND_VERTICAL_SCROLLING: "overflow-auto" }[node.meta && node.meta.overflowDirection];
+    if (scroll) { delete bag.props.overflow; bag.add(scroll); }
     limitClasses(node, bag);
     fillClasses(node, bag, ctx.warn);
     strokeClasses(node, bag, ctx.warn);
@@ -319,7 +409,7 @@ function convert(node, parent, ctx, isRoot = false) {
         });
         kids = kept;
     }
-    const inner = childrenHtml(kids, layout, ctx, node, auto);
+    const inner = childrenHtml(kids, layout, ctx, node, auto || grid);
     const { tag, attrs } = isRoot ? { tag: "div", attrs: "" } : containerTag(node, ctx);
     return `<${tag}${attrs} ${bag.attrs()}>${inner}</${tag}>`;
 }
@@ -338,7 +428,7 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
  */
 export function convertDesign(snapshot, { title, rules } = {}) {
     const warnings = [];
-    const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, rootKids: new Set(snapshot.children || []), headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
+    const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, rootKids: new Set(snapshot.children || []), headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, grid: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
     ctx.fonts.picks = pickSubstitutes(snapshot, (family) => substituteFor(family, ctx.rules.fontSubstitutes)); // free stand-ins for fonts Google does not have, from their widths in Figma
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";

@@ -20,8 +20,8 @@ const mul = (m, n) => [
 const inv = ([[a, b, tx], [c, d, ty]]) => { const det = a * d - b * c || 1; return [[d / det, -b / det, (b * ty - d * tx) / det], [-c / det, a / det, (c * tx - a * ty) / det]]; };
 const IDENTITY = [[1, 0, 0], [0, 1, 0]];
 
-const LAYOUT = ["minWidth", "maxWidth", "minHeight", "maxHeight", "layoutMode", "layoutWrap", "primaryAxisAlignItems", "counterAxisAlignItems", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "itemSpacing", "counterAxisSpacing"];
-const AS_CHILD = ["layoutPositioning", "layoutSizingHorizontal", "layoutSizingVertical", "layoutGrow", "layoutAlign"];
+const LAYOUT = ["counterAxisAlignContent", "gridRowCount", "gridColumnCount", "gridRowGap", "gridColumnGap", "gridRowSizes", "gridColumnSizes", "minWidth", "maxWidth", "minHeight", "maxHeight", "layoutMode", "layoutWrap", "primaryAxisAlignItems", "counterAxisAlignItems", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "itemSpacing", "counterAxisSpacing"];
+const AS_CHILD = ["gridRowSpan", "gridColumnSpan", "gridRowAnchorIndex", "gridColumnAnchorIndex", "layoutPositioning", "layoutSizingHorizontal", "layoutSizingVertical", "layoutGrow", "layoutAlign"];
 const PAINT = ["blendMode", "fills", "strokes", "strokeWeight", "strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight", "strokeAlign", "dashPattern",
     "cornerRadius", "topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius", "effects", "clipsContent"];
 const TEXT = ["characters", "fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textCase", "textDecoration", "textAutoResize", "textTruncation", "maxLines", "paragraphIndent", "paragraphSpacing"];

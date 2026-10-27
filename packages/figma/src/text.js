@@ -1,6 +1,6 @@
 // A Figma text node as a paragraph (or spans, when its style changes inside).
 import { ClassBag, round, px, arb } from "./classes.js";
-import { textColorOf } from "./paint.js";
+import { textColorOf, gradientCss } from "./paint.js";
 import { colorValue } from "./color.js";
 import { GROUPS } from "@windcraft/core/class-groups.js";
 import { onGoogleFonts } from "./fonts.js";
@@ -49,12 +49,19 @@ export function styleClasses(s, bag, fonts, rules) {
     if (s.fontName && /italic|oblique/i.test(s.fontName.style || "")) bag.set("fontStyle", "italic");
     const color = textColorOf(s.fills);
     if (color) bag.set("textColor", color);
+    else { // text filled with a gradient: the gradient is the background, clipped to the letters
+        const paint = (s.fills || []).find((p) => p.visible !== false && String(p.type).startsWith("GRADIENT_"));
+        const css = paint && gradientCss(paint, s.width || 0, s.height || 0);
+        if (css) bag.add(`bg-[${css}]`).add("bg-clip-text").add("text-transparent");
+    }
     if (s.textDecoration === "UNDERLINE") bag.set("textDecoration", "underline");
     if (s.textDecoration === "STRIKETHROUGH") bag.set("textDecoration", "line-through");
     if (s.textDecoration === "UNDERLINE" || s.textDecoration === "STRIKETHROUGH") decorationDetails(s, bag);
     if (s.textCase === "UPPER") bag.set("textTransform", "uppercase");
     if (s.textCase === "LOWER") bag.set("textTransform", "lowercase");
     if (s.textCase === "TITLE") bag.set("textTransform", "capitalize");
+    if (s.textCase === "SMALL_CAPS") bag.add("[font-variant-caps:small-caps]");
+    if (s.textCase === "SMALL_CAPS_FORCED") bag.add("[font-variant-caps:all-small-caps]");
     const ls = s.letterSpacing;
     if (ls && ls.value) bag.add(`tracking-[${ls.unit === "PERCENT" ? `${round(ls.value / 100, 3)}em` : `${round(ls.value)}px`}]`);
     return bag;
@@ -105,7 +112,7 @@ export function textElement(node, ctx) {
     const segs = node.segments && node.segments.length ? node.segments : [{ characters: node.characters, ...node }];
     const first = segs[0];
     lineHeightClass(node.lineHeight || first.lineHeight, bag);
-    if (node.textAlignHorizontal && node.textAlignHorizontal !== "LEFT") bag.set("textAlign", `text-${node.textAlignHorizontal.toLowerCase()}`);
+    if (node.textAlignHorizontal && node.textAlignHorizontal !== "LEFT") bag.set("textAlign", node.textAlignHorizontal === "JUSTIFIED" ? "text-justify" : `text-${node.textAlignHorizontal.toLowerCase()}`);
     if (node.textAutoResize === "WIDTH_AND_HEIGHT") bag.set("whitespace", "whitespace-nowrap");
     // text cut with "…" at a number of lines
     const truncating = node.textTruncation === "ENDING";
