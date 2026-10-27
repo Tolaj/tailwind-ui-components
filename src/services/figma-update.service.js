@@ -44,5 +44,5 @@ export async function updateFromFigma(userId, componentId, base) {
     });
     source.converter = result.converter; source.rulesVersion = result.rulesVersion;
     await source.save();
-    return { version: saved.page.version, converter: result.converter, rulesVersion: result.rulesVersion, warnings: result.warnings };
+    return { changed: Boolean(saved.page.updated), version: saved.page.version, converter: result.converter, rulesVersion: result.rulesVersion, warnings: result.warnings };
 }

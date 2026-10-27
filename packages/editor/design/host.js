@@ -13,7 +13,7 @@
  * @property {(id: string | null) => void} showDesign   the address now shows this saved design (null: an unsaved one)
  * @property {(projectId: string) => string} [projectUrl]   where a project's own page is (the project name links there); omit for none
  * @property {(id: string) => void} openDesign   go to this design (loads the page again)
- * @property {(id: string) => Promise<any>} [updateFromFigma]   converts a design again from the Figma data kept with it (a new version); omit for no such button
+ * @property {(id: string) => Promise<{ changed?: boolean }>} [updateFromFigma]   converts a design again from the Figma data kept with it (a new version when the code changed); omit for no such button
  */
 export const host = /** @type {Host} */ ({});
 /** @param {Host} h */

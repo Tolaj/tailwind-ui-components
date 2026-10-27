@@ -183,7 +183,11 @@ function setupFigmaButton(info, designId) {
     btn.addEventListener("click", async () => {
         if (!confirm("Convert this design again from its Figma data with the latest converter?\n\nThe new conversion replaces the current code, including edits made in Windcraft since it was saved. The current code stays in the version history.")) return;
         btn.disabled = true; btn.textContent = "Updating…";
-        try { await host.updateFromFigma(btn.dataset.design); host.openDesign(btn.dataset.design); }
+        try {
+            const done = await host.updateFromFigma(btn.dataset.design);
+            if (done && done.changed === false) { btn.disabled = false; btn.textContent = label; return alert("Already up to date: converting this design again gives exactly the same code, so no new version was made."); }
+            host.openDesign(btn.dataset.design);
+        }
         catch (err) { btn.disabled = false; btn.textContent = label; alert((err && err.message) || "Could not update this design."); }
     });
 }

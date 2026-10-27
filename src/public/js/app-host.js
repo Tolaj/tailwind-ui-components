@@ -52,6 +52,7 @@ export const appHost = {
     updateFromFigma: async (id) => {
         const res = await fetch(`/design/${id}/update-from-figma`, { method: "POST", headers: JSON_HEADERS });
         const body = await res.json().catch(() => ({}));
-        if (!res.ok || !body.success) throw new Error(body.message || "Could not update the design");
+        if (!res.ok || !body.success) throw new Error(body.message || `Could not update the design (the server answered ${res.status})`);
+        return body;
     },
 };

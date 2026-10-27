@@ -79,7 +79,8 @@ router.post("/:id/update-from-figma", async (req, res) => {
         res.json({ success: true, ...(await updateFromFigma(req.session.user.id, req.params.id, publicBase(req))) });
     } catch (error) {
         console.error("Update from Figma error:", error);
-        res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Could not update the page" });
+        // a failure we did not expect says what it was (briefly): this is the owner's own request, and it makes a failure on a live site findable
+        res.status(error.status || 500).json({ success: false, message: error.status ? error.message : `Could not update the page (${String((error && error.message) || error).slice(0, 160)})` });
     }
 });
 
