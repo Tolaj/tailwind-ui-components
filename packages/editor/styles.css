@@ -20,8 +20,11 @@ button { cursor: pointer; background: none; border: 0; padding: 0; font: inherit
 /* the current page stays pinned at the top of the left panel while it scrolls; display:contents lets the row stick against the whole panel, not just the Pages list */
 #pagesList { display: contents; }
 #pagesList .layer-row { margin: 0 4px; }
-#pagesList .layer-row.is-selected { position: sticky; top: 0; z-index: 5; box-shadow: 0 0 0 4px #fff; }
-#layersHead { position: sticky; top: 24px; z-index: 4; background: #fff; } /* the Layers title rides just under the pinned page */
+/* pinned, top to bottom: the Pages title with its + button, the current page, then the Layers title */
+#leftBody { --pages-head: 31px; --page-row: 24px; }
+#pagesHead { position: sticky; top: 0; z-index: 6; background: #fff; height: var(--pages-head); box-sizing: border-box; }
+#pagesList .layer-row.is-selected { position: sticky; top: var(--pages-head); z-index: 5; box-shadow: 0 0 0 4px #fff; }
+#layersHead { position: sticky; top: calc(var(--pages-head) + var(--page-row)); z-index: 4; background: #fff; }
 [data-path].layer-row { position: relative; }
 .layer-row.is-dragging { opacity: .4; }
 /* where a dragged layer will land: a blue line with a dot (before / after) at the target's indent, or the whole row outlined (inside) */

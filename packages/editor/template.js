@@ -5,7 +5,7 @@ export const editorHtml = `<div class="flex h-screen flex-col">
                 <aside id="leftPanel" class="hidden w-[240px] shrink-0 flex-col border-r border-neutral-200 bg-white">
             <div id="leftHead" class="flex items-center border-b border-neutral-200 px-2 py-2"></div>
             <div id="leftBody" class="min-h-0 flex-1 overflow-auto pb-2">
-                <div class="sec2"><span>Pages</span><button id="pagesAdd" type="button" title="New page"
+                <div id="pagesHead" class="sec2"><span>Pages</span><button id="pagesAdd" type="button" title="New page"
                         class="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100"><svg
                             class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round">
