@@ -361,3 +361,34 @@ test("an instance of a button component is a button even when it was renamed", (
     assert.equal((r.match(/<button /g) || []).length, 1);
     assert.match(r, /<button type="button"[^>]*>/);
 });
+
+test("a font Google does not have is stood in for by the free font that sets text as wide, measured from the design itself", async () => {
+    const { CANDIDATES } = await import("../src/font-data.js");
+    const ratio = (name) => CANDIDATES.find((c) => c[0] === name)[2];
+    const text = (family, characters, size, scale, extra = {}) => ({ type: "TEXT", name: "t", characters, width: scale * characters.length * size, height: size, transform: at(0, 0), fontSize: size, fontName: { family, style: "Regular" }, fills: [solid(0, 0, 0)], textAutoResize: "WIDTH_AND_HEIGHT", ...extra });
+    const page = (children) => convertDesign({ type: "FRAME", name: "F", width: 800, height: 400, fills: [], children });
+    const line = "Hello wonderful world of design"; // 31 letters
+    // text that is as wide as Montserrat sets it: the stand-in is a font about that wide
+    const r = page([text("Acme Sans", line, 20, ratio("Montserrat")), text("Acme Sans", line, 16, ratio("Montserrat"))]);
+    const sub = /font-\['Acme_Sans','([^']+)',sans-serif\]/.exec(r.body)[1].replace(/_/g, " ");
+    assert.ok(Math.abs(ratio(sub) - ratio("Montserrat")) / ratio("Montserrat") < 0.03, `${sub} is ${ratio(sub)}, Montserrat is ${ratio("Montserrat")}`);
+    assert.ok(r.missing.some((m) => m.family === "Acme Sans"), "the user can upload the real file");
+    assert.ok(r.html.includes(`family=${sub.replace(/ /g, "+")}`) && !r.html.includes("Acme+Sans"), "only the stand-in is asked of Google Fonts");
+    // a font that is on Google Fonts is not stood in for, and it calibrates the others (this design sets everything 4% wider than the measured sentence)
+    const wide = page([text("Inter", line, 20, ratio("Inter") * 1.04), text("Acme Sans", line, 20, ratio("Montserrat") * 1.04), text("Acme Sans", line, 14, ratio("Montserrat") * 1.04)]);
+    assert.match(wide.body, /font-\['Inter',sans-serif\]/);
+    const sub2 = /font-\['Acme_Sans','([^']+)',sans-serif\]/.exec(wide.body)[1].replace(/_/g, " ");
+    assert.ok(Math.abs(ratio(sub2) - ratio("Montserrat")) / ratio("Montserrat") < 0.03, `${sub2} after calibration`);
+    // a monospace sounding name gets a monospace font
+    const mono = page([text("Acme Mono", line, 14, 0.6), text("Acme Mono", line, 12, 0.6)]);
+    assert.equal(CANDIDATES.find((c) => c[0] === /'Acme_Mono','([^']+)'/.exec(mono.body)[1].replace(/_/g, " "))[1], "mono");
+    // too little text, or a width no font has: no stand-in, the browser's own default, and a note
+    const few = page([text("Acme Sans", "Hi there", 20, 0.5)]);
+    assert.match(few.body, /font-\['Acme_Sans',sans-serif\]/);
+    assert.ok(few.warnings.some((w) => /no close match/.test(w) && /Acme Sans/.test(w)), few.warnings.join("|"));
+    assert.ok(!few.html.includes("Acme+Sans"));
+    const odd = page([text("Acme Sans", line, 20, 1.1), text("Acme Sans", line, 14, 1.1)]); // 1.1 of the size per letter: wider than any font measured (the widest is 0.85)
+    assert.match(odd.body, /font-\['Acme_Sans',sans-serif\]/);
+    // a hand-made rule still wins
+    assert.match(page([text("Gilroy", line, 20, 0.3), text("Gilroy", line, 20, 0.3)]).body, /font-\['Gilroy','Montserrat',sans-serif\]/);
+});

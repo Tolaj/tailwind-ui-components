@@ -34,11 +34,14 @@ const ctx = document.createElement("canvas").getContext("2d");
   for (const f of list) {
     const link = document.createElement("link"); link.rel = "stylesheet";
     link.href = "https://fonts.googleapis.com/css2?family=" + f.name.replace(/ /g, "+") + ":wght@" + f.weights.join(";") + "&display=block";
+    const sheet = new Promise((resolve) => { link.onload = resolve; link.onerror = resolve; setTimeout(resolve, 8000); });
     document.head.appendChild(link);
+    await sheet; // the font can only be asked for once its stylesheet is in
     const row = { name: f.name, kind: f.kind };
     try {
       for (const w of f.weights) {
-        await document.fonts.load(w + " 100px '" + f.name + "'", SAMPLE);
+        const loaded = await document.fonts.load(w + " 100px '" + f.name + "'", SAMPLE);
+        if (!loaded.length) throw new Error("font did not load");
         ctx.font = w + " 100px '" + f.name + "'";
         row["w" + w] = Math.round((ctx.measureText(SAMPLE).width / (100 * SAMPLE.length)) * 10000) / 10000;
       }
@@ -55,6 +58,7 @@ if (!m || m[1] === "pending") throw new Error("Chrome did not finish measuring: 
 const measured = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")).filter((x) => !x.error && x.w400);
 const base = new Map(measured.map((x) => [x.name, x]));
 console.log(`${measured.length} measured`);
+if (new Set(measured.map((x) => x.w400)).size < 20) throw new Error("the fonts did not load: almost every width is the same");
 
 const names = list.map((f) => f.family).sort();
 const rows = measured.sort((a, b) => a.name.localeCompare(b.name)).map((x) => [x.name, x.kind, x.w400, x.w700 ?? x.w400]);

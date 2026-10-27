@@ -3,6 +3,7 @@ import { ClassBag, round, px, arb } from "./classes.js";
 import { textColorOf } from "./paint.js";
 import { colorValue } from "./color.js";
 import { GROUPS } from "@windcraft/core/class-groups.js";
+import { onGoogleFonts } from "./fonts.js";
 
 const WEIGHTS = { 100: "font-thin", 200: "font-extralight", 300: "font-light", 400: "font-normal", 500: "font-medium", 600: "font-semibold", 700: "font-bold", 800: "font-extrabold", 900: "font-black" };
 const WEIGHT_NAMES = [["thin", 100], ["hairline", 100], ["extralight", 200], ["ultralight", 200], ["light", 300], ["regular", 400], ["normal", 400], ["medium", 500], ["semibold", 600], ["demibold", 600], ["extrabold", 800], ["ultrabold", 800], ["bold", 700], ["black", 900], ["heavy", 900]];
@@ -31,12 +32,17 @@ export function styleClasses(s, bag, fonts, rules) {
     const family = s.fontName && s.fontName.family;
     const weight = s.fontWeight || weightOf(s.fontName && s.fontName.style);
     if (family) {
-        const sub = substituteFor(family, rules.fontSubstitutes);
+        // a stand-in: the hand-made rules first, then one chosen by measuring the real font in the design (fonts.js)
+        const sub = substituteFor(family, rules.fontSubstitutes) || (!onGoogleFonts(family) && fonts.picks && fonts.picks.get(family)) || undefined;
         bag.add(`font-['${arb(family)}',${sub ? `'${arb(sub)}',` : ""}${genericFor(sub || family)}]`);
         if (sub) (fonts.replaced = fonts.replaced || new Map()).set(family, sub);
-        const load = sub || family; // the family the page asks Google Fonts for
-        if (!fonts.has(load)) fonts.set(load, new Set());
-        fonts.get(load).add(weight);
+        if (!onGoogleFonts(family)) { // a font Google does not have: the user can upload its file
+            fonts.custom = fonts.custom || new Map();
+            if (!fonts.custom.has(family)) fonts.custom.set(family, new Set());
+            fonts.custom.get(family).add(weight);
+        }
+        const load = sub || family; // the family the page asks Google Fonts for (only a family Google has: another would be an error)
+        if (onGoogleFonts(load)) { if (!fonts.has(load)) fonts.set(load, new Set()); fonts.get(load).add(weight); }
     }
     if (s.fontSize) bag.set("fontSize", px("fontSize", s.fontSize));
     if (WEIGHTS[weight] && weight !== 400) bag.set("fontWeight", WEIGHTS[weight]);

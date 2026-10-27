@@ -8,6 +8,8 @@ import { fillClasses, strokeClasses, radiusClasses, effectClasses } from "./pain
 import { textElement } from "./text.js";
 import { recolourable } from "./icons.js";
 import { compileRules } from "./rules.js";
+import { pickSubstitutes } from "./fonts.js";
+import { substituteFor } from "./text.js";
 
 /** Which version of the conversion rules made a page (shared samples carry it, so a regression can be traced to a release). */
 export const CONVERTER_VERSION = "0.2.0";
@@ -316,13 +318,16 @@ const fontLinks = (fonts) => [...fonts].map(([name, weights]) =>
 export function convertDesign(snapshot, { title, rules } = {}) {
     const warnings = [];
     const ctx = { rules: compileRules(rules), rootW: snapshot.width || 0, headings: headingSizes(snapshot), h1Used: false, warn: (m) => { if (!warnings.includes(m)) warnings.push(m); }, fonts: new Map(), stats: { nodes: 0, flex: 0, detected: 0, skipped: 0, masked: 0, absolute: 0, text: 0, assets: 0 } };
+    ctx.fonts.picks = pickSubstitutes(snapshot, (family) => substituteFor(family, ctx.rules.fontSubstitutes)); // free stand-ins for fonts Google does not have, from their widths in Figma
     const body = convert(snapshot, null, ctx, true); // the top frame is the page: its own size, placed nowhere
     const name = title || snapshot.name || "Design";
     const fonts = ctx.fonts;
     if (ctx.stats.skipped) warnings.push(`${ctx.stats.skipped} layer${ctx.stats.skipped === 1 ? "" : "s"} lying outside their frame ${ctx.stats.skipped === 1 ? "was" : "were"} left out: ${ctx.stats.skipped === 1 ? "it is" : "they are"} not visible in Figma either.`);
     if (fonts.replaced && fonts.replaced.size) warnings.push(`Not on Google Fonts, so a close match is shown instead: ${[...fonts.replaced].map(([a, b]) => `${a} → ${b}`).join(", ")}. Add the real font file to get an exact match.`);
-    if (fonts.size) warnings.push(`Fonts: ${[...fonts.keys()].join(", ")}. Those on Google Fonts load; any other (a paid or custom font) shows the generic fallback until its font file is added.`);
+    if (fonts.size) warnings.push(`Fonts loaded from Google Fonts: ${[...fonts.keys()].join(", ")}.`);
     const html = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${escapeAttr(name)}</title>\n<script src="https://cdn.tailwindcss.com"></script>\n<style>body{margin:0;line-height:normal;-webkit-font-smoothing:antialiased}img{object-fit:cover}</style>\n${fonts.size ? `<link rel="preconnect" href="https://fonts.googleapis.com">\n${fontLinks(fonts)}\n` : ""}</head>\n<body>\n${body}\n</body>\n</html>\n`;
-    const missing = [...(fonts.replaced || [])].map(([family, sub]) => ({ family, weights: [...fonts.get(sub)].sort((a, b) => a - b) })); // fonts not on Google Fonts: the user can upload the real file
+    const missing = [...(fonts.custom || [])].map(([family, weights]) => ({ family, weights: [...weights].sort((a, b) => a - b) })); // fonts not on Google Fonts: the user can upload the real file
+    const unmatched = [...(fonts.custom || [])].map(([family]) => family).filter((family) => !(fonts.replaced && fonts.replaced.has(family)));
+    if (unmatched.length) warnings.push(`Not on Google Fonts and no close match found: ${unmatched.join(", ")}. The browser's default shows until the font file is added.`);
     return { converter: CONVERTER_VERSION, rulesVersion: ctx.rules.version, html, body, warnings, stats: ctx.stats, fonts: [...ctx.fonts.keys()], missing, size: html.length };
 }
