@@ -136,6 +136,7 @@
                 <div><b>Save in project</b><span id="loadingProjects" class="spin hidden"></span><div class="muted">Pages live inside a project. Pick one or start a new one.</div></div>
                 <select id="projectSel"></select>
                 <input id="newProject" type="text" placeholder="New project name" class="hidden">
+                <label class="check hidden" id="allRow" style="margin:0"><input type="checkbox" id="saveAll" checked><span id="allText"></span></label>
                 <div id="conflict" class="hidden banner">
                     <div id="conflictText"></div>
                     <div class="row" style="margin-top:10px"><button id="replace" class="primary">Save as new version</button><button id="keepBoth">Keep both</button></div>
@@ -206,7 +207,7 @@
         // done
         const p = pages[current], url = lastUrl.get(current), over = p.size > MAX_BYTES;
         $("tabs").classList.toggle("hidden", pages.length < 2);
-        $("tabs").innerHTML = pages.map((q, n) => `<button data-i="${n}" class="${n === current ? "on" : ""}">${esc(q.title)}</button>`).join("");
+        $("tabs").innerHTML = pages.map((q, n) => `<button data-i="${n}" class="${n === current ? "on" : ""}">${esc(q.title)}${lastUrl.has(n) ? " ✓" : ""}</button>`).join("");
         if (p.thumb) $("thumb").src = p.thumb; else $("thumb").removeAttribute("src");
         $("status").textContent = p.title;
         $("badge").textContent = url ? "✓ Saved to Windcraft" : "Converted";
@@ -272,6 +273,8 @@
             $("loadingProjects").classList.add("hidden"); $("projectSel").disabled = false; $("doSave").disabled = false;
         }
         fillProjects();
+        $("allRow").classList.toggle("hidden", pages.length < 2);
+        $("allText").textContent = `Save all ${pages.length} frames in this project`;
         preloadProjects().then(() => { if (!$("sheet").classList.contains("hidden") && $("projectSel").value !== NEW) { const keep = $("projectSel").value; fillProjects(); if (projects.some((p) => p.name === keep)) $("projectSel").value = keep; } }); // quietly refresh the counts
     }
     function pickProject() {
@@ -283,21 +286,37 @@
     }
     $("projectSel").onchange = pickProject;
     $("cancelSave").onclick = () => { $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); };
-    $("doSave").onclick = () => sendPage(current);
-    $("replace").onclick = () => sendPage(current, "replace");
-    $("keepBoth").onclick = () => sendPage(current, "copy");
-    async function sendPage(index, mode) {
+    let clashes = []; // pages that are already in the project, waiting for "new version" or "keep both"
+    const targets = () => ($("saveAll").checked && pages.length > 1 ? pages.map((_, i) => i) : [current]);
+    $("doSave").onclick = () => saveTargets(targets());
+    $("replace").onclick = () => saveTargets(clashes, "replace");
+    $("keepBoth").onclick = () => saveTargets(clashes, "copy");
+    // saves each page in turn; a page whose name is already in the project is held back and asked about once, for all of them
+    async function saveTargets(indexes, mode) {
         const project = $("projectSel").value === NEW ? $("newProject").value.trim() : $("projectSel").value;
         if (!project) return say("Give the new project a name.", "err");
-        say(""); busy = true; $("doSave").disabled = true; $("doSave").textContent = "Saving…";
-        try {
-            const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[index].title, html: pages[index].html, project, mode }) });
-            const body = await res.json().catch(() => ({}));
-            if (res.ok && body.ok) { lastUrl.set(index, body.url); cfg.project = body.project || project; save(); $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); }
-            else if (body.conflict) { $("conflictText").textContent = `"${body.title}" is already in this project. Save over it as a new version, or keep both?`; $("conflict").classList.remove("hidden"); $("doSave").classList.add("hidden"); } // the choices below answer it: pressing Save again would only ask again
-            else say(res.status === 401 ? "Your sign-in ended. Sign in again." : `Not saved: ${body.message || res.status}`, "err");
-        } catch (err) { say("Could not reach Windcraft. Check your connection.", "err"); }
-        busy = false; $("doSave").disabled = false; $("doSave").textContent = "Save"; render();
+        say(""); busy = true; $("doSave").disabled = true; $("conflict").classList.add("hidden");
+        const held = [];
+        let failed = false;
+        for (let n = 0; n < indexes.length && !failed; n++) {
+            const i = indexes[n];
+            $("doSave").textContent = indexes.length > 1 ? `Saving ${n + 1} of ${indexes.length}…` : "Saving…";
+            try {
+                const res = await api("/send", { method: "POST", body: JSON.stringify({ title: pages[i].title, html: pages[i].html, project, mode }) });
+                const body = await res.json().catch(() => ({}));
+                if (res.ok && body.ok) { lastUrl.set(i, body.url); cfg.project = body.project || project; }
+                else if (body.conflict) held.push(i);
+                else { failed = true; say(res.status === 401 ? "Your sign-in ended. Sign in again." : `Not saved: ${pages[i].title}: ${body.message || res.status}`, "err"); }
+            } catch (err) { failed = true; say("Could not reach Windcraft. Check your connection.", "err"); }
+        }
+        save(); busy = false; $("doSave").disabled = false; $("doSave").textContent = "Save";
+        clashes = held;
+        if (held.length) {
+            const names = held.map((i) => `"${pages[i].title}"`).join(", ");
+            $("conflictText").textContent = `${names} ${held.length === 1 ? "is" : "are"} already in this project. Save over ${held.length === 1 ? "it" : "them"} as a new version, or keep both?`;
+            $("conflict").classList.remove("hidden"); $("doSave").classList.add("hidden"); // the choices below answer it: pressing Save again would only ask again
+        } else if (!failed) { $("sheet").classList.add("hidden"); $("actions").classList.remove("hidden"); }
+        render();
     }
 
     async function loadAccount() {
