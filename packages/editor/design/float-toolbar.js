@@ -45,8 +45,9 @@ function moreMenu(st) {
     const item = (act, label, hint = "") => `<button type="button" data-ft="${act}" class="flex h-8 w-full items-center justify-between rounded-lg px-2.5 text-left text-[12px] hover:bg-neutral-100"><span>${label}</span><span class="text-neutral-400">${hint}</span></button>`;
     return `<div class="pop absolute right-0 top-9 z-40 w-52 p-1">
         ${item("dup", "Duplicate", "Ctrl+D")}${item("up", "Move earlier")}${item("down", "Move later")}
+        ${item("front", "Bring to front", "Ctrl+Shift+]")}${item("back", "Send to back", "Ctrl+Shift+[")}
         ${item("free", abs ? "Back to page flow" : "Free position")}
-        ${st.sel && st.sel.count > 1 ? item("group", "Group", "Ctrl+G") : ""}${abs && st.sel.leaf === false ? item("ungroup", "Ungroup", "Ctrl+Shift+G") : ""}
+        ${st.sel && st.sel.count > 1 ? item("group", "Group", "Ctrl+G") : ""}${st.sel && (st.sel.group || (abs && st.sel.leaf === false)) ? item("ungroup", "Ungroup", "Ctrl+Shift+G") : ""}
         ${item("props", "All properties")}
         <div class="my-1 h-px bg-neutral-100"></div>${item("del", "Delete", "Del")}
     </div>`;

@@ -181,6 +181,8 @@ export const FLOAT_ACTIONS = {
     free() { S.ftMenu = false; cmd({ cmd: "freePosition", path: S.selected.path, on: !S.selected.geom.abs }); },
     group() { S.ftMenu = false; send({ cmd: "group" }); },
     ungroup() { S.ftMenu = false; send({ cmd: "ungroup" }); },
+    front() { S.ftMenu = false; send({ cmd: "order", mode: "front" }); },
+    back() { S.ftMenu = false; send({ cmd: "order", mode: "back" }); },
     props() { S.ftMenu = false; setPanel(true); setPanelTab("props"); renderFloat(true); },
 };
 

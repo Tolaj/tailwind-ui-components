@@ -36,6 +36,7 @@ export function agentMain() {
     let tool = "move";
     let zoom = 1;
     let sels = [];
+    let inside = null; // the group gone into with a double-click (see pickable)
     let hov = null;
     let editing = null;
     let gesture = null;
@@ -63,7 +64,15 @@ export function agentMain() {
 
     // ── Geometry helpers ────────────────────────────────────────────────────────────────────
     const isAbs = (el) => { const p = getComputedStyle(el).position; return p === "absolute" || p === "fixed"; };
-    const pageRect = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }; };
+    const pageRect = (el) => {
+        const r = el.getBoundingClientRect();
+        // a group in a grid has no box of its own (display: contents, so the grid's cells stay as they were): the box around its children
+        if (!r.width && !r.height && el.children && el.children.length && getComputedStyle(el).display === "contents") {
+            const rs = Array.prototype.map.call(el.children, pageRect).filter((q) => q.w || q.h);
+            if (rs.length) { const x = Math.min(...rs.map((q) => q.x)), y = Math.min(...rs.map((q) => q.y)); return { x, y, w: Math.max(...rs.map((q) => q.x + q.w)) - x, h: Math.max(...rs.map((q) => q.y + q.h)) - y }; }
+        }
+        return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height };
+    };
     const rotationOf = (el) => {
         const t = getComputedStyle(el).transform;
         const m = t && t.match(/^matrix\(([^)]+)\)/);
@@ -449,6 +458,7 @@ export function agentMain() {
             classes: el.getAttribute("class") || "",
             style: el.getAttribute("style") || "",
             leaf: el.children.length === 0,
+            group: el.hasAttribute("data-wc-group"),
             text: el.children.length === 0 ? el.textContent : null,
             attrs, crumbs,
             geom: geomOf(el),
@@ -489,6 +499,7 @@ export function agentMain() {
     }
     function setSelection(list, quiet) {
         sels = list.filter(Boolean);
+        if (inside && !(sels.length && sels.every((el) => el !== inside && inside.contains(el)))) inside = null; // picked something outside: out of the group
         redraw();
         if (!quiet) post({ type: "selected", info: describe(primary()) });
     }
@@ -508,8 +519,19 @@ export function agentMain() {
         if (t && t.nodeType !== 1) t = t.parentElement;
         if (!t || overlay.contains(t) || t === root) return document.body;
         while (t && t !== document.body && isLocked(t)) t = t.parentElement;
-        return t || document.body;
+        return pickable(t || document.body);
     };
+    // ── Groups ── A group (Ctrl+G) is a box made around a few elements, marked data-wc-group so it is saved with the design. On the page
+    // it acts as one thing, as in Figma: a click picks the whole group, a double-click goes inside it (then what is in it can be picked
+    // and moved), and picking something outside it or Esc comes back out. The Layers panel can still pick anything.
+    /** What a click on `t` picks: the outermost group around it that has not been gone into, or else `t` itself. */
+    function pickable(t) {
+        if (!t || t === document.body) return t;
+        const chain = [];
+        for (let p = t; p && p !== document.body; p = p.parentElement) if (p.hasAttribute && p.hasAttribute("data-wc-group")) chain.unshift(p);
+        for (const gp of chain) if (!(inside && gp.contains(inside))) return gp;
+        return t;
+    }
     const containerAt = (x, y) => {
         let t = document.elementFromPoint(x, y);
         if (!t || overlay.contains(t) || t === root) return document.body;
@@ -1417,6 +1439,14 @@ export function agentMain() {
         e.preventDefault();
         const el = hitAt(e.clientX, e.clientY);
         if (el === document.body || tool !== "move") return;
+        const pick = pickable(el);
+        if (pick !== el && pick.hasAttribute("data-wc-group")) { // into the group: what is in it under the pointer is picked
+            inside = pick;
+            let c = el;
+            while (c.parentElement && c.parentElement !== pick) c = c.parentElement;
+            setSelection([pickable(c)]);
+            return;
+        }
         setSelection([el]);
         startEdit(el, false);
     }, true);
@@ -1467,20 +1497,45 @@ export function agentMain() {
     }
 
     function group() {
-        const items = sels.filter((el) => isAbs(el) && el.parentElement);
+        const items = sels.filter((el) => el !== document.body && el.parentElement && !isLocked(el));
         if (items.length < 2) return;
         const par = items[0].parentElement;
         if (items.some((el) => el.parentElement !== par)) return;
+        if (!items.every(isAbs)) return items.some(isAbs) ? undefined : groupInFlow(items, par); // free and flowing mixed: nothing sensible
         const gs = items.map((el) => ({ el, g: geomOf(el) }));
         const x0 = Math.min(...gs.map((i) => i.g.x)), y0 = Math.min(...gs.map((i) => i.g.y));
         const x1 = Math.max(...gs.map((i) => i.g.x + i.g.w)), y1 = Math.max(...gs.map((i) => i.g.y + i.g.h));
         const grp = document.createElement("div");
         grp.className = "absolute";
         grp.style.position = "absolute";
+        grp.setAttribute("data-wc-group", "");
         setPx(grp, "left", x0); setPx(grp, "top", y0); setPx(grp, "width", x1 - x0); setPx(grp, "height", y1 - y0);
         par.insertBefore(grp, items[0]);
         gs.forEach(({ el, g }) => { grp.appendChild(el); setPx(el, "left", g.x - x0); setPx(el, "top", g.y - y0); });
         setSelection([grp]);
+        changed();
+    }
+
+    /** Elements in the page flow, a flex box or a grid: a box around them in their place, laid out as their parent lays them out, so
+     *  grouping changes nothing on the page (in a grid the box has none of its own: display: contents keeps every cell where it was). */
+    function groupInFlow(items, par) {
+        const ordered = Array.prototype.filter.call(par.children, (c) => items.includes(c));
+        const lay = layoutOf(par), pcs = getComputedStyle(par);
+        const grp = document.createElement("div");
+        grp.setAttribute("data-wc-group", "");
+        par.insertBefore(grp, ordered[0]);
+        ordered.forEach((el) => grp.appendChild(el));
+        made.add(grp);
+        let props = [];
+        if (lay === "grid") grp.className = "contents";
+        else if (lay !== "page flow") {
+            const want = { display: "flex", "flex-direction": pcs.flexDirection, "align-items": pcs.alignItems, "column-gap": pcs.columnGap, "row-gap": pcs.rowGap };
+            const plain = { "flex-direction": ["row"], "align-items": ["normal", "stretch"], "column-gap": ["normal", "0px"], "row-gap": ["normal", "0px"] };
+            props = Object.keys(want).filter((k) => !(plain[k] || []).includes(want[k]));
+            props.forEach((k) => grp.style.setProperty(k, want[k]));
+        }
+        setSelection([grp]);
+        if (props.length) return askConvert([gestureItem(grp, {}, props)]);
         changed();
     }
 
@@ -1601,7 +1656,15 @@ export function agentMain() {
 
     function ungroup() {
         const el = primary();
-        if (!el || el === document.body || !isAbs(el) || !el.children.length || !el.parentElement) return;
+        if (!el || el === document.body || !el.children.length || !el.parentElement) return;
+        if (!isAbs(el)) {
+            if (!el.hasAttribute("data-wc-group")) return; // only a box Ctrl+G made is taken apart; any other box is part of the design
+            const kids = Array.prototype.slice.call(el.children);
+            kids.forEach((k) => el.before(k));
+            el.remove();
+            setSelection(kids);
+            return changed();
+        }
         const g = geomOf(el);
         const kids = Array.prototype.slice.call(el.children).filter(isAbs);
         if (!kids.length) return;
@@ -1722,7 +1785,7 @@ export function agentMain() {
             nudge(e.key === "ArrowLeft" ? -s : e.key === "ArrowRight" ? s : 0, e.key === "ArrowUp" ? -s : e.key === "ArrowDown" ? s : 0);
             return;
         }
-        if (e.key === "Escape") { e.preventDefault(); if (tool !== "move") setTool("move"); else setSelection([]); return; }
+        if (e.key === "Escape") { e.preventDefault(); if (tool !== "move") setTool("move"); else if (inside && sels.length && sels.every((el) => inside.contains(el))) setSelection([inside]); else setSelection([]); return; }
         if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); post({ type: "key", key: e.key, meta: false, shift: true }); return; }
         const forward = (meta && ["z", "y", "s"].includes(k)) || (!meta && !e.altKey && ["v", "f", "r", "o", "t", "i", "b", "h"].includes(k));
         if (forward) { e.preventDefault(); post({ type: "key", key: k, meta, shift: e.shiftKey }); }
