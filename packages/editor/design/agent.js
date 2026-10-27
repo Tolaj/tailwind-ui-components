@@ -863,7 +863,7 @@ export function agentMain() {
     const mainAxis = (lay, a) => (lay === "page flow" || lay === "flex column" ? a === "y" : lay === "flex row" ? a === "x" : false);
     const crossAxis = (lay, a) => (lay === "flex row" ? a === "y" : lay === "flex column" ? a === "x" : lay === "grid" ? a === "y" : false);
     /** The line, among the container's edges and centre, its neighbours' edges and the spacing used between them, that `start` .. `start + size` is close to. */
-    function nearestLine(n, a, start, size) {
+    function containerLine(n, a, start, size) {
         const S = a, Z = a === "x" ? "w" : "h", main = mainAxis(n.lay, a);
         const lines = [{ at: n.box[S], e: "s", k: "start" }, { at: n.box[S] + n.box[Z] / 2, e: "c", k: "centre" }, { at: n.box[S] + n.box[Z], e: "e", k: "end" }];
         const sibs = n.others.filter((o) => !main || o.before);
@@ -896,7 +896,7 @@ export function agentMain() {
         ["x", "y"].forEach((a) => {
             const Z = a === "x" ? "w" : "h", mProp = a === "x" ? "margin-left" : "margin-top";
             let want = n.r0[a] + (a === "x" ? dx : dy);
-            const hit = e.metaKey ? null : nearestLine(n, a, want, n.r0[Z]); // Cmd: no snapping
+            const hit = e.metaKey ? null : containerLine(n, a, want, n.r0[Z]); // Cmd: no snapping
             if (hit) want += hit.d;
             const set = (p, v) => el.style.setProperty(p, v);
             // across the axis of a flex or grid box: align-self, if the element keeps its size and lands on the line
@@ -1008,7 +1008,7 @@ export function agentMain() {
             nudgeStart(tmp);
             const n = tmp.nudge;
             if (r.w < n.box.w - 1) {
-                const at = g.rect.x + (e.clientX - g.sx), hit = nearestLine(n, "x", at, r.w);
+                const at = g.rect.x + (e.clientX - g.sx), hit = containerLine(n, "x", at, r.w);
                 if (hit && (hit.k === "centre" || hit.k === "end")) {
                     const props = lay === "flex column" ? { "align-self": hit.k === "centre" ? "center" : "flex-end" } : hit.k === "centre" ? { "margin-left": "auto", "margin-right": "auto" } : { "margin-left": "auto" };
                     const was = inlineOf(el, Object.keys(props));
