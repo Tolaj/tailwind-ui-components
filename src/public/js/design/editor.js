@@ -12,6 +12,7 @@ import { selectionHtml } from "./selection-overlay.js";
 import { openColorPicker, closeColorPicker, colorPickerOpener } from "./color-picker.js";
 import { CSS_PROP_LIST, normalizeValue } from "./css-props.js";
 import { highlight, checkTags, formatHtml, lineNumbers } from "./code-view.js";
+import { host } from "./host.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -30,7 +31,7 @@ if (!data.id && new URLSearchParams(window.location.search).has("draft")) {
             sessionStorage.removeItem("wc:draft");
         }
     } catch { /* ignore a bad draft */ }
-    window.history.replaceState({}, "", "/design/new");
+    host.showDesign(null);
 }
 
 // Back returns to wherever the editor was opened from (the Library link is the fallback).
@@ -942,7 +943,7 @@ const setClassString = (next) => { selected.classes = next; cmd({ cmd: "setClass
 /** Changes the element at `path` (whose code is `outer`) as asked. Returns { ok, message? } for the AI tab to show. */
 async function askAI(path, outer, prompt) {
     try {
-        const html = await streamAI({
+        const html = await host.generate({
             prompt: `${prompt}\n\nReturn ONLY the full modified HTML of this single element, keeping the same root tag. No explanation and no code fences.`,
             currentHtml: outer,
             useLibrary: false,
@@ -981,34 +982,26 @@ $("redoBtn").addEventListener("click", () => step(1));
 window.addEventListener("resize", layout);
 
 const DEFAULT_CATEGORY = "apps-general";
-const JSON_HEADERS = { "Content-Type": "application/json" };
 
 /** Writes one design: creates it the first time, a new version after that. */
 async function persist(d) {
     const m = d.meta;
     const body = { htmlCode: assembleDoc(d.parsed, d.markup) };
     if (d.isNew) {
-        const res = await fetch("/api/components", {
-            method: "POST", headers: JSON_HEADERS,
-            body: JSON.stringify({
-                ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
-                tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
-            }),
+        const saved = await host.createComponent({
+            ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
+            tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
         });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
-        m.id = json.data._id;
-        m.version = json.data.version || 1;
+        m.id = saved._id;
+        m.version = saved.version || 1;
         d.isNew = false;
         const old = d.key;
         remapKey(old, m.id);
         if (d.board && m.project) saveBoard([boardPayload([m.id, d.board])]);
-        if (m.id === curKey) window.history.replaceState({}, "", `/design/${m.id}`);
+        if (m.id === curKey) host.showDesign(m.id);
     } else {
-        const res = await fetch(`/api/components/${m.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ ...body, note: "Edited in design canvas" }) });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
-        m.version = json.data.version;
+        const saved = await host.updateComponent(m.id, { ...body, note: "Edited in design canvas" });
+        m.version = saved.version;
     }
     d.savedMarkup = d.markup;
 }
@@ -1359,32 +1352,10 @@ function addToEmpty(html) {
 }
 
 // ── An empty page: draft it with AI (the Page panel's Generate) ──────────────
-async function streamAI(body, onText) {
-    const res = await fetch("/api/ai/generate-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "AI request failed");
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "", out = "";
-    for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-        for (const part of parts) {
-            if (!part.startsWith("data:")) continue;
-            let ev; try { ev = JSON.parse(part.slice(5)); } catch { continue; }
-            if (ev.type === "delta") { out += ev.text; onText && onText(out); }
-            if (ev.type === "error") throw new Error(ev.message);
-        }
-    }
-    return out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
-}
-
 /** Drafts the whole (empty) page from a description. Returns { ok, message? } for the page panel to show. */
 async function draftPage(prompt) {
     try {
-        const html = await streamAI({ prompt, useLibrary: true });
+        const html = await host.generate({ prompt, useLibrary: true });
         if (!html.startsWith("<")) throw new Error("The AI didn't return HTML. Try rephrasing.");
         parsed = parseComponentSource(html);
         commit(parsed.markup);
@@ -1411,12 +1382,11 @@ $("dProject").addEventListener("change", async (e) => {
     if (e.target.value !== "__new__") return;
     const name = prompt("Project name");
     if (!name || !name.trim()) { fillProjects(); return; }
-    const res = await fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-    const json = await res.json();
-    if (!json.success) { alert(json.message || "Could not create the project"); return fillProjects(); }
-    (data.projects ||= []).push({ id: json.data.id, name: json.data.name });
+    let project;
+    try { project = await host.createProject(name); } catch (err) { alert(err.message || "Could not create the project"); return fillProjects(); }
+    (data.projects ||= []).push(project);
     fillProjects();
-    $("dProject").value = json.data.id;
+    $("dProject").value = project.id;
 });
 
 function openDetails() {
@@ -1441,27 +1411,16 @@ $("detailsForm").addEventListener("submit", async (e) => {
     const err = $("detailsError");
     $("detailsSave").disabled = true;
     try {
-        let res;
-        if (isNew) {
-            res = await fetch("/api/components", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...fields, htmlCode: assemble() }),
-            });
-        } else {
-            res = await fetch(`/api/components/${data.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) });
-        }
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
+        const saved = isNew ? await host.createComponent({ ...fields, htmlCode: assemble() }) : await host.updateComponent(data.id, fields);
         const movedProject = (data.project ? data.project.id : "") !== fields.project;
         data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
         Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
         if (isNew) {
-            data.id = json.data._id;
-            data.version = json.data.version || 1;
+            data.id = saved._id;
+            data.version = saved.version || 1;
             isNew = false;
             savedMarkup = model.markup;
-            window.history.replaceState({}, "", `/design/${data.id}`);
+            host.showDesign(data.id);
             const d = docs.get(curKey);
             if (d.board && data.project) saveBoard([boardPayload([data.id, d.board])]);
             remapKey(curKey, data.id);
@@ -1469,7 +1428,7 @@ $("detailsForm").addEventListener("submit", async (e) => {
         dlg.close();
         updateChrome();
         // the plane belongs to a project, so a design that moved to another one reloads onto that project's plane
-        if (movedProject && !anyDirty()) window.location.href = `/design/${data.id}`;
+        if (movedProject && !anyDirty()) host.openDesign(data.id);
     } catch (error) {
         err.textContent = error.message || "Could not save";
         err.classList.remove("hidden");
@@ -1675,7 +1634,7 @@ function activate(key) {
     setRole(key);
     setRole(oldKey);
     mountGhost(oldKey, true);
-    window.history.replaceState({}, "", next.isNew ? "/design/new" : `/design/${next.meta.id}`);
+    host.showDesign(next.isNew ? null : next.meta.id);
     let started = false;
     const start = () => {
         if (started || token !== switchToken) return;
@@ -1701,7 +1660,7 @@ let saveTimer = null;
 async function saveBoard(positions) {
     if (!planeProject) return;
     try {
-        await fetch(`/api/projects/${planeProject.id}/layout`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ positions }) });
+        await host.saveLayout(planeProject.id, positions);
     } catch { /* the position stays on screen; the next drag saves it again */ }
 }
 function queueBoardSave(key) {
@@ -1719,9 +1678,7 @@ function flushBoard() {
     saveBoard(positions);
 }
 window.addEventListener("beforeunload", () => {
-    if (pendingSave.size && planeProject && navigator.sendBeacon) {
-        navigator.sendBeacon(`/api/projects/${planeProject.id}/layout`, new Blob([JSON.stringify({ positions: [...pendingSave].map(boardPayload) })], { type: "application/json" }));
-    }
+    if (pendingSave.size && planeProject) host.saveLayoutOnExit(planeProject.id, [...pendingSave].map(boardPayload));
 });
 
 let gesture = null;
@@ -1872,9 +1829,7 @@ async function setPageGroup(key, text) {
     const isNewDoc = key === curKey ? isNew : d.isNew;
     if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its group when it is saved
     try {
-        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ group: next }) });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
+        await host.updateComponent(d.meta.id, { group: next });
     } catch (err) {
         apply(prev);
         alert(err.message || "Could not change the group");
@@ -1887,9 +1842,7 @@ async function renameFrame(key, name, previous) {
     apply(name);
     if (isNewDoc || !d.meta.id) return; // a design that isn't saved yet takes its name when it is
     try {
-        const res = await fetch(`/api/components/${d.meta.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ title: name }) });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
+        await host.updateComponent(d.meta.id, { title: name });
     } catch (err) {
         apply(previous);
         alert(err.message || "Could not rename it");
@@ -1969,13 +1922,10 @@ async function ensureProject() {
     if (planeProject) return planeProject;
     const name = prompt("Designs that share a canvas live in a project. Name this project:", data.title || "My project");
     if (!name || !name.trim()) return null;
-    const res = await fetch("/api/projects", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ name }) });
-    const json = await res.json();
-    if (!json.success) { alert(json.message || "Could not create the project"); return null; }
-    const project = { id: json.data.id, name: json.data.name };
+    let project;
+    try { project = await host.createProject(name); } catch (err) { alert(err.message || "Could not create the project"); return null; }
     if (!isNew) {
-        const put = await fetch(`/api/components/${data.id}`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ project: project.id }) });
-        if (!(await put.json()).success) { alert("Could not add this design to the project"); return null; }
+        try { await host.updateComponent(data.id, { project: project.id }); } catch { alert("Could not add this design to the project"); return null; }
     }
     planeProject = project;
     (data.projects ||= []).push(project);
