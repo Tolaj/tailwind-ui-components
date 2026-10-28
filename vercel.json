@@ -8,7 +8,8 @@
                 "includeFiles": [
                     "src/views/**",
                     "src/public/**",
-                    "packages/**"
+                    "packages/**",
+                    "catalog/**"
                 ],
                 "maxDuration": 60
             }

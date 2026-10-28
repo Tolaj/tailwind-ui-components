@@ -14,6 +14,7 @@ import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
 import designRoutes from "./design.routes.js";
 import { projectPages, projectApi } from "./project.routes.js";
+import { catalogPages, catalogApi } from "./catalog.routes.js";
 
 import {
     redirectIfAuthenticated,
@@ -49,6 +50,8 @@ const constructorMethod = (app) => {
     app.use("/design", ensureAuth, designRoutes);
     app.use("/projects", ensureAuth, projectPages);
     app.use("/api/projects", ensureAuthAPI, projectApi);
+    app.use("/catalog", catalogPages);
+    app.use("/api/catalog", catalogApi);
 
 
     app.use("/", infoRoutes);

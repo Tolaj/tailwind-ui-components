@@ -218,7 +218,19 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | Project page **Theme** tab: brand colour with live scale, gray, font, corners, Apply (redraws the previews) | **Done**, checked in a test harness; the real page needs sign-in |
 | Exports carry the theme config, so a part pasted elsewhere keeps its look | **Phase 3** (with the catalog's export tabs) |
 
-## 12. What I have not verified
+## 12. Phase 3 progress (catalog engine), first slice
+
+| Item | State |
+|---|---|
+| Part format: `catalog/<family>/family.js` (one template, styles + axes), `catalog/order.json`; served to the browser as `/catalog-src` and included in the Vercel bundle | **Done** |
+| First family: **Button** (6 styles × 5 sizes, 6 states, 4 icon forms, a button group) | **Done** |
+| Checks (`test/catalog.test.js`): theme tokens only, no raw hex or inline style, focus-visible ring, disabled look, dark styles, ARIA for icon-only and loading, balanced markup | **Done** (contrast check still to do) |
+| Public pages `/catalog` and `/catalog/:family`: customise a part, live matrix of styles × sizes, states, icons, compositions; theme and dark switch; code tabs HTML / React / Vue / Svelte; copy; "Theme setup for Tailwind" snippet | **Done** |
+| **Add to project** (`POST /api/catalog/:slug/add`) creates a component in the chosen project with `origin: { family, variant }`; Catalog link in the nav | **Done** (needs sign-in; not exercised in a browser) |
+| Deviation from 5.6: the catalog is read from the files at runtime, not seeded into platform-owned projects in the database | Fewer moving parts; same result for users |
+| Search, MCP `list_catalog`, the remaining Tier 1 families, removing `isPublished` / Library / category pages | **Next** |
+
+## 13. What I have not verified
 
 This plan comes from the code I have read: the component and project models, the library and project routes, the editor and the
 docs. I have **not** audited every route, field and page for use, so the removals in section 2 marked "audit" must be checked
