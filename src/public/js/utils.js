@@ -45,24 +45,73 @@ style.textContent = `
 
 document.head.appendChild(style);
 
-async function saveToLibrary(id, button) {
-    const label = button.textContent;
-    button.disabled = true;
-    button.textContent = "Saving...";
+// ── Save into a project / open in the editor ──────────────────────────────────
+// Both start the same way: choose a project (or name a new one). Save puts a private copy there; Open in editor then opens that copy.
+const LAST_PROJECT = "wc:lastProject";
+let projectCard = null;
+function closeProjectCard() { if (projectCard) { projectCard.remove(); projectCard = null; } }
+document.addEventListener("click", (e) => { if (projectCard && !projectCard.contains(e.target) && !e.target.closest("[data-card-action]")) closeProjectCard(); });
+
+async function chooseProject(id, mode, btn) {
+  if (!btn.dataset.signedIn) {
+    const back = new URL(location.href);
+    back.searchParams.set(mode === "edit" ? "edit" : "save", id);
+    location.href = `/auth/sign-in?returnTo=${encodeURIComponent(back.pathname + back.search)}`;
+    return;
+  }
+  closeProjectCard();
+  let projects = [];
+  try { projects = (await (await fetch("/api/projects")).json()).data || []; } catch { /* no list: a new project can still be named */ }
+  let last = ""; try { last = localStorage.getItem(LAST_PROJECT) || ""; } catch { /* storage is optional */ }
+  const pick = projects.find((p) => p.id === last) || projects.find((p) => p.active) || projects[0];
+  const card = document.createElement("div");
+  card.className = "absolute z-50 w-72 rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.16)]";
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  card.innerHTML = `<p class="mb-2 font-semibold text-gray-900">${mode === "edit" ? "Open in editor, in which project?" : "Save to which project?"}</p>
+    ${projects.length ? `<select class="h-9 w-full rounded-md border border-gray-300 px-2 text-sm">${projects.map((p) => `<option value="${p.id}" ${pick && p.id === pick.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}<option value="__new__">New project…</option></select>` : ""}
+    <input type="text" maxlength="80" placeholder="Name the new project" class="${projects.length ? "hidden " : ""}mt-2 h-9 w-full rounded-md border border-gray-300 px-2 text-sm">
+    <p class="mt-2 hidden text-xs text-red-700" data-err></p>
+    <div class="mt-3 flex justify-end gap-2"><button type="button" data-cancel class="h-8 rounded-md border border-gray-300 px-3 text-xs font-medium text-gray-800 hover:bg-gray-50">Cancel</button><button type="button" data-go class="h-8 rounded-md bg-black px-3 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50">${mode === "edit" ? "Open in editor" : "Save"}</button></div>`;
+  const r = btn.getBoundingClientRect();
+  card.style.top = `${window.scrollY + r.bottom + 6}px`;
+  card.style.left = `${Math.max(8, Math.min(window.scrollX + r.right - 288, window.scrollX + document.documentElement.clientWidth - 296))}px`;
+  document.body.appendChild(card);
+  projectCard = card;
+  const sel = card.querySelector("select"), name = card.querySelector("input"), err = card.querySelector("[data-err]"), go = card.querySelector("[data-go]");
+  if (sel) sel.addEventListener("change", () => { name.classList.toggle("hidden", sel.value !== "__new__"); if (sel.value === "__new__") name.focus(); });
+  card.querySelector("[data-cancel]").addEventListener("click", closeProjectCard);
+  go.addEventListener("click", async () => {
+    const body = !sel || sel.value === "__new__" ? { projectName: name.value.trim() } : { project: sel.value };
+    if (body.projectName === "") { err.textContent = "Name the project first."; err.classList.remove("hidden"); return; }
+    go.disabled = true; err.classList.add("hidden");
     try {
-        const res = await fetch(`/api/components/${id}/fork`, { method: "POST" });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message);
-        button.textContent = json.existing ? "Already in library" : "Saved to library";
-        button.onclick = () => (location.href = "/library");
-        button.title = "Open your library";
-    } catch (err) {
-        button.textContent = label;
-        alert(err.message || "Could not save to library");
-    } finally {
-        button.disabled = false;
+      const res = await fetch(`/api/components/${id}/fork`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Could not save it");
+      try { localStorage.setItem(LAST_PROJECT, json.project.id); } catch { /* storage is optional */ }
+      if (mode === "edit") { location.href = `/design/${json.id}`; return; }
+      closeProjectCard();
+      btn.textContent = "Saved";
+      btn.title = `Saved in ${json.project.name}: open the project`;
+      btn.onclick = () => (location.href = `/projects/${json.project.id}`);
+    } catch (e2) {
+      err.textContent = e2.message; err.classList.remove("hidden"); go.disabled = false;
     }
+  });
 }
+// back from signing in with ?save=<id> or ?edit=<id>: carry on where the person left off
+document.addEventListener("DOMContentLoaded", () => {
+  const url = new URL(location.href);
+  for (const mode of ["save", "edit"]) {
+    const id = url.searchParams.get(mode);
+    if (!id) continue;
+    url.searchParams.delete(mode);
+    history.replaceState({}, "", url.pathname + url.search);
+    const btn = document.querySelector(`[data-card-action="${mode}"][data-card-id="${CSS.escape(id)}"]`);
+    if (btn && btn.dataset.signedIn) chooseProject(id, mode, btn);
+    break;
+  }
+});
 
 // ── Likes ────────────────────────────────────────────────────────────────────
 function paintLike(btn, liked, count) {

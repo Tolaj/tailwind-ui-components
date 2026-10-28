@@ -76,18 +76,13 @@
                 <span class="like-count">{{#if likes}}{{likes}}{{else}}0{{/if}}</span>
             </button>
 
-            <!-- Save to library -->
-            {{#if @root.user}}
-            <button onclick="saveToLibrary('{{_id}}', this)" title="Save a private copy to your library"
-                class="h-8 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">
-                Save to library
-            </button>
-            {{else}}
-            <a href="/auth/sign-in" title="Sign in to save to your library"
-                class="inline-flex h-8 items-center rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">
-                Save to library
-            </a>
-            {{/if}}
+            <!-- Save into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
+            <button type="button" onclick="chooseProject('{{_id}}', 'save', this)" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                title="Save a private copy in one of your projects"
+                class="h-8 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">Save</button>
+            <button type="button" onclick="chooseProject('{{_id}}', 'edit', this)" data-card-action="edit" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                title="Make your own copy in a project and open it in the editor"
+                class="h-8 rounded-md bg-black px-2.5 text-xs font-medium text-white hover:bg-neutral-800 whitespace-nowrap">Open in editor</button>
 
             <!-- Copy -->
             <button onclick="copyCode('{{_id}}')" id="copy-btn-{{_id}}"

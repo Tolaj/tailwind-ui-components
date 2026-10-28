@@ -277,7 +277,7 @@ export const exportComponentCode = async (req, res) => {
 };
 
 
-// Save a gallery component (or your own) as a private copy in your library
+// Save a gallery design (or your own) as a private copy in one of your projects
 export const forkComponent = async (req, res) => {
     try {
         const userId = req.session.user.id;
@@ -286,9 +286,18 @@ export const forkComponent = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Component not found' });
         }
 
-        const existing = await Component.findOne({ createdBy: userId, forkedFrom: source._id }).select('_id').lean();
+        // every design belongs to a project: the one chosen, or a new one named in `projectName`
+        const { project: projectRef, projectName } = req.body || {};
+        const project = projectName && String(projectName).trim()
+            ? await resolveProject(userId, String(projectName).trim().slice(0, 80), { create: true })
+            : await resolveProject(userId, projectRef);
+        if (!project) return res.status(400).json({ success: false, message: 'Choose a project to save it in' });
+        const into = { id: String(project._id), name: project.name };
+
+        // already saved in this project: that copy, not a second one
+        const existing = await Component.findOne({ createdBy: userId, forkedFrom: source._id, project: project._id }).select('_id').lean();
         if (existing) {
-            return res.status(200).json({ success: true, existing: true, id: String(existing._id) });
+            return res.status(200).json({ success: true, existing: true, id: String(existing._id), project: into });
         }
 
         const copy = await Component.create({
@@ -299,10 +308,12 @@ export const forkComponent = async (req, res) => {
             tags: source.tags,
             createdBy: userId,
             forkedFrom: source._id,
+            project: project._id,
+            kind: "component",
             profile: source.profile || buildProfile(source.htmlCode),
             isPublished: false,
         });
-        res.status(201).json({ success: true, existing: false, id: String(copy._id) });
+        res.status(201).json({ success: true, existing: false, id: String(copy._id), project: into });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

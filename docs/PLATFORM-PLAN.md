@@ -45,8 +45,8 @@ It is free.
 | Needed | State today |
 |---|---|
 | Gallery home, category pages, design page with Preview / Code / phone / full screen / format / copy | **Exists** |
-| Design page: **Save** into a chosen project | **Change**: today "Save to library" copies it into the library with no project |
-| Design page: **Open in editor** | **New** |
+| Design page: **Save** into a chosen project | **Done**: a project chooser (the last one used, or your active one, is preselected; or name a new project); a copy already saved in that project is reused, not duplicated |
+| Design page: **Open in editor** | **Done**: same chooser, then opens your copy in the editor. Signed out, both buttons go to sign in and then carry on |
 | **Likes**: button, count, most liked first, sign-in-then-like | **Done**: `likes` and `likedBy` are back; `POST /api/components/:id/like` (signed in; one like per person; counts once even if sent twice); the Like button shows on the design card; category pages sort by likes, then newest; signed out, it goes to sign in and the like is counted when the person returns; `/component/:id` now opens only published designs (or your own) |
 | **Report** button and a way for the owner to review and remove | **New** |
 | **Public** switch on a design in a project | **Change**: a publish flag exists in the data and in the editor's Details form; it needs to become a switch on the project page and in the editor |
