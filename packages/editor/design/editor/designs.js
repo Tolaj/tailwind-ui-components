@@ -387,6 +387,18 @@ export function setFrameSize(sz) {
     layout();
 }
 
+/**
+ * Records where a page sits now as its board position, if it has none. A page without one is placed automatically, in the slot its
+ * order gives it, so once another page holds a saved position the two can land on the same spot after a reload. Done for every page
+ * when a page is added, and for a page when it is first saved.
+ */
+export function pinBoard(key, queue = true) {
+    const d = docs.get(key), p = positions()[key];
+    if (!d || d.board || !p) return;
+    d.board = { x: Math.round(p.x), y: Math.round(p.y) };
+    if (queue) queueBoardSave(key); // (a design not saved yet is written by its first save)
+}
+
 // a new design on the same plane
 async function ensureProject() {
     if (planeProject) return planeProject;
@@ -534,6 +546,7 @@ $("newDesignBtn").addEventListener("click", async () => {
     const project = await ensureProject();
     if (!project) return;
     const key = `draft-${++draftCount}`;
+    [...docs.keys()].forEach(pinBoard); // the pages already here keep their places
     const spot = freeSpot();
     docs.set(key, {
         key, kind: "page", parent: null, board: spot, source: "", loaded: true, isNew: true, height: 0,

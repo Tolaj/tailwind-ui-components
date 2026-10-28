@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windcraft editor</title>
+    <!-- The page embedEditor() puts in an iframe. Map the package names the way the page that embeds it does (a bundler does the same). -->
+    <script type="importmap">{ "imports": { "@windcraft/core/": "/core/", "@windcraft/editor/": "/editor/" } }</script>
+    <style>html, body, #root { height: 100%; margin: 0; }</style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="./embed-frame.js"></script>
+</body>
+</html>

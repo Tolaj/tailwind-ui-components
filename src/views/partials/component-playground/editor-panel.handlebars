@@ -1,4 +1,4 @@
-<section class="flex w-1/2 min-w-0 flex-col border-r border-neutral-200 bg-neutral-50">
+<section class="flex w-[42%] min-w-0 flex-col border-r border-neutral-200 bg-neutral-50">
 
     {{!-- Pane header --}}
     <div class="flex h-11 items-center justify-between border-b border-neutral-200 bg-white px-4">
@@ -13,7 +13,7 @@
 
     {{!-- Code editor --}}
     <div class="relative flex-1 min-h-0">
-        <textarea id="htmlEditor" name="htmlEditor" required
+        <textarea id="htmlEditor" name="htmlEditor"
             class="absolute inset-0 h-full w-full resize-none border-0 bg-neutral-50 p-5 font-mono text-[13px] leading-6 text-neutral-900 placeholder-neutral-400 focus:bg-white focus:outline-none focus:ring-0 transition-colors"
             spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
             oninput="handleChangeEditor(event)"></textarea>

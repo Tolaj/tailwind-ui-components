@@ -1,5 +1,5 @@
 // The editor's page: toolbars, panels, the canvas and the dialogs. mountEditor() puts it in the page; the editor's code finds its parts by id.
-export const editorHtml = `<div class="flex h-screen flex-col">
+export const editorHtml = `<div class="flex h-full flex-col">
 
     <div class="flex min-h-0 flex-1">
                 <aside id="leftPanel" class="hidden w-[240px] shrink-0 flex-col border-r border-neutral-200 bg-white">
@@ -233,7 +233,7 @@ export const editorHtml = `<div class="flex h-screen flex-col">
                 <p class="mt-1 text-[11px] text-neutral-500">Tags help you, AI and coding agents find it.</p>
             </div>
             <div><label class="mb-1 block text-xs font-medium text-neutral-700" for="dProject">Project</label>
-                <select id="dProject" class="field" style="height:36px"></select>
+                <select id="dProject" class="field" style="height:36px" required></select>
             </div>
             <div><label class="mb-1 block text-xs font-medium text-neutral-700" for="dVis">Visibility</label>
                 <select id="dVis" class="field" style="height:36px">

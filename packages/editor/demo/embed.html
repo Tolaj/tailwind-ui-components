@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windcraft embedded editor demo</title>
+    <script type="importmap">{ "imports": { "@windcraft/core/": "/core/", "@windcraft/editor/": "/editor/" } }</script>
+    <style>
+        body { margin: 0; font: 13px system-ui; display: flex; height: 100vh; }
+        textarea { width: 40%; border: 0; border-right: 1px solid #ddd; padding: 16px; font: 12px/1.6 ui-monospace, monospace; resize: none; }
+        #host { flex: 1; min-width: 0; }
+        #bar { position: fixed; right: 12px; bottom: 12px; background: #111; color: #fff; padding: 6px 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <textarea id="code" spellcheck="false"></textarea>
+    <div id="host"></div>
+    <div id="bar">idle</div>
+    <script type="module" src="./embed-demo.js"></script>
+</body>
+</html>

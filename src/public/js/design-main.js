@@ -4,6 +4,10 @@ import { appHost } from "./app-host.js";
 
 const data = JSON.parse(document.getElementById("designData").textContent);
 
+// Opened from the Add component dialog (before the editor changes the address): Back, if the design isn't saved, returns to it.
+let returnTo = null;
+try { returnTo = !data.id && new URLSearchParams(window.location.search).has("draft") ? sessionStorage.getItem("wc:return") : null; } catch { /* storage unavailable */ }
+
 // Coming from the quick Add Component dialog: pick up the code and details it handed over.
 if (!data.id && new URLSearchParams(window.location.search).has("draft")) {
     try {
@@ -28,4 +32,19 @@ try {
 
 const root = document.createElement("div");
 document.body.append(root);
-await mountEditor(root, { host: appHost, data, back, tailwind: false }); // the layout already loads Tailwind
+const editor = await mountEditor(root, { host: appHost, data, back, tailwind: false }); // the layout already loads Tailwind
+
+const backLink = root.querySelector("#backLink");
+if (returnTo && backLink) {
+    backLink.title = "Back to the new component";
+    backLink.addEventListener("click", (e) => {
+        try {
+            if (!editor.details().isNew) { sessionStorage.removeItem("wc:return"); return; } // saved from here: Back is the usual Back
+            e.preventDefault();
+            sessionStorage.setItem("wc:resume", JSON.stringify({ html: editor.getHtml(), ...editor.details() }));
+            sessionStorage.removeItem("wc:return");
+            editor.release();
+            window.location.href = returnTo;
+        } catch { /* storage unavailable: the usual Back */ }
+    });
+}

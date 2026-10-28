@@ -24,7 +24,7 @@ const host = {
         return next;
     },
     async createProject(name) { return { id: id(), name }; },
-    async saveLayout() {},
+    async saveLayout(projectId, positions) { (window.__layouts ||= []).push({ projectId, positions }); },
     saveLayoutOnExit() {},
     async generate() { throw new Error("The AI is not connected in this demo."); },
     showDesign(docId) { history.replaceState({}, "", docId ? `?design=${docId}` : location.pathname); },
@@ -37,5 +37,5 @@ await mountEditor(document.getElementById("root"), {
     host,
     data: saved
         ? { id: saved._id, title: saved.title, htmlCode: saved.htmlCode, version: saved.version, category: saved.category, description: saved.description, tags: String(saved.tags || "").split(",").filter(Boolean), categories }
-        : { title: "My design", category: "demo", description: "A demo design", categories },
+        : { title: "My design", category: new URLSearchParams(location.search).has("blank") ? "" : "demo", description: "A demo design", categories }, // ?blank: a first save asks for details, as on a new design
 });

@@ -1,8 +1,9 @@
 import { host } from "../host.js";
+import { config } from "../config.js";
 import { $, S, data, send } from "./base.js";
 import { assembleDoc, loadFrame, step, updateChrome } from "./docs.js";
 import { applyView, canvas, canvasSize, fitTo, handleWheel, layout, view, zoomAt } from "./plane.js";
-import { activate, anyDirty, boardPayload, docDirty, docs, loadActiveFromStash, remapKey, saveBoard } from "./designs.js";
+import { activate, anyDirty, boardPayload, docDirty, docs, loadActiveFromStash, pinBoard, remapKey, saveBoard } from "./designs.js";
 import { openDetails } from "./add-menu.js";
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ async function persist(d) {
         const old = d.key;
         remapKey(old, m.id);
         if (S.draftKey && old === S.draftKey) { S.draftKey = null; if (saved.figmaSource) setupFigmaButton(saved.figmaSource, m.id); } // after the key moved: the button shows for the design being edited
+        if (m.project) pinBoard(m.id, false);
         if (d.board && m.project) saveBoard([boardPayload([m.id, d.board])]);
         if (m.id === S.curKey) host.showDesign(m.id);
     } else {
@@ -49,7 +51,7 @@ async function persist(d) {
     d.savedMarkup = d.markup;
 }
 
-async function save() {
+export async function save() {
     if (!anyDirty()) return;
     const dirty = [...docs.values()].filter(docDirty);
     const needsDetails = dirty.find((d) => d.isNew && !d.meta.category);
@@ -138,8 +140,8 @@ function renderTools() {
     const menu = $("shapeMenu");
     const open = Boolean(menu) && !menu.classList.contains("hidden");
     const sh = SHAPES.find(([id]) => id === shape);
-    $("toolbar").innerHTML = TOOLS.map(([id, label, key], i) => {
-        const sep = i === 3 ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : "";
+    $("toolbar").innerHTML = TOOLS.filter(([id]) => !config.ui.tools || config.ui.tools.includes(id)).map(([id, label, key]) => {
+        const sep = id === "frame" && (!config.ui.tools || config.ui.tools.includes("move")) ? '<span class="mx-1 h-5 w-px bg-neutral-200"></span>' : "";
         if (id === "shape") {
             return `<div class="relative flex items-center"><button type="button" data-tool="${shape}" data-shapebtn title="${sh[1]} (${sh[2]})" class="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100">${toolIcon(shape)}</button><button type="button" id="shapeMore" title="More shapes" class="flex h-8 w-5 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100">${CHEVRON}</button>
                 <div id="shapeMenu" class="pop absolute left-0 top-10 z-50 ${open ? "" : "hidden"} w-48 p-1">${SHAPES.map(([sid, sl, sk], j) => `${j === 2 ? '<div class="my-1 h-px bg-neutral-100"></div>' : ""}<button type="button" data-shape="${sid}" class="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] hover:bg-neutral-100">${toolIcon(sid)}<span>${sl}</span><span class="ml-auto text-neutral-400">${sk}</span></button>`).join("")}</div></div>`;
@@ -264,5 +266,5 @@ export function init() {
         handleWheel({ dx: e.deltaX, dy: e.deltaY, zoomKey: e.ctrlKey || e.metaKey, cx: e.clientX - r.left, cy: e.clientY - r.top });
     }, { passive: false });
 
-    window.addEventListener("beforeunload", (e) => { if (anyDirty()) { e.preventDefault(); e.returnValue = ""; } });
+    window.addEventListener("beforeunload", (e) => { if (!config.leaving && anyDirty()) { e.preventDefault(); e.returnValue = ""; } });
 }

@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { agentMain } from "../agent.js";
 import { buildPreviewDocument, parseComponentSource } from "../../playground/component-source.js";
 import { panelStore } from "../panel-state.js";
@@ -76,6 +77,7 @@ export function updateChrome() {
     if (!codeFocused()) syncCode();
     renderDesigns();
     refreshLabels();
+    if (config.hooks.chrome) config.hooks.chrome();
 }
 
 export function commit(html, key) {

@@ -1,10 +1,11 @@
 import { host } from "../host.js";
+import { config } from "../config.js";
 import { parseComponentSource } from "../../playground/component-source.js";
 import { $, S, data, esc, model } from "./base.js";
 import { cmd } from "./frame-messages.js";
 import { assemble, commit, loadFrame, updateChrome } from "./docs.js";
 import { renderInspector } from "./inspector.js";
-import { anyDirty, boardPayload, docs, remapKey, saveBoard } from "./designs.js";
+import { anyDirty, boardPayload, docs, pinBoard, remapKey, saveBoard } from "./designs.js";
 
 // ── Add menu: build from blocks ──────────────────────────────────────────────
 const BLOCKS = [
@@ -48,11 +49,19 @@ const dlg = $("detailsDlg");
 
 function fillProjects() {
     const cur = data.project ? data.project.id : "";
-    $("dProject").innerHTML = `<option value="">No project</option>` + (data.projects || []).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("") + `<option value="__new__">New project...</option>`;
-    $("dProject").value = cur;
+    $("dProject").innerHTML = `<option value="" disabled>Choose a project</option>` + (data.projects || []).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("") + `<option value="__new__">New project...</option>`;
+    const first = (data.projects || [])[0];
+    $("dProject").value = cur || (first ? first.id : ""); // every design belongs to a project
 }
 
+/** What the details dialog shows now: the design's name, category, tags... (also what the app's own details form starts from). */
+export const detailsOf = () => ({
+    title: data.title || "", category: data.category || "", description: data.description || "", tags: (data.tags || []).join(", "),
+    isPublished: data.isPublished, project: data.project ? data.project.id : "", isNew: S.isNew,
+});
+
 export function openDetails() {
+    if (config.hooks.details) return config.hooks.details(detailsOf()); // the app shows its own form and answers with saveDetails()
     fillProjects();
     $("dTitle").value = data.title || "";
     $("dCategory").value = data.category || "";
@@ -63,6 +72,31 @@ export function openDetails() {
     $("detailsSave").textContent = S.isNew ? "Create component" : "Save details";
     $("detailsError").classList.add("hidden");
     dlg.showModal();
+}
+
+/** Saves the design's details (and, the first time, the design itself). Rejects with the reason when it can't. */
+export async function saveDetails(fields) {
+    const fromDraft = S.isNew && S.draftKey && S.draftKey === S.curKey; // a design opened from a Figma draft: its Figma data moves to the new page
+    const saved = S.isNew ? await host.createComponent({ ...fields, htmlCode: assemble(), ...(fromDraft ? { draftId: data.draftId } : {}) }) : await host.updateComponent(data.id, fields);
+    const movedProject = (data.project ? data.project.id : "") !== (fields.project || "");
+    data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
+    Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: String(fields.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: String(fields.isPublished) === "true" });
+    if (S.isNew) {
+        data.id = saved._id;
+        data.version = saved.version || 1;
+        S.isNew = false;
+        S.savedMarkup = model.markup;
+        host.showDesign(data.id);
+        const d = docs.get(S.curKey);
+        if (data.project) pinBoard(S.curKey, false);
+        if (d.board && data.project) saveBoard([boardPayload([data.id, d.board])]);
+        remapKey(S.curKey, data.id);
+        if (fromDraft) { S.draftKey = null; if (saved.figmaSource) document.dispatchEvent(new CustomEvent("figma-source-ready", { detail: { info: saved.figmaSource, id: data.id } })); }
+    }
+    updateChrome();
+    // the plane belongs to a project, so a design that moved to another one reloads onto that project's plane
+    if (movedProject && !anyDirty()) host.openDesign(data.id);
+    return data;
 }
 
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
@@ -101,26 +135,8 @@ $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label=
         const err = $("detailsError");
         $("detailsSave").disabled = true;
         try {
-            const fromDraft = S.isNew && S.draftKey && S.draftKey === S.curKey; // a design opened from a Figma draft: its Figma data moves to the new page
-            const saved = S.isNew ? await host.createComponent({ ...fields, htmlCode: assemble(), ...(fromDraft ? { draftId: data.draftId } : {}) }) : await host.updateComponent(data.id, fields);
-            const movedProject = (data.project ? data.project.id : "") !== fields.project;
-            data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
-            Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: fields.tags.split(",").map((t) => t.trim()).filter(Boolean), isPublished: fields.isPublished === "true" });
-            if (S.isNew) {
-                data.id = saved._id;
-                data.version = saved.version || 1;
-                S.isNew = false;
-                S.savedMarkup = model.markup;
-                host.showDesign(data.id);
-                const d = docs.get(S.curKey);
-                if (d.board && data.project) saveBoard([boardPayload([data.id, d.board])]);
-                remapKey(S.curKey, data.id);
-                if (fromDraft) { S.draftKey = null; if (saved.figmaSource) document.dispatchEvent(new CustomEvent("figma-source-ready", { detail: { info: saved.figmaSource, id: data.id } })); }
-            }
+            await saveDetails(fields);
             dlg.close();
-            updateChrome();
-            // the plane belongs to a project, so a design that moved to another one reloads onto that project's plane
-            if (movedProject && !anyDirty()) host.openDesign(data.id);
         } catch (error) {
             err.textContent = error.message || "Could not save";
             err.classList.remove("hidden");

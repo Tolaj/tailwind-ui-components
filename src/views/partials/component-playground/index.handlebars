@@ -9,7 +9,7 @@
 
         <div class="flex min-h-full items-center justify-center p-4 sm:p-8">
             <el-dialog-panel
-                class="relative w-full max-w-6xl overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-[0_16px_48px_rgba(0,0,0,0.2)]">
+                class="relative w-full max-w-7xl overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-[0_16px_48px_rgba(0,0,0,0.2)]">
 
                 {{!-- Header --}}
                 <header class="flex h-14 items-center justify-between gap-4 border-b border-neutral-200 bg-white px-5">
@@ -17,19 +17,8 @@
                         <h2 id="editorTitle" class="text-[15px] font-semibold tracking-tight text-neutral-900 truncate">New component</h2>
                     </div>
 
-                    <ol class="hidden sm:flex items-center gap-2 text-[13px]" aria-label="Progress">
-                        <li id="stepIndicator1" class="flex items-center gap-2">
-                            <div class="h-2 w-2 rounded-full bg-neutral-900"></div>
-                            <span class="font-medium text-neutral-900">Code</span>
-                        </li>
-                        <li aria-hidden="true" class="h-px w-6 bg-neutral-200"></li>
-                        <li id="stepIndicator2" class="flex items-center gap-2">
-                            <div class="h-2 w-2 rounded-full bg-neutral-300"></div>
-                            <span class="font-medium text-neutral-400">Details</span>
-                        </li>
-                    </ol>
-
                     <div class="flex items-center gap-2">
+                        <span id="publishState" class="hidden text-[13px] text-neutral-500"></span>
                         <button id="fullEditorBtn" type="button" onclick="openFullEditor()" title="Open this in the full visual editor"
                             class="flex h-9 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 text-[13px] font-medium text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15m11.25 5.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>
@@ -37,29 +26,19 @@
                         </button>
                         <button id="cancelBtn" type="button" onclick="handleClose()"
                             class="h-9 rounded-md border border-neutral-300 bg-white px-3.5 text-[13px] font-medium text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50">
-                            Cancel
-                        </button>
-                        <button id="backBtn" type="button" onclick="handleBack()"
-                            class="hidden h-9 rounded-md border border-neutral-300 bg-white px-3.5 text-[13px] font-medium text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50">
-                            Back
-                        </button>
-                        <button id="nextBtn" type="button" onclick="handleNext()"
-                            class="h-9 rounded-md bg-black px-4 text-[13px] font-medium text-white transition-colors hover:bg-neutral-800">
-                            Continue
-                        </button>
-                        <button id="submitBtn" type="submit" form="componentForm"
-                            class="hidden h-9 rounded-md bg-black px-4 text-[13px] font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50">
-                            Publish
+                            Close
                         </button>
                     </div>
                 </header>
 
                 <div class="h-[calc(100vh-10rem)] min-h-[420px] flex flex-col">
                     <form id="componentForm" class="relative flex min-h-0 flex-1" method="POST"
-                        action="javascript:void(0);" onsubmit="handleSave(event)">
+                        action="javascript:void(0);" onsubmit="handleSave(event)" novalidate>
 
                         {{> component-playground/editor-panel}}
-                        {{> component-playground/preview-panel}}
+                        <section class="relative min-w-0 flex-1 bg-neutral-100">
+                            <div id="editorHost" class="absolute inset-0"></div>
+                        </section>
                         {{> component-playground/details-panel}}
 
                     </form>

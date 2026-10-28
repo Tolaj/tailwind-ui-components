@@ -1,4 +1,5 @@
 // The design editor: builds the page from its parts, in order (each part is in editor/).
+import { config } from "./config.js";
 import { mountDatalists } from "./panel-model.js";
 import { pref, setLeft, setPanel, setPanelTab } from "./editor/color-ui.js";
 import { setTool } from "./editor/toolbar.js";
@@ -29,8 +30,9 @@ init_color_ui();
 // ── Go ───────────────────────────────────────────────────────────────────────
 mountDatalists();
 setPanelTab("props");
-setPanel(pref("wc:panel") === "1");
-setLeft(pref("wc:left") === "1");
+const panels = config.ui.panels !== false;
+setPanel(panels && pref("wc:panel") === "1");
+setLeft(panels && pref("wc:left") === "1");
 setTool("move", true); // start on the arrow, highlighted in the toolbar
 buildWraps();
 updateChrome();

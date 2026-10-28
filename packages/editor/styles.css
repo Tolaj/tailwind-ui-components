@@ -384,3 +384,8 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .legend .edge { display: inline-block; width: 10px; height: 12px; margin: 0 3px -2px 0; border-radius: 2px; background: #f5f5f5; }
 .legend .edge.tw { box-shadow: inset 2px 0 0 #38bdf8; }
 .legend .edge.css { margin-left: 8px; box-shadow: inset 2px 0 0 #f59e0b; }
+
+/* mountEditor({ ui }): what an embedded editor leaves out */
+.wc-no-panels #leftPanel, .wc-no-panels #panel, .wc-no-panels #codePanel, .wc-no-panels #leftBtn, .wc-no-panels #panelBtn, .wc-no-panels #codeBtn { display: none !important; }
+.wc-no-nav #navGroup, .wc-no-nav #navSep { display: none !important; }
+.wc-no-add #addBtn { display: none !important; }
