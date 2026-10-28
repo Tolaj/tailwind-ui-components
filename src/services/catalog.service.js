@@ -21,7 +21,7 @@ export async function families() {
 export const family = async (slug) => (await families()).find((f) => f.slug === slug) || null;
 
 /** What a list needs from a family (no functions): name, description, tags, how many styles, one sample button. */
-export const summary = (f) => ({ slug: f.slug, name: f.name, description: f.description, tags: f.tags, styles: f.styles.length, previewClass: f.previewClass || "", sample: f.render ? f.render({}) : "" });
+export const summary = (f) => ({ slug: f.slug, name: f.name, description: f.description, tags: f.tags, styles: f.styles.length, sample: f.render ? f.render({}) : "" });
 
 /** The HTML a variant stands for, with its axes: the code a person copies (default state). */
 export function variantHtml(f, opts = {}) {

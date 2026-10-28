@@ -30,7 +30,7 @@ catalogApi.post("/:slug/add", ensureAuthAPI, async (req, res) => {
         const label = [f.name, f.styles.find((s) => s.slug === v.style).name, v.size, v.icon && v.icon !== "none" ? `icon ${v.icon}` : ""].filter(Boolean).join(" · ");
         const c = await Component.create({
             title: label, category: "apps-general", description: f.description, htmlCode: v.html, tags: f.tags,
-            project: project._id, kind: "component", createdBy: req.session.user.id,
+            project: project._id, kind: "component", isPublished: false, createdBy: req.session.user.id,
             origin: { family: f.slug, variant: [v.style, v.size, v.icon].filter(Boolean).join("/") },
         });
         res.status(201).json({ success: true, data: { id: String(c._id), project: String(project._id), title: label } });

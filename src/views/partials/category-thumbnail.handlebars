@@ -1,0 +1,302 @@
+{{!-- Unique wireframe thumbnails per category --}}
+
+{{#if (eq slug "marketing-hero")}}
+<div class="space-y-2 bg-white p-3 rounded-t-xl">
+    <div class="h-1.5 bg-gray-200 rounded w-1/3 mx-auto"></div>
+    <div class="h-3 bg-gray-300 rounded w-3/4 mx-auto mt-3"></div>
+    <div class="h-2 bg-gray-200 rounded w-2/3 mx-auto"></div>
+    <div class="flex justify-center gap-2 mt-3">
+        <div class="h-5 w-16 bg-primary rounded"></div>
+        <div class="h-5 w-16 border border-gray-300 rounded"></div>
+    </div>
+    <div class="h-8 bg-gray-100 rounded mt-2"></div>
+</div>
+
+{{else if (eq slug "marketing-pricing")}}
+<div class="flex gap-1.5 bg-white p-2 rounded-t-xl">
+    <div class="flex-1 border border-gray-200 rounded p-1.5 space-y-1">
+        <div class="h-1 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        <div class="h-2.5 bg-gray-300 rounded w-2/3 mx-auto"></div>
+        <div class="space-y-0.5 mt-1">
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+        </div>
+        <div class="h-3 bg-gray-200 rounded mt-1"></div>
+    </div>
+    <div class="flex-1 border-2 border-primary rounded p-1.5 space-y-1 shadow-sm">
+        <div class="h-1 bg-primary/20 rounded w-1/2 mx-auto"></div>
+        <div class="h-2.5 bg-primary rounded w-2/3 mx-auto"></div>
+        <div class="space-y-0.5 mt-1">
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+        </div>
+        <div class="h-3 bg-primary rounded mt-1"></div>
+    </div>
+    <div class="flex-1 border border-gray-200 rounded p-1.5 space-y-1">
+        <div class="h-1 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        <div class="h-2.5 bg-gray-300 rounded w-2/3 mx-auto"></div>
+        <div class="space-y-0.5 mt-1">
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+            <div class="h-0.5 bg-gray-100 rounded"></div>
+        </div>
+        <div class="h-3 bg-gray-200 rounded mt-1"></div>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-faq")}}
+<div class="space-y-1 bg-white p-3 rounded-t-xl">
+    <div class="h-2 bg-gray-300 rounded w-1/2 mx-auto mb-1.5"></div>
+    <div class="border border-gray-200 rounded p-1 flex justify-between items-center">
+        <div class="h-1.5 bg-gray-300 rounded w-2/3"></div>
+        <span class="text-[8px] text-gray-400 leading-none">+</span>
+    </div>
+    <div class="border border-primary/30 bg-primary/5 rounded p-1">
+        <div class="flex justify-between items-center">
+            <div class="h-1.5 bg-primary/40 rounded w-2/3"></div>
+            <span class="text-[8px] text-primary leading-none">−</span>
+        </div>
+        <div class="h-0.5 bg-gray-200 rounded w-full mt-1"></div>
+        <div class="h-0.5 bg-gray-200 rounded w-3/4 mt-0.5"></div>
+    </div>
+    <div class="border border-gray-200 rounded p-1 flex justify-between items-center">
+        <div class="h-1.5 bg-gray-300 rounded w-1/2"></div>
+        <span class="text-[8px] text-gray-400 leading-none">+</span>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-blog")}}
+<div class="bg-white p-3 rounded-t-xl">
+    <div class="h-2 bg-gray-300 rounded w-1/3 mb-2"></div>
+    <div class="grid grid-cols-3 gap-1.5">
+        <div class="space-y-1">
+            <div class="h-10 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4"></div>
+            <div class="h-1 bg-gray-200 rounded"></div>
+            <div class="h-1 bg-gray-200 rounded w-2/3"></div>
+        </div>
+        <div class="space-y-1">
+            <div class="h-10 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-2/3"></div>
+            <div class="h-1 bg-gray-200 rounded"></div>
+            <div class="h-1 bg-gray-200 rounded w-3/4"></div>
+        </div>
+        <div class="space-y-1">
+            <div class="h-10 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-1/2"></div>
+            <div class="h-1 bg-gray-200 rounded"></div>
+            <div class="h-1 bg-gray-200 rounded w-2/3"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-testimonials")}}
+<div class="bg-white p-3 rounded-t-xl space-y-2">
+    <div class="flex justify-center gap-0.5">
+        <div class="w-2 h-2 rounded-full bg-primary"></div>
+        <div class="w-2 h-2 rounded-full bg-primary"></div>
+        <div class="w-2 h-2 rounded-full bg-primary"></div>
+        <div class="w-2 h-2 rounded-full bg-primary"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-200"></div>
+    </div>
+    <div class="text-center px-2">
+        <div class="h-1.5 bg-gray-200 rounded w-full mb-1"></div>
+        <div class="h-1.5 bg-gray-200 rounded w-5/6 mx-auto mb-1"></div>
+        <div class="h-1.5 bg-gray-200 rounded w-2/3 mx-auto"></div>
+    </div>
+    <div class="flex items-center justify-center gap-1.5 mt-1">
+        <div class="w-5 h-5 rounded-full bg-gray-300"></div>
+        <div>
+            <div class="h-1.5 bg-gray-300 rounded w-12"></div>
+            <div class="h-1 bg-gray-200 rounded w-8 mt-0.5"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-team")}}
+<div class="bg-white p-3 rounded-t-xl">
+    <div class="h-2 bg-gray-300 rounded w-1/3 mx-auto mb-2"></div>
+    <div class="grid grid-cols-3 gap-2">
+        <div class="text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-gray-200 mx-auto"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        </div>
+        <div class="text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-gray-200 mx-auto"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        </div>
+        <div class="text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-gray-200 mx-auto"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-cards")}}
+<div class="bg-white p-2 rounded-t-xl">
+    <div class="grid grid-cols-2 gap-1.5">
+        <div class="border border-gray-200 rounded p-1.5 space-y-1">
+            <div class="h-8 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4"></div>
+            <div class="h-1 bg-gray-200 rounded"></div>
+            <div class="h-3 bg-primary rounded mt-1"></div>
+        </div>
+        <div class="border border-gray-200 rounded p-1.5 space-y-1">
+            <div class="h-8 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-2/3"></div>
+            <div class="h-1 bg-gray-200 rounded"></div>
+            <div class="h-3 bg-primary rounded mt-1"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "forms-subscribe")}}
+<div class="bg-white p-3 rounded-t-xl space-y-2">
+    <div class="text-center">
+        <div class="h-2.5 bg-gray-300 rounded w-2/3 mx-auto"></div>
+        <div class="h-1.5 bg-gray-200 rounded w-1/2 mx-auto mt-1"></div>
+    </div>
+    <div class="flex gap-1.5 mt-2">
+        <div class="flex-1 h-6 border border-gray-200 rounded"></div>
+        <div class="h-6 w-14 bg-primary rounded"></div>
+    </div>
+    <div class="h-1 bg-gray-200 rounded w-3/4 mx-auto"></div>
+</div>
+
+{{else if (eq slug "ecommerce-products")}}
+<div class="bg-white p-2 rounded-t-xl">
+    <div class="grid grid-cols-2 gap-1.5">
+        <div class="space-y-1">
+            <div class="h-12 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-3/4"></div>
+            <div class="h-1.5 bg-primary rounded w-1/3"></div>
+        </div>
+        <div class="space-y-1">
+            <div class="h-12 bg-gray-100 rounded"></div>
+            <div class="h-1 bg-gray-300 rounded w-2/3"></div>
+            <div class="h-1.5 bg-primary rounded w-1/3"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "layout-basic")}}
+<div class="bg-white p-2 rounded-t-xl">
+    <div class="border border-gray-200 rounded overflow-hidden">
+        <div class="h-3 bg-gray-200 flex items-center px-1">
+            <div class="h-1 bg-gray-400 rounded w-8"></div>
+        </div>
+        <div class="flex h-20">
+            <div class="w-1/4 border-r border-gray-200 p-1 space-y-1">
+                <div class="h-1 bg-gray-300 rounded"></div>
+                <div class="h-1 bg-gray-200 rounded"></div>
+                <div class="h-1 bg-gray-200 rounded"></div>
+            </div>
+            <div class="flex-1 p-1.5 space-y-1">
+                <div class="h-1.5 bg-gray-300 rounded w-1/2"></div>
+                <div class="h-1 bg-gray-200 rounded"></div>
+                <div class="h-1 bg-gray-200 rounded w-3/4"></div>
+                <div class="h-6 bg-gray-100 rounded mt-1"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "navigation-navbars")}}
+<div class="bg-white p-3 rounded-t-xl space-y-2">
+    <div class="border border-gray-200 rounded p-1.5 flex items-center justify-between">
+        <div class="h-2 bg-gray-400 rounded w-10"></div>
+        <div class="flex gap-1.5">
+            <div class="h-1.5 bg-gray-200 rounded w-6"></div>
+            <div class="h-1.5 bg-gray-200 rounded w-6"></div>
+            <div class="h-1.5 bg-gray-200 rounded w-6"></div>
+        </div>
+        <div class="h-3 w-10 bg-primary rounded"></div>
+    </div>
+    <div class="border border-gray-200 rounded p-1.5 flex items-center justify-between bg-gray-800">
+        <div class="h-2 bg-gray-400 rounded w-10"></div>
+        <div class="flex gap-1.5">
+            <div class="h-1.5 bg-gray-500 rounded w-6"></div>
+            <div class="h-1.5 bg-gray-500 rounded w-6"></div>
+            <div class="h-1.5 bg-gray-500 rounded w-6"></div>
+        </div>
+        <div class="h-3 w-10 bg-white rounded"></div>
+    </div>
+</div>
+
+{{else if (eq slug "marketing-features")}}
+<div class="bg-white p-3 rounded-t-xl">
+    <div class="h-2 bg-gray-300 rounded w-1/2 mx-auto mb-2"></div>
+    <div class="grid grid-cols-3 gap-1.5">
+        <div class="text-center space-y-1">
+            <div class="w-5 h-5 rounded bg-primary/10 mx-auto flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-sm bg-primary/30"></div>
+            </div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-full"></div>
+        </div>
+        <div class="text-center space-y-1">
+            <div class="w-5 h-5 rounded bg-primary/10 mx-auto flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-primary/30"></div>
+            </div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-full"></div>
+        </div>
+        <div class="text-center space-y-1">
+            <div class="w-5 h-5 rounded bg-primary/10 mx-auto flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-sm bg-primary/30"></div>
+            </div>
+            <div class="h-1 bg-gray-300 rounded w-3/4 mx-auto"></div>
+            <div class="h-1 bg-gray-200 rounded w-full"></div>
+        </div>
+    </div>
+</div>
+
+{{else if (eq slug "forms-authentication")}}
+<div class="bg-white p-3 rounded-t-xl">
+    <div class="border border-gray-200 rounded p-2 max-w-[70%] mx-auto space-y-1.5">
+        <div class="h-2 bg-gray-300 rounded w-1/2 mx-auto"></div>
+        <div class="h-4 border border-gray-200 rounded"></div>
+        <div class="h-4 border border-gray-200 rounded"></div>
+        <div class="h-4 bg-primary rounded"></div>
+        <div class="h-1 bg-gray-200 rounded w-2/3 mx-auto"></div>
+    </div>
+</div>
+
+{{else if (eq slug "ui-modals")}}
+<div class="bg-white p-3 rounded-t-xl">
+    <div class="bg-gray-100/80 rounded p-2 flex items-center justify-center h-full">
+        <div class="bg-white border border-gray-300 rounded shadow-lg p-2 w-[80%] space-y-1">
+            <div class="h-1.5 bg-gray-300 rounded w-1/2"></div>
+            <div class="h-1 bg-gray-200 rounded w-full"></div>
+            <div class="h-1 bg-gray-200 rounded w-3/4"></div>
+            <div class="flex justify-end gap-1 mt-1">
+                <div class="h-3 w-8 border border-gray-200 rounded"></div>
+                <div class="h-3 w-8 bg-primary rounded"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{else}}
+{{!-- Default fallback --}}
+<div class="space-y-3 bg-white p-3 rounded-t-xl">
+    <div class="flex items-center space-x-1 mb-4">
+        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+    </div>
+    <div class="space-y-2">
+        <div class="h-2 bg-gray-300 rounded w-2/3"></div>
+        <div class="h-1.5 bg-gray-200 rounded w-full"></div>
+        <div class="h-1.5 bg-gray-200 rounded w-3/4"></div>
+        <div class="inline-block bg-primary rounded px-2 py-1 mt-1">
+            <div class="h-1.5 w-8"></div>
+        </div>
+    </div>
+</div>
+{{/if}}

@@ -1,37 +1,100 @@
+<!-- Main Content Area -->
 <main class="flex-1">
+    <!-- Library hero -->
     <section class="mx-6 mt-6 rounded-xl border border-gray-200 bg-white p-6 md:p-8">
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Design in Tailwind, keep it as code</p>
-        <h1 class="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-gray-900 md:text-4xl">Projects, a theme, and a catalog of finished parts.</h1>
-        <p class="mt-3 max-w-2xl text-[15px] text-gray-600">Design pages on a canvas, write the code beside them, and keep everything in a project. Your theme restyles every part. Export to HTML, React, Vue or Svelte, and let coding agents read and write it over MCP.</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Component library</p>
+        <h1 class="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-gray-900 md:text-4xl">The component library your AI tools can actually use.</h1>
+        <p class="mt-3 max-w-2xl text-[15px] text-gray-600">Save components once. AI generation matches your design, every component exports to React, Vue and Svelte, and coding agents fetch them over MCP instead of guessing.</p>
         <div class="mt-5 flex flex-wrap items-center gap-3">
-            <a href="{{#if user}}/projects{{else}}/auth/sign-up{{/if}}" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">{{#if user}}Open your projects{{else}}Get started{{/if}}</a>
-            <a href="/catalog" class="inline-flex h-10 items-center rounded-md border border-gray-300 px-5 text-sm font-medium text-gray-800 hover:bg-gray-50">Browse the catalog</a>
+            <a href="/library" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">{{#if user}}Open your library{{else}}Get started{{/if}}</a>
+            <a href="#gallery" class="inline-flex h-10 items-center rounded-md border border-gray-300 px-5 text-sm font-medium text-gray-800 hover:bg-gray-50">Browse the gallery</a>
         </div>
         <ul class="mt-6 grid gap-3 text-sm text-gray-700 sm:grid-cols-2 lg:grid-cols-4">
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">One home for work</span><br>A project holds its pages, components and theme.</li>
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">A theme, not a rebuild</span><br>Brand colour, gray, font and corners restyle everything.</li>
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Export anywhere</span><br>HTML, React, Vue or Svelte, with the theme setup.</li>
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">MCP for coding agents</span><br>Claude Code and Cursor read and write your projects.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Tagged and versioned</span><br>Find anything, roll back any change.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">AI grounded in your library</span><br>New components match what you already built.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Export anywhere</span><br>HTML, React, Vue or Svelte in one click.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">MCP for coding agents</span><br>Claude Code and Cursor read and write it.</li>
         </ul>
     </section>
 
-    <div class="mx-6 mt-10 flex items-end justify-between">
-        <h2 class="text-lg font-semibold tracking-tight text-gray-900">Catalog</h2>
-        <a href="/catalog" class="text-sm text-gray-500 hover:text-gray-900">See all &rarr;</a>
+    <h2 id="gallery" class="mx-6 mt-10 text-lg font-semibold tracking-tight text-gray-900">Gallery</h2>
+    <!-- Skeleton Loader -->
+    <div id="skeletonGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
+            <div class="h-[70%] p-5"><div class="skeleton h-3 w-16 mb-4"></div><div class="skeleton h-3 w-full mb-3"></div><div class="skeleton h-3 w-3/4 mb-3"></div><div class="skeleton h-6 w-20 mb-3"></div><div class="skeleton h-2 w-1/2"></div></div>
+            <div class="h-[30%] p-4 border-t border-gray-100"><div class="skeleton h-4 w-32 mb-2"></div><div class="skeleton h-3 w-24"></div></div>
+        </div>
     </div>
-    <div id="catalogGrid" class="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
-        {{#each families}}
-        <a href="/catalog/{{slug}}" class="group block rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
-            <div class="h-32 overflow-hidden rounded-t-xl border-b border-gray-100 bg-gray-50">
-                <iframe data-sample="{{slug}}" title="{{name}}" class="pointer-events-none h-full w-full border-0" tabindex="-1" loading="lazy"></iframe>
-            </div>
-            <div class="p-4">
-                <div class="flex items-center justify-between"><h3 class="text-sm font-semibold text-gray-900">{{name}}</h3><span class="text-xs text-gray-500">{{styles}} styles</span></div>
-                <p class="mt-1 text-xs text-gray-500">{{description}}</p>
-            </div>
-        </a>
-        {{/each}}
+
+    <!-- Actual Content -->
+    <div id="contentGrid" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
+
+            {{#each categories}}
+            <a href="/category/{{this.slug}}" class="component-card group block">
+                <div
+                    class="bg-gray-50 h-[225px] overflow-hidden border border-gray-400 rounded-xl group-hover:border-2 group-hover:border-gray-400 group-hover:shadow-xl">
+                    <div
+                        class="card-image h-[70%] bg-gray-100 px-10 pt-5 shadow-2xl shadow-white border border-gray-100">
+                        {{> category-thumbnail slug=this.slug}}
+                    </div>
+                    <div class="flex items-center h-[30%] justify-between bg-white p-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-primary text-sm group-hover:text-primary transition">
+                                    {{this.name}}
+                                </h4>
+                                {{#if this.hasNew}}
+                                <span
+                                    class="bg-secondary text-primary text-xs px-2 py-0.5 rounded-full font-medium">+{{this.newCount}}
+                                    NEW</span>
+                                {{/if}}
+                            </div>
+                            <p class="text-sm text-gray-500">{{this.count}} components</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+            {{/each}}
+
+        </div>
     </div>
+
+    <script>
+        document.getElementById("skeletonGrid").classList.add("hidden");
+        document.getElementById("contentGrid").classList.remove("hidden");
+    </script>
 </main>
-<script id="catalogData" type="application/json">{{{json families}}}</script>
-<script type="module" src="/public/js/catalog.js"></script>
+
+
+
+{{!-- Modals --}}
+

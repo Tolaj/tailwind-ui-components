@@ -57,7 +57,7 @@ function fillProjects() {
 /** What the details dialog shows now: the design's name, category, tags... (also what the app's own details form starts from). */
 export const detailsOf = () => ({
     title: data.title || "", category: data.category || "", description: data.description || "", tags: (data.tags || []).join(", "),
-    project: data.project ? data.project.id : "", isNew: S.isNew,
+    isPublished: data.isPublished, project: data.project ? data.project.id : "", isNew: S.isNew,
 });
 
 export function openDetails() {
@@ -67,9 +67,10 @@ export function openDetails() {
     $("dCategory").value = data.category || "";
     $("dDesc").value = data.description || "";
     $("dTags").value = (data.tags || []).join(", ");
+    $("dVis").value = String(data.isPublished);
     // opened from a project: it is already chosen, so only the name is asked (the rest takes defaults and is editable later)
     const simple = S.isNew && Boolean(data.project);
-    ["dCategory", "dDesc", "dTags", "dProject"].forEach((id) => { $(id).parentElement.classList.toggle("hidden", simple); $(id).required = !simple && id !== "dTags"; });
+    ["dCategory", "dDesc", "dTags", "dProject", "dVis"].forEach((id) => { $(id).parentElement.classList.toggle("hidden", simple); $(id).required = !simple && id !== "dTags" && id !== "dVis"; });
     dlg.dataset.simple = simple ? "1" : "";
     $("detailsTitle").textContent = S.isNew ? "Name and save your component" : "Component details";
     $("detailsSave").textContent = S.isNew ? "Create component" : "Save details";
@@ -83,7 +84,7 @@ export async function saveDetails(fields) {
     const saved = S.isNew ? await host.createComponent({ ...fields, ...(data.kind === "component" ? { kind: "component" } : {}), htmlCode: assemble(), ...(fromDraft ? { draftId: data.draftId } : {}) }) : await host.updateComponent(data.id, fields);
     const movedProject = (data.project ? data.project.id : "") !== (fields.project || "");
     data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
-    Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: String(fields.tags || "").split(",").map((t) => t.trim()).filter(Boolean) });
+    Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: String(fields.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: String(fields.isPublished) === "true" });
     if (S.isNew) {
         data.id = saved._id;
         data.version = saved.version || 1;
@@ -135,8 +136,8 @@ $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label=
         e.preventDefault();
         const simple = dlg.dataset.simple === "1";
         const fields = simple
-            ? { title: $("dTitle").value.trim(), category: data.category || "apps-general", description: data.description || "A reusable component.", tags: (data.tags || []).join(", "), project: data.project.id }
-            : { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, project: $("dProject").value };
+            ? { title: $("dTitle").value.trim(), category: data.category || "apps-general", description: data.description || "A reusable component.", tags: (data.tags || []).join(", "), isPublished: "false", project: data.project.id }
+            : { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value, project: $("dProject").value };
         if (!fields.title || !fields.category || !fields.description) return;
         const err = $("detailsError");
         $("detailsSave").disabled = true;

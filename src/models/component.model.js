@@ -88,6 +88,10 @@ const componentSchema = new mongoose.Schema(
                 createdAt: { type: Date, default: Date.now }
             }],
             default: []
+        },
+        isPublished: {
+            type: Boolean,
+            default: true
         }
     },
     {

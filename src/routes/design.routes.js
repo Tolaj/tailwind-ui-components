@@ -41,7 +41,7 @@ router.get("/new", async (req, res) => {
     const draft = mongoose.isValidObjectId(req.query.draft) ? await FigmaDraft.findOne({ _id: req.query.draft, userId: req.session.user.id }).lean() : null;
     renderEditor(res, {
         id: null, draftId: draft ? String(draft._id) : null, frameW: draft && draft.width ? draft.width : null, // the frame opens at the width it has in Figma
-         title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [],
+         title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
         project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id), theme: normalizeTheme(p && p.theme),
         // "New component" from a project: the code opens beside the design, ready to write or paste into
         ...(req.query.kind === "component" ? { kind: "component", codeOpen: true, codeDock: "left" } : {}),
@@ -52,16 +52,16 @@ router.get("/:id", async (req, res) => {
     try {
         if (!mongoose.isValidObjectId(req.params.id)) return notFound(req, res);
         const c = await Component.findOne({ _id: req.params.id, createdBy: req.session.user.id })
-            .select("title htmlCode version category description tags project kind parent board group frameW")
+            .select("title htmlCode version category description tags isPublished project kind parent board group frameW")
             .lean();
         if (!c) return notFound(req, res);
         const projects = await projectList(req.session.user.id);
         // Everything in the same project shares one infinite plane with this design.
         const plane = c.project ? (await Component.find({ createdBy: req.session.user.id, project: c.project })
-            .select("title htmlCode version category description tags kind parent board group frameW")
+            .select("title htmlCode version category description tags isPublished kind parent board group frameW")
             .sort("order createdAt").limit(60).lean()).map((p) => ({
             id: String(p._id), title: p.title, group: p.group || "", frameW: p.frameW || null, version: p.version || 1, kind: p.kind, parent: p.parent ? String(p.parent) : null,
-            board: boardOf(p), category: p.category, description: p.description, tags: p.tags || [],
+            board: boardOf(p), category: p.category, description: p.description, tags: p.tags || [], isPublished: p.isPublished,
             htmlCode: String(p._id) === String(c._id) ? "" : p.htmlCode,
         })) : [];
         const proj = c.project ? await Project.findOne({ _id: c.project, owner: req.session.user.id }).select("theme").lean() : null;
@@ -70,7 +70,7 @@ router.get("/:id", async (req, res) => {
             project: c.project ? projects.find((p) => p.id === String(c.project)) || null : null, projects,
             figmaSource: await figmaSourceInfo(c._id),
             id: String(c._id), title: c.title, group: c.group || "", frameW: c.frameW || null, version: c.version || 1, htmlCode: c.htmlCode,
-            category: c.category, description: c.description, tags: c.tags || [],
+            category: c.category, description: c.description, tags: c.tags || [], isPublished: c.isPublished,
             kind: c.kind, parent: c.parent ? String(c.parent) : null, board: boardOf(c), plane,
         }, c.title);
     } catch (error) {

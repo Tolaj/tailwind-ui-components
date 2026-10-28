@@ -235,6 +235,12 @@ export const editorHtml = `<div class="flex h-full flex-col">
             <div><label class="mb-1 block text-xs font-medium text-neutral-700" for="dProject">Project</label>
                 <select id="dProject" class="field" style="height:36px" required></select>
             </div>
+            <div><label class="mb-1 block text-xs font-medium text-neutral-700" for="dVis">Visibility</label>
+                <select id="dVis" class="field" style="height:36px">
+                    <option value="true">Public gallery and my library</option>
+                    <option value="false">My library only (private)</option>
+                </select>
+            </div>
             <p id="detailsError" class="hidden text-xs text-red-700"></p>
         </div>
         <div class="flex justify-end gap-2 border-t border-neutral-200 px-5 py-3">

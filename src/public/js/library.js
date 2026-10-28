@@ -59,6 +59,7 @@ function render() {
                 </div>
                 <p class="mt-1 line-clamp-2 text-[13px] text-gray-500">${esc(i.description)}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span class="rounded-full border px-2 py-0.5 text-[11px] font-medium ${i.isPublished ? "border-green-200 bg-green-50 text-green-700" : "border-gray-200 bg-gray-50 text-gray-600"}">${i.isPublished ? "Public" : "Private"}</span>
                     ${i.projectId ? `<a href="/projects/${i.projectId}" class="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700 hover:bg-purple-100">${esc(projectName(i.projectId))}</a>` : ""}
                     ${i.forked ? `<span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">From gallery</span>` : ""}
                     ${i.tags.map((t) => `<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">${esc(t)}</span>`).join("")}

@@ -45,3 +45,21 @@ style.textContent = `
 
 document.head.appendChild(style);
 
+async function saveToLibrary(id, button) {
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = "Saving...";
+    try {
+        const res = await fetch(`/api/components/${id}/fork`, { method: "POST" });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message);
+        button.textContent = json.existing ? "Already in library" : "Saved to library";
+        button.onclick = () => (location.href = "/library");
+        button.title = "Open your library";
+    } catch (err) {
+        button.textContent = label;
+        alert(err.message || "Could not save to library");
+    } finally {
+        button.disabled = false;
+    }
+}
