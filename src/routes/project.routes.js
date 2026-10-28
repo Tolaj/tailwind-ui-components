@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import express from "express";
 import mongoose from "mongoose";
 import Project from "../models/project.model.js";
@@ -28,7 +29,7 @@ projectPages.get("/:id", async (req, res) => {
             .sort("order createdAt")
             .lean();
         const data = {
-            project: { id: String(project._id), name: project.name, theme: normalizeTheme(project.theme), description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
+            project: { id: String(project._id), name: project.name, shareToken: project.shareToken || "", theme: normalizeTheme(project.theme), description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
                 version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, frameW: c.frameW || null, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
@@ -69,6 +70,16 @@ projectApi.post("/", async (req, res) => {
     }
     const p = await Project.create({ name, description, owner: req.session.user.id });
     res.status(201).json({ success: true, data: { id: String(p._id), name: p.name, description: p.description } });
+});
+
+/** Turn the share link on (a new link) or off. `{ on: true }` returns { token }. Anyone with the link can look and copy; nobody can change anything. */
+projectApi.post("/:id/share", async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
+    const on = !(req.body && req.body.on === false);
+    const token = on ? crypto.randomBytes(16).toString("hex") : "";
+    const p = await Project.findOneAndUpdate({ _id: req.params.id, owner: req.session.user.id }, { shareToken: token }, { new: true });
+    if (!p) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, token });
 });
 
 projectApi.put("/:id", async (req, res) => {
@@ -121,4 +132,18 @@ projectApi.delete("/:id", async (req, res) => {
     if (!p) return res.status(404).json({ success: false, message: "Not found" });
     await Component.updateMany({ createdBy: req.session.user.id, project: p._id }, { project: null, kind: "component", parent: null });
     res.json({ success: true });
+});
+
+// ── The share link: look at a project and copy its code, with no account ────────────────────────────────────────
+export const sharePages = express.Router();
+sharePages.get("/:token", async (req, res) => {
+    const token = String(req.params.token || "");
+    const project = /^[a-f0-9]{32}$/.test(token) ? await Project.findOne({ shareToken: token }).lean() : null;
+    if (!project) return res.status(404).render("error", { layout: "main", title: "Not found", message: "This link doesn't work (any more).", user: req.session?.user || null });
+    const items = await Component.find({ project: project._id, kind: { $ne: "section" } }).select("title description kind htmlCode version").sort("order createdAt").lean();
+    const data = {
+        project: { name: project.name, theme: normalizeTheme(project.theme) },
+        items: items.map((c) => ({ id: String(c._id), title: c.title, description: c.description, kind: c.kind, htmlCode: c.htmlCode })),
+    };
+    res.render("main/share", { layout: "main", title: project.name, user: req.session?.user || null, projectName: project.name, count: items.length, dataJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, "") });
 });

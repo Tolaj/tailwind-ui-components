@@ -422,3 +422,47 @@ renderOutline();
 renderDetails();
 applyView();
 fitAll();
+
+// ── Share link: anyone with it can look at the project and copy its code (no account, nothing editable) ──────────────
+(() => {
+    const btn = $("shareBtn");
+    let card = null;
+    const link = () => `${location.origin}/p/${project.shareToken}`;
+    const paint = () => { btn.textContent = project.shareToken ? "Shared" : "Share"; btn.className = `h-7 rounded-md border px-2.5 text-xs ${project.shareToken ? "border-[#0d99ff] bg-[#e5f4ff] font-medium text-[#0b6fc2]" : "border-neutral-200 hover:bg-neutral-50"}`; };
+    const set = async (on) => {
+        const res = await fetch(`/api/projects/${project.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on }) });
+        const json = await res.json();
+        if (!json.success) return alert(json.message || "Could not change sharing");
+        project.shareToken = json.token;
+        paint();
+        draw();
+    };
+    function draw() {
+        if (!card) return;
+        card.innerHTML = project.shareToken
+            ? `<p class="font-semibold text-neutral-900">Anyone with this link can look at the project and copy the code.</p>
+               <div class="mt-2 flex gap-2"><input readonly value="${link()}" class="fi min-w-0 flex-1 font-mono" onfocus="this.select()"><button type="button" data-copy class="h-7 rounded-md bg-black px-3 text-xs font-medium text-white">Copy</button></div>
+               <button type="button" data-stop class="mt-3 text-xs text-red-700 underline">Stop sharing</button>`
+            : `<p class="font-semibold text-neutral-900">Share this project</p><p class="mt-1 text-neutral-600">Make a link that shows it, view-only, to anyone you send it to.</p>
+               <button type="button" data-start class="mt-3 h-8 w-full rounded-md bg-black text-xs font-medium text-white">Create link</button>`;
+    }
+    btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (card) { card.remove(); card = null; return; }
+        card = document.createElement("div");
+        card.className = "absolute z-50 w-80 rounded-xl border border-neutral-200 bg-white p-3 text-[11px] shadow-[0_8px_28px_rgba(0,0,0,0.16)]";
+        const r = btn.getBoundingClientRect();
+        card.style.top = `${r.bottom + 6}px`;
+        card.style.left = `${Math.max(8, r.right - 320)}px`;
+        document.body.appendChild(card);
+        draw();
+        card.addEventListener("click", async (ev) => {
+            if (ev.target.closest("[data-start]")) await set(true);
+            if (ev.target.closest("[data-stop]") && confirm("Stop sharing? The link will stop working.")) await set(false);
+            const c = ev.target.closest("[data-copy]");
+            if (c) { await navigator.clipboard.writeText(link()); c.textContent = "Copied"; setTimeout(() => { c.textContent = "Copy"; }, 1200); }
+        });
+    });
+    document.addEventListener("click", (e) => { if (card && !card.contains(e.target)) { card.remove(); card = null; } });
+    paint();
+})();

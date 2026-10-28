@@ -13,7 +13,7 @@ import infoRoutes from "./info.routes.js";
 import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
 import designRoutes from "./design.routes.js";
-import { projectPages, projectApi } from "./project.routes.js";
+import { projectPages, projectApi, sharePages } from "./project.routes.js";
 import { adminPages, adminApi } from "./admin.routes.js";
 import { catalogPages, catalogApi } from "./catalog.routes.js";
 
@@ -54,6 +54,7 @@ const constructorMethod = (app) => {
     app.use("/api/projects", ensureAuthAPI, projectApi);
     app.use("/admin", ensureAuth, ensureAdmin, adminPages);
     app.use("/api/admin", ensureAuthAPI, ensureAdmin, adminApi);
+    app.use("/p", sharePages); // a project's share link: open to anyone who has it
     app.use("/catalog", catalogPages);
     app.use("/api/catalog", catalogApi);
 

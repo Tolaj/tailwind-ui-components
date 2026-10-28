@@ -1,0 +1,13 @@
+<div class="max-w-6xl flex-1 mx-auto p-6">
+    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Shared project</p>
+    <h1 class="mt-1 text-4xl font-bold text-gray-900">{{projectName}}</h1>
+    <p class="mt-1 text-gray-600">{{count}} design{{#unless (eq count 1)}}s{{/unless}}. Look at them and copy the code. This link is view-only.</p>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+        <button id="themeCopy" type="button" class="h-8 rounded-md border border-gray-300 px-3 text-xs font-medium text-gray-800 hover:bg-gray-50" title="Add this after the Tailwind script so the designs look the same">Copy theme setup</button>
+        {{#unless user}}<a href="/auth/sign-up" class="text-sm text-gray-600 underline">Make your own with Windcraft</a>{{/unless}}
+    </div>
+    <div id="shareList" class="mt-8 space-y-12"></div>
+    {{#unless count}}<p class="mt-10 text-gray-500">Nothing in this project yet.</p>{{/unless}}
+</div>
+<script id="shareData" type="application/json">{{{dataJson}}}</script>
+<script type="module" src="/public/js/share.js"></script>
