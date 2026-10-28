@@ -30,10 +30,12 @@ const firstSrc = (s, props) => props.map((p) => srcKind(s, p)).find(Boolean) || 
 /** A + that opens a short menu of what can be added (only what the element does not have yet). `items`: [value, label]. */
 const AddMenu = ({ title, items, onPick }) => (items.length ? html`<label class="ib addsel" title=${title}>${I.plus}<select onChange=${(e) => { const v = e.target.value; e.target.value = ""; if (v) onPick(v); }}>
     <option value="" selected>${title}</option>${items.map(([v, l]) => html`<option value=${v}>${l}</option>`)}</select></label>` : null);
-const Remove = ({ title, onClick }) => html`<${IconBtn} icon=${I.minus} title=${title || "Remove"} onClick=${onClick} />`;
+/** − takes a style off the element (its tooltip says which); a row that has no value yet gets × to cancel instead. */
+const Remove = ({ title, onClick }) => html`<${IconBtn} icon=${I.minus} title=${title} onClick=${onClick} />`;
+const Cancel = ({ onClick }) => html`<${IconBtn} icon=${I.close} title="Cancel" onClick=${onClick} />`;
 
 /** A colour as a row: a swatch, its value (a Tailwind name where a class gives it, else hex), its opacity when not full. */
-function ColorRow({ s, actions, p, all, group, onRemove, title, label }) {
+function ColorRow({ s, actions, p, all, group, onRemove, removeTitle, title, label }) {
     const src = srcOf(s, p), c = comp(s, p), hex = rgbToHex(c) || "#000000", a = alphaOf(c);
     const shown = src.source === "tailwind" ? shownOf(s, p, src) : hex.replace(/^#/, "").toUpperCase();
     const value = (v) => (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v.trim()) ? `#${v.trim()}` : v);
@@ -47,7 +49,7 @@ function ColorRow({ s, actions, p, all, group, onRemove, title, label }) {
                 onDone=${(h, input) => (all ? actions.setPropsDone(all, h, group, input) : actions.setPropDone(p, h, input))} />
             <${TextInput} class="nfi" list="dl-colors" value=${shown} onCommit=${commit} />
             ${a < 1 && html`<span class="nfu">${Math.round(a * 100)}%</span>`}</div>
-        ${onRemove && html`<${Remove} onClick=${onRemove} />`}</div>`;
+        ${onRemove && html`<${Remove} title=${removeTitle || "Remove"} onClick=${onRemove} />`}</div>`;
 }
 
 // ── Typography ────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -74,7 +76,15 @@ export function TypographySection({ s, actions }) {
     const al = (v, icon, title) => html`<${IconBtn} icon=${icon} title=${title} on=${align === v || (v === "left" && align === "start")} onClick=${() => actions.setProp("text-align", v)} />`;
     const extra = MORE_TYPE.filter((c) => more || has(s, c.p));
     const clamp = val(s, "lineClamp", ui), trunc = val(s, "textOverflow", ui);
-    return html`<${FSection} title="Typography" extra=${html`<${IconBtn} icon=${I.dots} on=${more} title=${more ? "Fewer text settings" : "Decoration, case, italic, wrapping, line clamp, truncate"} onClick=${() => setMore(!more)} />`}>
+    const own = TYPE.filter((p) => owns(s, p));
+    const removeAll = () => {
+        own.forEach((p) => actions.resetProp(p));
+        if (clamp) actions.applyValue("lineClamp", "");
+        if (trunc) actions.applyValue("textOverflow", "");
+        setOpen(false); setMore(false);
+    };
+    return html`<${FSection} title="Typography" extra=${html`${(own.length > 0 || clamp || trunc || (open && !s.ownText)) && html`<${Remove} title=${own.length || clamp || trunc ? "Remove this element's text styles (it goes back to what it inherits)" : "Close"} onClick=${removeAll} />`}
+        <${IconBtn} icon=${I.dots} on=${more} title=${more ? "Fewer text settings" : "Decoration, case, italic, wrapping, line clamp, truncate"} onClick=${() => setMore(!more)} />`}>
         <div class="frow"><${NumField} label="Font" title=${`font-family: ${fam} · ${srcNote(s, "font-family")} (type any font, or sans / serif / mono)`} value=${famShown} list="dl-fonts"
             set=${has(s, "font-family")} src=${srcKind(s, "font-family")} onReset=${owns(s, "font-family") ? () => actions.resetProp("font-family") : null} onCommit=${setFont} /></div>
         <div class="frow">
@@ -99,25 +109,27 @@ export function BackgroundSection({ s, actions }) {
     const [adding, setAdding] = useState("");
     const color = !clear(comp(s, "background-color")), img = comp(s, "background-image");
     const grad = Boolean(val(s, "bgImage", ui)) || adding === "gradient";
-    const image = (img && img !== "none" && !/gradient/.test(img)) || adding === "image";
+    const imgSet = Boolean(img) && img !== "none" && !/gradient/.test(img), image = imgSet || adding === "image";
     const cssGrad = /gradient/.test(img) && !val(s, "bgImage", ui); // a gradient from CSS: shown as its value
+    // a value this element sets comes off; one from the design's CSS is covered (transparent / none)
     const remove = (p) => (owns(s, p) ? actions.resetProp(p) : actions.setProp(p, p === "background-color" ? "transparent" : "none"));
     const add = (kind) => {
         if (kind === "color") actions.setProp("background-color", "white");
         if (kind === "gradient") { setAdding("gradient"); actions.applyValue("bgImage", "bg-gradient-to-r"); }
         if (kind === "image") setAdding("image");
     };
-    const items = [!color && ["color", "Colour"], !grad && !cssGrad && ["gradient", "Gradient"], !image && ["image", "Image (url)"]].filter(Boolean);
+    const items = [!color && ["color", "Colour"], !grad && !cssGrad && ["gradient", "Gradient"], !image && ["image", "Bg image"]].filter(Boolean);
     return html`<${FSection} title="Background" extra=${html`<${AddMenu} title="Add a background" items=${items} onPick=${add} />`}>
-        ${color && html`<${ColorRow} s=${s} actions=${actions} p="background-color" title="Background colour" onRemove=${() => remove("background-color")} />`}
+        ${color && html`<${ColorRow} s=${s} actions=${actions} p="background-color" title="Background colour" removeTitle="Remove the background colour" onRemove=${() => remove("background-color")} />`}
         ${grad && html`<div class="frow"><${TwSelect} s=${s} k="bgImage" label="Gradient" title="Gradient direction (bg-gradient-to-*)" actions=${actions} />
                 <${Remove} title="Remove the gradient" onClick=${() => { setAdding(""); ["bgImage", "gradFrom", "gradVia", "gradTo"].forEach((k) => actions.applyValue(k, "")); }} /></div>
             <${GroupColor} s=${s} k="gradFrom" label="From" actions=${actions} /><${GroupColor} s=${s} k="gradVia" label="Via" actions=${actions} /><${GroupColor} s=${s} k="gradTo" label="To" actions=${actions} />`}
         ${(image || cssGrad) && html`<div class="frow">
-                <${NumField} label=${cssGrad ? "Gradient" : "Image"} title=${`background-image · ${srcNote(s, "background-image")}`} placeholder="https://… or url(…)" value=${img === "none" ? "" : shownOf(s, "background-image", srcOf(s, "background-image"))}
-                    set=${has(s, "background-image")} src=${srcKind(s, "background-image")} onCommit=${(t) => actions.setProp("background-image", /^(https?:|\/)/.test(t.trim()) ? `url("${t.trim()}")` : t)} />
-                <${Remove} onClick=${() => { setAdding(""); remove("background-image"); }} /></div>
-            ${!cssGrad && html`<div class="frow"><${PropSelect} s=${s} actions=${actions} p="background-size" label="Size" options=${[["auto", "Auto"], ["cover", "Cover"], ["contain", "Contain"]]} />
+                <${NumField} label=${cssGrad ? "Gradient" : "Bg image"} title=${`A picture behind the content (background-image) · ${srcNote(s, "background-image")}`} placeholder="Paste an image address…"
+                    value=${imgSet || cssGrad ? shownOf(s, "background-image", srcOf(s, "background-image")) : ""}
+                    set=${has(s, "background-image")} src=${srcKind(s, "background-image")} onCommit=${(t) => { setAdding(""); actions.setProp("background-image", /^(https?:|\/|data:)/.test(t.trim()) ? `url("${t.trim()}")` : t); }} />
+                ${imgSet || cssGrad ? html`<${Remove} title="Remove the bg image" onClick=${() => remove("background-image")} />` : html`<${Cancel} onClick=${() => setAdding("")} />`}</div>
+            ${imgSet && html`<div class="frow"><${PropSelect} s=${s} actions=${actions} p="background-size" label="Size" options=${[["auto", "Auto"], ["cover", "Cover"], ["contain", "Contain"]]} />
                 <${PropSelect} s=${s} actions=${actions} p="background-repeat" label="Repeat" options=${[["repeat", "Repeat"], ["no-repeat", "No repeat"], ["repeat-x", "Across"], ["repeat-y", "Down"]]} /></div>
             <div class="frow"><${PropField} s=${s} actions=${actions} p="background-position" label="Position" title="background-position (center, top, 50% 20%...)" /></div>`}`}
     </${FSection}>`;
@@ -159,7 +171,7 @@ export function BorderSection({ s, actions }) {
         ${(each || mixedR) && html`<div class="frow two2">${CORNERS.map(([c, k, l]) => html`<${NumField} label=${l} title=${`${c} radius`} value=${num(comp(s, `border-${c}-radius`))}
             set=${has(s, `border-${c}-radius`)} src=${srcKind(s, `border-${c}-radius`)} onCommit=${(t) => actions.setProps([`border-${c}-radius`], t, k)} />`)}</div>`}
         ${on && html`<${Sub}>Border</${Sub}>
-            <${ColorRow} s=${s} actions=${actions} p="border-top-color" all=${SIDES.map((d) => `border-${d}-color`)} group="borderColor" title="Border colour (every side)" onRemove=${removeBorder} />
+            <${ColorRow} s=${s} actions=${actions} p="border-top-color" all=${SIDES.map((d) => `border-${d}-color`)} group="borderColor" title="Border colour (every side)" removeTitle="Remove the border" onRemove=${removeBorder} />
             <div class="frow">
                 <${NumField} label="Width" title="Border width" value=${same(s, widths)} set=${anyHas(s, widths)} src=${firstSrc(s, widths)} list="dl-borderWidth"
                     onCommit=${(t) => actions.setProps(widths, t, "borderWidth", ["borderT", "borderR", "borderB", "borderL"])} />
@@ -170,10 +182,10 @@ export function BorderSection({ s, actions }) {
             ${(sides || mixedW) && html`<div class="frow two2">${SIDES.map((d, i) => html`<${NumField} label=${["T", "R", "B", "L"][i]} title=${`border-${d}-width`} value=${num(comp(s, `border-${d}-width`))}
                 set=${has(s, `border-${d}-width`)} src=${srcKind(s, `border-${d}-width`)} onCommit=${(t) => actions.setProps([`border-${d}-width`], t, ["borderT", "borderR", "borderB", "borderL"][i])} />`)}</div>`}`}
         ${outline && html`<${Sub}>Outline</${Sub}><div class="frow"><${PropField} s=${s} actions=${actions} p="outline" label="Outline" title="outline (width style colour)" />
-            <${Remove} onClick=${() => (owns(s, "outline") ? actions.resetProp("outline") : actions.setProp("outline", "none"))} /></div>
+            <${Remove} title="Remove the outline" onClick=${() => (owns(s, "outline") ? actions.resetProp("outline") : actions.setProp("outline", "none"))} /></div>
             <div class="frow"><${PropField} s=${s} actions=${actions} p="outline-offset" label="Offset" title="Gap between the element and its outline" /></div>`}
         ${ring && html`<${Sub}>Ring</${Sub}><div class="frow"><${TwField} s=${s} k="ring" label="Ring" title="A ring around the element (ring-*)" actions=${actions} />
-            <${Remove} onClick=${() => { actions.applyValue("ring", ""); actions.applyValue("ringColor", ""); }} /></div>
+            <${Remove} title="Remove the ring" onClick=${() => { actions.applyValue("ring", ""); actions.applyValue("ringColor", ""); }} /></div>
             <${GroupColor} s=${s} k="ringColor" label="Colour" actions=${actions} />`}
     </${FSection}>`;
 }
@@ -217,12 +229,12 @@ export function EffectsSection({ s, actions }) {
         </div>
         ${shadow && html`<div class="frow"><label class=${`nf ${has(s, "box-shadow") ? "" : "unset"} ${srcKind(s, "box-shadow") ? `src-${srcKind(s, "box-shadow")}` : ""}`} title=${`box-shadow · ${srcNote(s, "box-shadow")}`}>
                 <span class="nfl">Shadow</span><select class="nfs wide" onChange=${(e) => setShadow(e.target.value)}>${SHADOW_NAMES.map(([v, l]) => html`<option value=${v} selected=${v === preset}>${l}</option>`)}</select></label>
-            <${Remove} onClick=${() => { setCustom(false); return owns(s, "box-shadow") ? actions.resetProp("box-shadow") : actions.setProp("box-shadow", "none"); }} /></div>
+            <${Remove} title="Remove the shadow" onClick=${() => { setCustom(false); return owns(s, "box-shadow") ? actions.resetProp("box-shadow") : actions.setProp("box-shadow", "none"); }} /></div>
             ${preset === "custom" && html`<div class="frow"><${NumField} label="CSS" title="box-shadow: x y blur spread colour" value=${sh} set src=${srcKind(s, "box-shadow")} onCommit=${(t) => actions.setProp("box-shadow", t)} /></div>`}`}
-        ${tw("blur") && html`<div class="frow"><${TwSelect} s=${s} k="blur" label="Blur" title="Blur the element (blur-*)" actions=${actions} /><${Remove} onClick=${() => drop("blur")} /></div>`}
-        ${tw("backdropBlur") && html`<div class="frow"><${TwSelect} s=${s} k="backdropBlur" label="Backdrop" title="Blur what is behind it (backdrop-blur-*)" actions=${actions} /><${Remove} onClick=${() => drop("backdropBlur")} /></div>`}
-        ${tw("brightness") && html`<div class="frow"><${TwField} s=${s} k="brightness" label="Bright" title="Brightness % (brightness-*)" actions=${actions} /><${Remove} onClick=${() => drop("brightness")} /></div>`}
-        ${tw("grayscale") && html`<div class="frow"><${TwSelect} s=${s} k="grayscale" label="Gray" title="Grayscale (grayscale)" actions=${actions} /><${Remove} onClick=${() => drop("grayscale")} /></div>`}
+        ${tw("blur") && html`<div class="frow"><${TwSelect} s=${s} k="blur" label="Blur" title="Blur the element (blur-*)" actions=${actions} /><${Remove} title="Remove the blur" onClick=${() => drop("blur")} /></div>`}
+        ${tw("backdropBlur") && html`<div class="frow"><${TwSelect} s=${s} k="backdropBlur" label="Backdrop" title="Blur what is behind it (backdrop-blur-*)" actions=${actions} /><${Remove} title="Remove the background blur" onClick=${() => drop("backdropBlur")} /></div>`}
+        ${tw("brightness") && html`<div class="frow"><${TwField} s=${s} k="brightness" label="Bright" title="Brightness % (brightness-*)" actions=${actions} /><${Remove} title="Remove the brightness" onClick=${() => drop("brightness")} /></div>`}
+        ${tw("grayscale") && html`<div class="frow"><${TwSelect} s=${s} k="grayscale" label="Gray" title="Grayscale (grayscale)" actions=${actions} /><${Remove} title="Remove the grayscale" onClick=${() => drop("grayscale")} /></div>`}
     </${FSection}>`;
 }
 

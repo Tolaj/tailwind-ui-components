@@ -29,6 +29,7 @@ export const I = {
     sides: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="2.2 1.8"/>'),
     plus: svg('<path d="M8 3.5v9M3.5 8h9"/>'),
     minus: svg('<path d="M3.5 8h9"/>'),
+    close: svg('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>'),
     dots: svg('<circle cx="3.5" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.5" cy="8" r="1.1"/>', true),
     corners: svg('<path d="M2.5 6V4.5a2 2 0 0 1 2-2H6M10 2.5h1.5a2 2 0 0 1 2 2V6M13.5 10v1.5a2 2 0 0 1-2 2H10M6 13.5H4.5a2 2 0 0 1-2-2V10"/>'),
     textL: svg('<path d="M2.5 4h11M2.5 8h7M2.5 12h9"/>'),
