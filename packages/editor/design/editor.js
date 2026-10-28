@@ -16,6 +16,7 @@ import { init as init_add_menu } from "./editor/add-menu.js";
 import { init as init_designs } from "./editor/designs.js";
 import { init as init_frame_handles } from "./editor/frame-handles.js";
 import { init as init_color_ui } from "./editor/color-ui.js";
+import { init as init_panel_resize } from "./editor/panel-resize.js";
 
 init_frame_messages();
 init_pages_panel();
@@ -26,6 +27,7 @@ init_add_menu();
 init_designs();
 init_frame_handles();
 init_color_ui();
+init_panel_resize();
 
 // ── Go ───────────────────────────────────────────────────────────────────────
 mountDatalists();

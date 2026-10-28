@@ -389,3 +389,10 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .wc-no-panels #leftPanel, .wc-no-panels #panel, .wc-no-panels #codePanel, .wc-no-panels #leftBtn, .wc-no-panels #panelBtn, .wc-no-panels #codeBtn { display: none !important; }
 .wc-no-nav #navGroup, .wc-no-nav #navSep { display: none !important; }
 .wc-no-add #addBtn { display: none !important; }
+
+/* side panels: the edge that resizes them (editor/panel-resize.js) */
+.rz { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 30; cursor: col-resize; touch-action: none; }
+.rz.l { right: -4px; }
+.rz.r { left: -4px; }
+.rz::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: #0090f1; opacity: 0; transition: opacity .12s; }
+.rz:hover::after, .rz.on::after { opacity: .7; width: 2px; left: 2.5px; }
