@@ -89,3 +89,12 @@ test("layout: a row starts below the sections of the row above", () => {
     const lastSectionBottom = pos.s2.y + H;
     assert.equal(pos.b.y, lastSectionBottom + ROW_GAP);
 });
+
+test("layout: dragging a page never moves another one, also in the rows below a tall page", () => {
+    const tall = (i) => (i.id === "home" ? 3 * H : H);
+    const items = [{ id: "home", kind: "page", group: "Public site" }, { id: "pricing", kind: "page", group: "Public site" }, { id: "new", kind: "page", group: "Customer area" }];
+    const before = computeLayout(items, { frameW: W, heightOf: tall });
+    const during = computeLayout(items.map((i) => (i.id === "home" ? { ...i, board: { x: 40, y: 80 } } : i)), { frameW: W, heightOf: tall });
+    assert.deepEqual(during.pricing, before.pricing);
+    assert.deepEqual(during.new, before.new, "the row below keeps its place while the tall page is picked up");
+});

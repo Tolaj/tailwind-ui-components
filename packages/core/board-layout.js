@@ -23,16 +23,20 @@ export function computeLayout(items, { frameW, heightOf, widthOf = () => frameW 
     let rowY = 0;
     rows.forEach((row) => {
         let nextX = 0;
-        let bottom = rowY; // the lowest edge of what was placed automatically in this row, so the next row starts below it
+        // the lowest edge of this row's slots, so the next row starts below it. Every page keeps its slot, its height included, also
+        // once it was moved by hand: dragging a page never moves another one (a row below doesn't move up when a tall page is picked up)
+        let bottom = rowY;
         row.pages.forEach((p) => {
             pos[p.id] = p.board ? { x: p.board.x, y: p.board.y } : { x: nextX, y: rowY };
             nextX += widthOf(p) + GAP_X;
             let y = pos[p.id].y + heightOf(p) + 260;
-            if (!p.board) bottom = Math.max(bottom, pos[p.id].y + heightOf(p));
+            let slot = rowY + heightOf(p) + 260; // the same stack, as it stands in the slot
+            bottom = Math.max(bottom, rowY + heightOf(p));
             items.filter((i) => i.kind === "section" && i.parent === p.id).forEach((s) => {
                 pos[s.id] = s.board ? { x: s.board.x, y: s.board.y } : { x: pos[p.id].x, y };
-                if (!p.board && !s.board) bottom = Math.max(bottom, y + heightOf(s));
+                bottom = Math.max(bottom, slot + heightOf(s));
                 y += heightOf(s) + SECTION_GAP;
+                slot += heightOf(s) + SECTION_GAP;
             });
         });
         rowY = bottom + ROW_GAP;
