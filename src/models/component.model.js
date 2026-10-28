@@ -25,19 +25,6 @@ const componentSchema = new mongoose.Schema(
             ref: "User",
             required: true
         },
-        views: {
-            type: Number,
-            default: 0
-        },
-        likes: {
-            type: Number,
-            default: 0
-        },
-        likedBy: {
-            type: [mongoose.Schema.Types.ObjectId],
-            ref: "User",
-            default: []
-        },
         project: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Project",

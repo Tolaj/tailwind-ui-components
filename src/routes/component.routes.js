@@ -5,7 +5,6 @@ import {
     createComponent,
     updateComponent,
     deleteComponent,
-    toggleLike,
     getVersions,
     restoreVersion,
     exportComponentCode,
@@ -45,6 +44,5 @@ router.post("/import", ensureAuthAPI, async (req, res) => {
 router.put("/:id", ensureAuthAPI, updateComponent);
 router.delete("/:id", ensureAuthAPI, deleteComponent);
 router.post("/:id/fork", ensureAuthAPI, forkComponent);
-router.post("/:id/like", ensureAuthAPI, toggleLike);
 
 export default router;

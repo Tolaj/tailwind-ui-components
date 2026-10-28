@@ -25,19 +25,18 @@ src/
 │   └── user.controller.js       # User signup, signin, LLM settings
 ├── middlewares/
 │   ├── auth.js             # ensureAuth, ensureAuthAPI, redirectIfAuthenticated, etc.
-│   ├── lastSeen.js         # Updates session lastSeen (NOT currently wired in app.js)
+│   ├── lastSeen.js         # Updates session lastSeen (wired in app.js)
 │   ├── requestLogger.js    # Logs method/path/auth status
 │   └── sessionConfig.js    # express-session with MongoStore
 ├── models/
 │   ├── component.model.js  # title, category, description, htmlCode, profile, versions, project, group, order, views, likes
-│   └── user.model.js       # name, email, password (plaintext!), llmSettings
+│   └── user.model.js       # name, email, password (bcrypt hash), llmSettings
 ├── routes/
 │   ├── index.js            # Route mounting, 404 catch-all
 │   ├── ai.routes.js        # POST /api/ai/generate-stream (multi-provider SSE streaming)
 │   ├── auth.routes.js      # GET sign-in/sign-up/sign-out/verify-otp pages
 │   ├── component.routes.js # REST /api/components
 │   ├── home.routes.js      # Home page, /category/:category, /component/:id
-│   ├── llama.local.routes.js  # Unused legacy local LLM route (superseded by ai.routes.js)
 │   └── user.routes.js      # POST /users, /users/sign-in, GET/PUT /users/settings/llm
 ├── services/
 │   └── user.service.js     # User CRUD wrappers around Mongoose

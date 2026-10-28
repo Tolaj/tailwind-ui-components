@@ -11,6 +11,7 @@
     "licenses": "node scripts/check-licenses.js",
     "demo": "node packages/editor/demo/serve.js",
     "typecheck": "tsc -p tsconfig.json",
+    "components:projectless": "node --env-file=.env scripts/delete-projectless-components.js",
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",
     "test-email": "node test-email.js",

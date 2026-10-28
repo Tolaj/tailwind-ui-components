@@ -165,11 +165,7 @@ router.get("/category/:category", async (req, res) => {
 // Component detail page
 router.get("/component/:id", async (req, res) => {
     try {
-        const component = await Component.findByIdAndUpdate(
-            req.params.id,
-            { $inc: { views: 1 } },
-            { new: true }
-        ).populate('createdBy', 'name email');
+        const component = await Component.findById(req.params.id).populate('createdBy', 'name email');
 
         if (!component) {
             return res.status(404).render("error", {

@@ -33,3 +33,6 @@ Thumbs.db
 
 # Figma plugin build output
 packages/figma/dist/
+
+# data exports made by scripts (they hold users' code)
+/backups/
