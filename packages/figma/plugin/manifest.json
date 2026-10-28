@@ -1,5 +1,5 @@
 {
-    "name": "Windcraft",
+    "name": "Windcraft: Figma to Tailwind",
     "id": "windcraft-figma-to-code",
     "api": "1.0.0",
     "main": "code.js",
