@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { agentMain } from "../agent.js";
-import { buildPreviewDocument, parseComponentSource, themeMarkup, htmlOpen } from "../../playground/component-source.js";
+import { buildPreviewDocument, parseComponentSource, themeMarkup } from "../../playground/component-source.js";
 import { panelStore } from "../panel-state.js";
 import { $, S, data, esc, frame, isTailwindScript, model, send } from "./base.js";
 import { renderFloat, renderSel } from "./frame-handles.js";
@@ -22,7 +22,7 @@ function editDocument() {
     const mark = (tag) => tag.replace(/^<(style|link)\b/i, "<$1 data-wc-design");
     head.push(...S.parsed.links.map(mark), ...S.parsed.styles.map(styleTag).map(mark), "<style data-wc-editor>html,body{margin:0}</style>");
     const attrs = Object.entries(S.parsed.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
-    return `<!DOCTYPE html>${htmlOpen()}<head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${S.loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
+    return `<!DOCTYPE html><html><head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${S.loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
 }
 
 /** Rebuilds the component source: original head assets and scripts around the edited markup. */

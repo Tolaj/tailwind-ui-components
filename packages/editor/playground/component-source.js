@@ -71,15 +71,12 @@ const HEIGHT_REPORTER = `
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") parent.postMessage({ type: "key", key: "escape" }, "*"); });
 })();`;
 
-// The project's theme and light/dark choice for every document built here (set by the page that shows designs; see core/theme.js).
+// The project's theme for every document built here (set by the page that shows designs; see core/theme.js).
 // The theme's Tailwind config is added only where this adds Tailwind itself: a design that brings its own script keeps its own config.
-let previewTheme = null, previewDark = false;
+let previewTheme = null;
 export const setPreviewTheme = (theme) => { previewTheme = theme || null; };
-export const setPreviewDark = (on) => { previewDark = Boolean(on); };
 /** The head markup for the theme (the font and the config), or nothing without one. */
 export const themeMarkup = () => (previewTheme ? themeHead(previewTheme) : "");
-/** The opening <html> tag: a `dark` class turns Tailwind's dark: styles on. */
-export const htmlOpen = () => (previewDark ? '<html class="dark">' : "<html>");
 
 /** Builds a complete, standalone document for an iframe's srcdoc. */
 export function buildPreviewDocument(parsed, { width } = {}) {
@@ -113,7 +110,7 @@ export function buildPreviewDocument(parsed, { width } = {}) {
         .join("\n");
 
     return `<!DOCTYPE html>
-${htmlOpen()}
+<html>
 <head>
 ${head.join("\n")}
 <style>html,body{margin:0}</style>

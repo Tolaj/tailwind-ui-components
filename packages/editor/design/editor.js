@@ -1,6 +1,6 @@
 // The design editor: builds the page from its parts, in order (each part is in editor/).
 import { config } from "./config.js";
-import { setPreviewTheme, setPreviewDark } from "../playground/component-source.js";
+import { setPreviewTheme } from "../playground/component-source.js";
 import { mountDatalists } from "./panel-model.js";
 import { pref, setLeft, setPanel, setPanelTab } from "./editor/color-ui.js";
 import { setTool } from "./editor/toolbar.js";
@@ -19,9 +19,8 @@ import { init as init_frame_handles } from "./editor/frame-handles.js";
 import { init as init_color_ui } from "./editor/color-ui.js";
 import { init as init_panel_resize } from "./editor/panel-resize.js";
 
-// the project's theme and the light/dark choice, before the first frame is built
+// the project's theme, before the first frame is built
 setPreviewTheme(config.data.theme);
-try { setPreviewDark(localStorage.getItem("wc:dark") === "1"); } catch { /* storage is optional */ }
 
 init_frame_messages();
 init_pages_panel();
