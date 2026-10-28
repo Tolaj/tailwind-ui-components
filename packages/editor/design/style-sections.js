@@ -6,7 +6,7 @@
 // from: setProp · setProps · resetProp · setPropLive · setPropDone · setPropsLive · setPropsDone · applyValue · applyColor · addClasses
 import { html, useState } from "../vendor/preact-htm.js";
 import { rgbToHex } from "./css-props.js";
-import { srcOf, shownOf, val } from "./panel-model.js";
+import { srcOf, shownOf, val, variant } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, ColorInput } from "./controls.js";
 import { GroupColor } from "./group-controls.js";
@@ -27,6 +27,20 @@ const clear = (c) => !c || c === "transparent" || alphaOf(c) === 0;
 /** The same value on every side (or corner), or "Mixed". */
 const same = (s, props) => { const v = props.map((p) => comp(s, p)); return v.every((x) => x === v[0]) ? num(v[0]) : "Mixed"; };
 const anyHas = (s, props) => props.some((p) => has(s, p));
+/**
+ * Whether the element has something: with a breakpoint or state picked (md:, hover:), whether it has a class for it there (the
+ * computed look is the normal one, which says nothing about hover); else what the page shows (`showing`).
+ */
+const present = (s, props, showing) => (variant() ? props.some((p) => has(s, p)) : showing);
+/** The hex of a Tailwind colour name (black, blue-500), read from a hidden probe in the editor's own page, which has Tailwind. */
+let probe = null;
+function hexOf(name) {
+    if (!name) return "#000000";
+    if (/^(#|rgb|hsl)/.test(name)) return rgbToHex(name) || name;
+    if (!probe) { probe = document.createElement("span"); probe.style.display = "none"; document.body.appendChild(probe); }
+    probe.className = `bg-${name.replace(/\/\d+$/, "")}`;
+    return rgbToHex(getComputedStyle(probe).backgroundColor) || "#000000";
+}
 const firstSrc = (s, props) => props.map((p) => srcKind(s, p)).find(Boolean) || "";
 /** A + that opens a short menu of what can be added (only what the element does not have yet). `items`: [value, label]. */
 const AddMenu = ({ title, items, onPick }) => (items.length ? html`<label class="ib addsel" title=${title}>${I.plus}<select onChange=${(e) => { const v = e.target.value; e.target.value = ""; if (v) onPick(v); }}>
@@ -37,9 +51,11 @@ const Cancel = ({ onClick }) => html`<${IconBtn} icon=${I.close} title="Cancel" 
 
 /** A colour as a row: a swatch, its value (a Tailwind name where a class gives it, else hex), its opacity when not full. */
 function ColorRow({ s, actions, p, all, group, onRemove, removeTitle, title, label }) {
-    const src = srcOf(s, p), c = comp(s, p), hex = rgbToHex(c) || "#000000", a = alphaOf(c), at = atVariant(s, p);
-    // at a picked breakpoint / state: its class's colour; else a Tailwind name where a class gives it, or the hex
-    const shown = at ? twShown(p, at.token) : src.source === "tailwind" ? shownOf(s, p, src) : hex.replace(/^#/, "").toUpperCase();
+    const src = srcOf(s, p), c = comp(s, p), at = atVariant(s, p);
+    // at a picked breakpoint / state: its class's colour (the swatch too); else a Tailwind name where a class gives it, or the hex
+    const atName = at ? twShown(p, at.token) : null;
+    const hex = atName ? hexOf(atName) : rgbToHex(c) || "#000000", a = atName ? 1 : alphaOf(c);
+    const shown = atName ?? (src.source === "tailwind" ? shownOf(s, p, src) : hex.replace(/^#/, "").toUpperCase());
     const value = (v) => (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v.trim()) ? `#${v.trim()}` : v);
     // `all`: the colour goes on every one of these properties (a border's four sides), as one class where it can
     const commit = (v) => (all ? actions.setProps(all, value(v), group) : actions.setProp(p, value(v)));
@@ -109,7 +125,7 @@ export function TypographySection({ s, actions }) {
 export function BackgroundSection({ s, actions }) {
     const ui = useUi();
     const [adding, setAdding] = useState("");
-    const color = !clear(comp(s, "background-color")), img = comp(s, "background-image");
+    const color = present(s, ["background-color"], !clear(comp(s, "background-color"))), img = comp(s, "background-image");
     const grad = Boolean(val(s, "bgImage", ui)) || adding === "gradient";
     const imgSet = Boolean(img) && img !== "none" && !/gradient/.test(img), image = imgSet || adding === "image";
     const cssGrad = /gradient/.test(img) && !val(s, "bgImage", ui); // a gradient from CSS: shown as its value
@@ -141,7 +157,7 @@ export function BackgroundSection({ s, actions }) {
 export function BorderSection({ s, actions }) {
     const ui = useUi();
     const widths = SIDES.map((d) => `border-${d}-width`), styles = SIDES.map((d) => `border-${d}-style`), corners = CORNERS.map(([c]) => `border-${c}-radius`);
-    const on = SIDES.some((d) => parseFloat(comp(s, `border-${d}-width`)) > 0 && comp(s, `border-${d}-style`) !== "none");
+    const on = present(s, [...SIDES.map((d) => `border-${d}-width`), "border-top-color"], SIDES.some((d) => parseFloat(comp(s, `border-${d}-width`)) > 0 && comp(s, `border-${d}-style`) !== "none"));
     const outline = Boolean(comp(s, "outline-style")) && comp(s, "outline-style") !== "none", ring = Boolean(val(s, "ring", ui));
     const [sides, setSides] = useState(false);
     const [each, setEach] = useState(false);
@@ -205,10 +221,10 @@ export function EffectsSection({ s, actions }) {
     const ui = useUi();
     const [custom, setCustom] = useState(false);
     const [adding, setAdding] = useState(/** @type {string[]} */ ([]));
-    const sh = comp(s, "box-shadow"), shTok = (srcOf(s, "box-shadow").token || "").replace(/^(?:[\w-]+:)*/, "");
+    const sh = comp(s, "box-shadow"), shTok = ((variant() ? (atVariant(s, "box-shadow") || {}).token : srcOf(s, "box-shadow").token) || "").replace(/^(?:[\w-]+:)*/, "");
     // Tailwind draws a ring with box-shadow too: that is the Border section's ring, not a shadow
     const ringOnly = /^ring/.test(shTok) && !val(s, "shadow", ui);
-    const shadow = Boolean(sh) && sh !== "none" && !ringOnly;
+    const shadow = present(s, ["box-shadow"], Boolean(sh) && sh !== "none" && !ringOnly);
     const shName = shTok === "shadow" ? "default" : /^shadow-/.test(shTok) ? shTok.replace(/^shadow-/, "") : "";
     const preset = shadow && shName && !custom ? shName : "custom";
     const setShadow = (v) => { if (v === "custom") return setCustom(true); setCustom(false); return actions.setProp("box-shadow", v, SHADOWS[v] || v); };

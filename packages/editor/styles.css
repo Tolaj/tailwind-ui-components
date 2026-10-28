@@ -179,7 +179,7 @@ textarea.field { height: auto; padding: 6px 8px; font-family: ui-monospace, mono
 .itabs button { padding: 5px 9px; border-radius: 5px; font-size: 11px; font-weight: 500; color: #777; }
 .itabs button.on { background: #f0f0f0; color: #000; }
 /* Screen and State: where edits go (design-tab.js VariantBar) */
-.vbar2 { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px 6px; }
+.vbar2 { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px 10px; border-bottom: 1px solid #e5e5e5; }
 .vrow { display: flex; align-items: center; gap: 6px; }
 .vl { width: 38px; flex: none; font-size: 10px; color: #8c8c8c; }
 .vchips { display: flex; flex: 1; min-width: 0; gap: 2px; background: #f5f5f5; border-radius: 5px; padding: 2px; }
