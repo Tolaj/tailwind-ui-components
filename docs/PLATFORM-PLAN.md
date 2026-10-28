@@ -193,7 +193,18 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | `isPublished`, the Library page, category and detail pages | **Moved to Phase 1**: the public gallery still depends on `isPublished`, and the Library page has no replacement until the project page has its Components tab |
 | `profile` vs design spec, `useAsReference`, `forkedFrom` | **Open**: audit next |
 
-## 10. What I have not verified
+## 10. Phase 1 progress
+
+| Item | State |
+|---|---|
+| Code dock: the editor's Code panel can sit left or below, remembered | **Done** |
+| New component from a project (`/design/new?project=ID&kind=component`): code open on the left, saved as a component | **Done** |
+| One-field save when the project is already chosen (name only; defaults for the rest, private) | **Done** |
+| Project page: Pages / Components tabs in the sidebar, "+ New component", component count | **Done** (not opened in a browser: needs sign-in) |
+| Theme tab | Phase 2 |
+| Required `project` on every save, nav reduced to Catalog · Projects, remove the Add component dialog (archive it), remove `isPublished`, Library and category pages | **Next** |
+
+## 11. What I have not verified
 
 This plan comes from the code I have read: the component and project models, the library and project routes, the editor and the
 docs. I have **not** audited every route, field and page for use, so the removals in section 2 marked "audit" must be checked

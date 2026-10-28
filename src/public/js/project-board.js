@@ -239,10 +239,12 @@ $("tidyBtn").addEventListener("click", () => {
 function renderHeader() {
     $("projName").textContent = project.name;
     document.title = `${project.name} | Windcraft`;
-    const pg = pages();
+    const pg = pages().filter((i) => i.kind !== "component");
+    const comp = items.filter((i) => i.kind === "component").length;
     const sec = items.filter((i) => i.kind === "section").length;
-    $("projStats").textContent = `${pg.length} page${pg.length === 1 ? "" : "s"} · ${sec} section${sec === 1 ? "" : "s"}`;
+    $("projStats").textContent = `${pg.length} page${pg.length === 1 ? "" : "s"} · ${comp} component${comp === 1 ? "" : "s"}${sec ? ` · ${sec} section${sec === 1 ? "" : "s"}` : ""}`;
     $("newPageBtn").href = `/design/new?project=${project.id}`;
+    $("newComponentBtn").href = `/design/new?project=${project.id}&kind=component`;
     const ab = $("activeBtn");
     ab.textContent = project.active ? "Active project ✓" : "Set as active";
     ab.className = project.active ? "h-7 rounded-md border border-[#0d99ff] bg-[#e5f4ff] px-2.5 text-xs font-medium text-[#0b6fc2]" : "h-7 rounded-md border border-neutral-200 px-2.5 text-xs hover:bg-neutral-50";
@@ -250,16 +252,27 @@ function renderHeader() {
     $("boardEmpty").classList.toggle("flex", items.length === 0);
 }
 
+let tab = "page"; // the sidebar lists the project's pages or its components
 function renderOutline() {
+    const mine = (i) => (tab === "component" ? i.kind === "component" : i.kind !== "component");
+    const list = pages().filter(mine);
+    const pc = pages().filter((i) => i.kind !== "component").length, cc = items.filter((i) => i.kind === "component").length;
+    $("tabPages").textContent = `Pages (${pc})`;
+    $("tabComponents").textContent = `Components (${cc})`;
+    [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id, t]) => {
+        $(id).className = `flex-1 border-b-2 px-3 py-2.5 ${tab === t ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
+    });
     let prev = ""; // a heading where the group changes ("Public site", then "Customer area")
-    $("outline").innerHTML = pages().map((p) => {
-        const g = p.group || "";
+    $("outline").innerHTML = list.map((p) => {
+        const g = tab === "component" ? "" : p.group || "";
         const heading = g !== prev && (g || prev) ? `<div class="group-head">${esc(g || "No group")}</div>` : "";
         prev = g;
-        const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : "page"}</span><span class="truncate">${esc(it.title)}</span></div>`;
+        const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : it.kind === "component" ? "comp" : "page"}</span><span class="truncate">${esc(it.title)}</span></div>`;
         return heading + row(p, 0) + sectionsOf(p.id).map((s) => row(s, 1)).join("");
-    }).join("") || '<div class="p-3 text-neutral-500">No pages yet.</div>';
+    }).join("") || `<div class="p-3 text-neutral-500">${tab === "component" ? "No components yet. Press + New component." : "No pages yet."}</div>`;
 }
+$("tabPages").addEventListener("click", () => { tab = "page"; renderOutline(); });
+$("tabComponents").addEventListener("click", () => { tab = "component"; renderOutline(); });
 
 function renderDetails() {
     const el = $("details");

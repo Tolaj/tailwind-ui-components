@@ -42,6 +42,8 @@ router.get("/new", async (req, res) => {
         id: null, draftId: draft ? String(draft._id) : null, frameW: draft && draft.width ? draft.width : null, // the frame opens at the width it has in Figma
          title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
         project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id),
+        // "New component" from a project: the code opens beside the design, ready to write or paste into
+        ...(req.query.kind === "component" ? { kind: "component", codeOpen: true, codeDock: "left" } : {}),
     }, "New component");
 });
 

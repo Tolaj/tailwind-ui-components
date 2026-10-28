@@ -1,7 +1,8 @@
 import { checkTags } from "../code-view.js";
 import { parseComponentSource } from "../../playground/component-source.js";
 import { createCodeEditor, tagProblems } from "../code-editor.js";
-import { $, S, model } from "./base.js";
+import { $, S, data, model } from "./base.js";
+import { pref } from "./color-ui.js";
 import { assemble, commit, loadFrame } from "./docs.js";
 import { layout } from "./plane.js";
 
@@ -136,32 +137,69 @@ export function init() {
         applyCode();
         syncCode();
     });
-// Resize: drag the panel's top edge; the height is remembered. The handle keeps the pointer (setPointerCapture) so the drag follows it over the
-// design's iframe too, which would otherwise take the pointer and leave the drag stuck.
+// ── Where the code sits: below the design, or to its left (side by side) ──────────────────────────────────────────────────────────────────
+// The choice is remembered; a design opened with `codeDock` (a new component) starts there.
+let dock = "bottom";
+const sectionEl = () => $("canvas").parentElement; // the column that holds the design (and the code, when it is below)
+const DOCK_ICON = {
+    left: '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16"/></svg>',
+    bottom: '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h18"/></svg>',
+};
+function setDock(side, remember = true) {
+    const panel = $("codePanel"), handle = $("codeResize");
+    dock = side;
+    if (side === "left") {
+        sectionEl().parentElement.insertBefore(panel, sectionEl());
+        panel.classList.remove("border-t");
+        panel.classList.add("border-r");
+        panel.style.height = "";
+        panel.style.width = `${Number(pref("wc:codeW")) || 440}px`;
+        handle.className = "absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize";
+    } else {
+        sectionEl().append(panel);
+        panel.classList.add("border-t");
+        panel.classList.remove("border-r");
+        panel.style.width = "";
+        panel.style.height = `${Number(pref("wc:codeH")) || 256}px`;
+        handle.className = "absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize";
+    }
+    // the button shows where the code would go next
+    $("codeDock").innerHTML = DOCK_ICON[side === "left" ? "bottom" : "left"];
+    $("codeDock").title = side === "left" ? "Dock the code below the design" : "Dock the code beside the design (left)";
+    if (remember) pref("wc:codeDock", side);
+    layout();
+}
+
+// Resize: drag the panel's edge (top when below, right when beside); the size is remembered. The handle keeps the pointer
+// (setPointerCapture) so the drag follows it over the design's iframe too, which would otherwise take the pointer and leave it stuck.
 (() => {
     const panel = $("codePanel"), handle = $("codeResize");
-    try { const h = Number(localStorage.getItem("wc:codeH")); if (h) panel.style.height = `${h}px`; } catch { /* storage is optional */ }
     let drag = null;
     handle.addEventListener("pointerdown", (e) => {
         e.preventDefault();
-        drag = { y: e.clientY, h: panel.offsetHeight };
+        drag = { x: e.clientX, y: e.clientY, w: panel.offsetWidth, h: panel.offsetHeight, side: dock };
         handle.setPointerCapture(e.pointerId);
-        document.body.style.cursor = "row-resize";
+        document.body.style.cursor = dock === "left" ? "col-resize" : "row-resize";
     });
     handle.addEventListener("pointermove", (e) => {
         if (!drag) return;
-        panel.style.height = `${Math.round(Math.min(innerHeight * 0.8, Math.max(120, drag.h + drag.y - e.clientY)))}px`;
+        if (drag.side === "left") panel.style.width = `${Math.round(Math.min(innerWidth * 0.7, Math.max(260, drag.w + e.clientX - drag.x)))}px`;
+        else panel.style.height = `${Math.round(Math.min(innerHeight * 0.8, Math.max(120, drag.h + drag.y - e.clientY)))}px`;
         layout();
     });
     const end = (e) => {
         if (!drag) return;
+        const side = drag.side;
         drag = null;
         document.body.style.cursor = "";
         try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
-        try { localStorage.setItem("wc:codeH", String(panel.offsetHeight)); } catch { /* storage is optional */ }
+        pref(side === "left" ? "wc:codeW" : "wc:codeH", String(side === "left" ? panel.offsetWidth : panel.offsetHeight));
     };
     handle.addEventListener("pointerup", end);
     handle.addEventListener("pointercancel", end);
     handle.addEventListener("lostpointercapture", end);
+    $("codeDock").addEventListener("click", () => setDock(dock === "left" ? "bottom" : "left"));
+    setDock(data.codeDock || pref("wc:codeDock") || "bottom", false);
+    if (data.codeOpen) setCodePanel(true); // a new component starts with its code open
 })();
 }

@@ -84,7 +84,7 @@ export const createComponent = async (req, res) => {
             tags: normalizeTags(tags),
             profile: buildProfile(htmlCode),
             project: project ? project._id : null,
-            kind: project ? "page" : "component",
+            kind: req.body.kind === "component" ? "component" : project ? "page" : "component", // a component made from a project stays a component, not a page
             group: project ? normalizeGroup(group) : "",
             isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
