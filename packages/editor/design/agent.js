@@ -1800,7 +1800,7 @@ export function agentMain() {
         }
         if (e.key === "Escape") { e.preventDefault(); if (tool !== "move") setTool("move"); else if (inside && sels.length && sels.every((el) => inside.contains(el))) setSelection([inside]); else setSelection([]); return; }
         if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); post({ type: "key", key: e.key, meta: false, shift: true }); return; }
-        const forward = (meta && ["z", "y", "s"].includes(k)) || (!meta && !e.altKey && ["v", "f", "r", "o", "t", "i", "b", "h"].includes(k));
+        const forward = (meta && ["z", "y", "s"].includes(k)) || (!meta && !e.altKey && ["v", "f", "r", "o", "t", "i", "b", "h", "p"].includes(k));
         if (forward) { e.preventDefault(); post({ type: "key", key: k, meta, shift: e.shiftKey }); }
     }, true);
 
@@ -1812,9 +1812,30 @@ export function agentMain() {
 
     document.addEventListener("keyup", (e) => { if (e.code === "Space" && !editing) post({ type: "space", down: false }); }, true);
 
+    // ── While editing, the page holds still: hover, focus and active styles are off ──────────────────────
+    // A button that changes colour under the pointer, or a field's focus ring, would get in the way of selecting and editing (and
+    // the panel would show a look that isn't the element's own). Every rule for those states (hover:, focus:, active:, group-hover:,
+    // in Tailwind's output or the design's CSS) is rewritten to match nothing; the Interact tool shows the page with them, live.
+    // Tailwind rewrites its styles as classes change, so new rules are caught as they appear.
+    // a real pseudo-class, not an escaped colon inside a class name (.md\:hover\:bg-x is a name; its :hover at the end is the state)
+    const STATE = /(?<!\\):(?:hover|focus-visible|focus-within|focus|active)\b/;
+    const STATES = /(?<!\\):(?:hover|focus-visible|focus-within|focus|active)\b/g;
+    function freezeStates() {
+        const walk = (rules) => {
+            for (const r of rules) {
+                if (r.selectorText && STATE.test(r.selectorText)) { try { r.selectorText = r.selectorText.replace(STATES, ":not(*)"); } catch (_) { /* a selector the browser won't take back stays */ } }
+                if (r.cssRules) walk(r.cssRules); // @media, @supports, @layer, and nested rules (&:hover)
+            }
+        };
+        for (const sheet of document.styleSheets) { try { walk(sheet.cssRules); } catch (_) { /* a stylesheet from another site can't be read */ } }
+    }
+    freezeStates();
+    document.addEventListener("load", (e) => { if (e.target && e.target.tagName === "LINK") freezeStates(); }, true); // a stylesheet that arrives later
+
     // Tailwind writes its styles a moment after an element appears, so the numbers the editor shows can be stale
     let infoTimer = null;
     new MutationObserver(() => {
+        freezeStates();
         redraw();
         clearTimeout(infoTimer);
         infoTimer = setTimeout(() => {

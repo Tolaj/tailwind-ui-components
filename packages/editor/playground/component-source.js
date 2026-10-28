@@ -66,6 +66,8 @@ const HEIGHT_REPORTER = `
     }
     new ResizeObserver(report).observe(document.documentElement);
     window.addEventListener("load", report);
+    // Esc in the live page goes back to editing (the editor's Interact tool listens for it)
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") parent.postMessage({ type: "key", key: "escape" }, "*"); });
 })();`;
 
 /** Builds a complete, standalone document for an iframe's srcdoc. */

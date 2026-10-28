@@ -14,7 +14,11 @@ export const MIN_H = 720;
 // a frame has its own width, and a height that follows its content unless it was set by hand
 export const widthOf = (d) => (d.board && d.board.w) || d.frameW || DEFAULT_W;
 export const curWidth = () => widthOf(docs.get(S.curKey));
-export const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === S.curKey ? Math.max(MIN_H, S.frameHeight) : Math.max(MIN_H, d.height || 0));
+/** A device's screen height for a frame width (desktop, tablet, phone): the live page (Interact) is shown on a screen that size. */
+export const deviceHeight = (w) => (w >= 1024 ? 800 : w >= 768 ? 1024 : 844);
+export const heightOfDoc = (d) => (d.board && d.board.h) || (d.key === S.curKey
+    ? (S.mode === "preview" ? deviceHeight(widthOf(d)) : Math.max(MIN_H, S.frameHeight))
+    : Math.max(MIN_H, d.height || 0));
 export const canvasSize = () => [canvas.clientWidth, canvas.clientHeight];
 
 /** The group a design belongs to in its project ("Public site"), or "". */
