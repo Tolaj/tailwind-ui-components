@@ -27,6 +27,8 @@ const I = {
     between: svg('<path d="M2.5 2v12M13.5 2v12"/><rect x="4.5" y="5" width="2.5" height="6" rx=".6"/><rect x="9" y="5" width="2.5" height="6" rx=".6"/>'),
     sides: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="2.2 1.8"/>'),
     plus: svg('<path d="M8 3.5v9M3.5 8h9"/>'),
+    lock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
+    unlock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/>'),
 };
 
 /** An icon button: `on` is drawn pressed, `faint` greyed (it does not apply here, so it does nothing). */
@@ -193,17 +195,47 @@ function setSizing(s, actions, axis, mode) {
 const SIZING = [["fixed", "Fixed"], ["hug", "Hug"], ["fill", "Fill"]];
 function SizeField({ s, actions, axis }) {
     const mode = sizing(s, axis), p = axis === "w" ? "width" : "height";
-    return html`<${NumField} label=${axis === "w" ? "W" : "H"} value=${num(axis === "w" ? s.geom.w : s.geom.h)} set=${has(s, p) || (mode === "fill" && has(s, "flex-grow"))}
-        title=${`${p}: ${mode}`} onCommit=${(t) => actions.setGeom(axis, t)}>
+    const commit = (t) => {
+        const r = ratioOf(s), n = Number(t);
+        if (axis === "h" && r && Number.isFinite(n) && n > 0) return actions.setGeom("w", String(Math.round(n * r))); // locked: H moves W, the ratio does the rest
+        return actions.setGeom(axis, t);
+    };
+    return html`<${NumField} label=${axis === "w" ? "W" : "H"} value=${num(axis === "w" ? s.geom.w : s.geom.h)} set=${has(s, p) || (mode === "fill" && has(s, "flex-grow")) || (axis === "h" && Boolean(ratioOf(s)))}
+        title=${`${p}: ${mode}`} onCommit=${commit}>
         <select class="nfs" title="Fixed, Hug contents or Fill container" onChange=${(e) => setSizing(s, actions, axis, e.target.value)}>
             ${SIZING.map(([v, l]) => html`<option value=${v} selected=${mode === v}>${l}</option>`)}</select></${NumField}>`;
+}
+
+/** The width-to-height ratio the element is locked to (its aspect-ratio), or 0 when it is not. */
+function ratioOf(s) {
+    const v = comp(s, "aspect-ratio");
+    if (!v || v === "auto") return 0;
+    const m = v.match(/([\d.]+)\s*(?:\/\s*([\d.]+))?/);
+    return m ? Number(m[1]) / Number(m[2] || 1) : 0;
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+/**
+ * Lock the ratio: the element gets an aspect-ratio of its size now (aspect-video, aspect-square, aspect-[4/3]) and its height
+ * comes off, so the ratio sets it: a new width keeps the shape, here and in the page. Unlocked, the height it has is written back.
+ */
+function toggleRatio(s, actions) {
+    const w = Math.round(s.geom.w), h = Math.round(s.geom.h);
+    if (ratioOf(s)) {
+        actions.setGeom("h", String(h));
+        if (owns(s, "aspect-ratio")) actions.resetProp("aspect-ratio"); else actions.setProp("aspect-ratio", "auto");
+        return;
+    }
+    if (!w || !h) return;
+    const d = gcd(w, h);
+    actions.setProp("aspect-ratio", `${w / d} / ${h / d}`);
+    if (owns(s, "height")) actions.resetProp("height");
 }
 
 /** A property as a Figma field: what the element sets, else its computed value, faint. */
 const PropField = ({ s, actions, p, label, title }) => html`<${NumField} label=${label} title=${title || p} value=${num(shownOf(s, p, srcOf(s, p))) || shownOf(s, p, srcOf(s, p))}
     set=${has(s, p)} onCommit=${(t) => actions.setProp(p, t)} />`;
 
-const MORE = [["min-width", "Min W"], ["max-width", "Max W"], ["min-height", "Min H"], ["max-height", "Max H"], ["aspect-ratio", "Ratio"], ["z-index", "Z"]];
+const MORE = [["min-width", "Min W"], ["max-width", "Max W"], ["min-height", "Min H"], ["max-height", "Max H"], ["z-index", "Z"]];
 
 export function LayoutSection({ s, actions }) {
     const [sides, setSides] = useState(false);
@@ -217,7 +249,7 @@ export function LayoutSection({ s, actions }) {
     const wrapOn = /^wrap/.test(comp(s, "flex-wrap"));
     const clip = /hidden|clip/.test(comp(s, "overflow"));
     const shownMore = MORE.filter(([p]) => more || owns(s, p)); // set ones always show; the rest behind +
-    return html`<${FSection} title="Layout" extra=${html`<${IconBtn} icon=${I.plus} on=${more} title=${more ? "Hide min, max, ratio and z-index" : "Min and max size, aspect ratio, z-index"} onClick=${() => setMore(!more)} />`}>
+    return html`<${FSection} title="Layout" extra=${html`<${IconBtn} icon=${I.plus} on=${more} title=${more ? "Hide min, max and z-index" : "Min and max size, z-index"} onClick=${() => setMore(!more)} />`}>
         <div class="frow"><div class="ibg wide">${k("block", I.block, "Block: children stack in the page flow")}${k("row", I.row, "Row (flex)")}${k("col", I.col, "Column (flex)")}${k("grid", I.grid, "Grid")}</div></div>
         ${flex && html`<div class="lgrid">
             <${AlignBox} s=${s} actions=${actions} kind=${kind} />
@@ -245,7 +277,9 @@ export function LayoutSection({ s, actions }) {
                 <${IconBtn} icon=${I.sides} title="Each side on its own" onClick=${() => setSides(true)} /></div>`}
         <${Sub}>Dimensions</${Sub}>
         <${FlexNote} s=${s} actions=${actions} />
-        <div class="frow"><${SizeField} s=${s} actions=${actions} axis="w" /><${SizeField} s=${s} actions=${actions} axis="h" /></div>
+        <div class="frow"><${SizeField} s=${s} actions=${actions} axis="w" /><${SizeField} s=${s} actions=${actions} axis="h" />
+            <${IconBtn} icon=${ratioOf(s) ? I.lock : I.unlock} on=${Boolean(ratioOf(s))} title=${ratioOf(s) ? `Ratio locked (${comp(s, "aspect-ratio")}): click to unlock` : "Lock the aspect ratio: it keeps its shape when the width changes"}
+                onClick=${() => toggleRatio(s, actions)} /></div>
         ${shownMore.length > 0 && html`<div class="frow two2">${shownMore.map(([p, l]) => html`<${PropField} s=${s} actions=${actions} p=${p} label=${l} />`)}</div>`}
         <label class=${`fcheck ${has(s, "overflow") ? "" : "unset"}`}><input type="checkbox" checked=${clip}
             onChange=${(e) => (e.target.checked ? actions.setProp("overflow", "hidden") : owns(s, "overflow") ? actions.resetProp("overflow") : actions.setProp("overflow", "visible"))} />Clip content</label>

@@ -72,6 +72,7 @@ export function groupOf(prop) {
     if (prop === "border-top-width") return "borderWidth";
     if (prop === "opacity") return "opacity";
     if (prop === "grid-template-columns") return "gridCols";
+    if (prop === "aspect-ratio") return "aspect";
     return null;
 }
 
@@ -98,6 +99,14 @@ export function twValue(prop, raw, scale) {
     if (prop === "border-top-width") { const n = v.replace(/px$/, ""); return /^(0|1|2|4|8)$/.test(n) ? n : /^\d+(\.\d+)?(px)?$/.test(v) ? `${n}px` : null; }
     if (prop === "opacity") { const n = Number(v); return !Number.isFinite(n) ? null : n <= 1 && !scale ? String(Math.round(n * 100)) : String(Math.round(n)); }
     if (prop === "grid-template-columns") return /^\d+$/.test(v) || v === "none" ? v : null;
+    if (prop === "aspect-ratio") {
+        // 16 / 9 -> video, 1 / 1 -> square, any other two whole numbers -> [w/h]
+        const m = v.match(/^(\d+)\s*\/\s*(\d+)$/) || (/^\d+$/.test(v) ? [v, v, "1"] : null);
+        if (v === "auto") return "auto";
+        if (!m) return null;
+        const [w, h] = [Number(m[1]), Number(m[2])];
+        return w === h ? "square" : w * 9 === h * 16 ? "video" : `[${w}/${h}]`;
+    }
     return null;
 }
 

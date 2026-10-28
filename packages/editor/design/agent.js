@@ -1220,7 +1220,7 @@ export function agentMain() {
         if (hd.includes("s")) h = g.g.h + dy;
         if (hd.includes("w")) w = g.g.w - dx;
         if (hd.includes("n")) h = g.g.h - dy;
-        if (e.shiftKey && g.g.w && g.g.h) {
+        if ((e.shiftKey || g.ratio) && g.g.w && g.g.h) { // Shift, or a locked aspect ratio, keeps the shape
             const r = g.g.w / g.g.h;
             if (hd.length === 2 || hd === "e" || hd === "w") h = w / r; else w = h * r;
         }
@@ -1316,7 +1316,8 @@ export function agentMain() {
             gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
         } else {
             const cs0 = getComputedStyle(el);
-            gesture = { type: "resize", el, fx: flexItemOf(el), pre: sourcesOf(el, GESTURE_PROPS), inl0: inlineOf(el, GESTURE_PROPS), h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
+            const ar = cs0.aspectRatio;
+            gesture = { type: "resize", el, ratio: ar && ar !== "auto", fx: flexItemOf(el), pre: sourcesOf(el, GESTURE_PROPS), inl0: inlineOf(el, GESTURE_PROPS), h: hd, g, abs: g.abs, rot: g.rot, ml: parseFloat(cs0.marginLeft) || 0, mt: parseFloat(cs0.marginTop) || 0, c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, o: originOf(el.parentElement || document.body), sx: e.clientX, sy: e.clientY, moved: false };
         }
     }
 
@@ -1428,6 +1429,8 @@ export function agentMain() {
                 if (!g.inl0[p] && Math.round(parseFloat(g.el.style.getPropertyValue(p))) === Math.round(was)) g.el.style.removeProperty(p);
             });
             tidyStyle(g.el);
+            // with the ratio locked the height follows the width: a fixed height would break the lock
+            if (g.ratio && g.el.style.getPropertyValue("width") && !g.inl0.height) g.el.style.removeProperty("height");
             const props = GESTURE_PROPS.filter((p) => g.el.style.getPropertyValue(p) !== g.inl0[p]); // what the resize wrote
             const item = gestureItem(g.el, g.pre, props);
             // pulled along the axis flex sizes it on: nothing changed there, and the editor says why
