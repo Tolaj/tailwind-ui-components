@@ -1,5 +1,6 @@
 import { closeColorPicker } from "../color-picker.js";
 import { CSS_PROP_LIST } from "../css-props.js";
+import { panelStore } from "../panel-state.js";
 import { S, data, frame, model, send } from "./base.js";
 import { docs, scheduleLayout, selectFrame, wraps } from "./designs.js";
 import { pathKey, renderLayers } from "./layers.js";
@@ -89,6 +90,7 @@ export function init() {
             setTimeout(hideBoot, 150); // the first paint of the fitted design, then the loading message goes
             send({ cmd: "tool", tool: S.tool });
             send({ cmd: "cssProps", props: CSS_PROP_LIST });
+            send({ cmd: "previewState", state: panelStore.get().st }); // a reloaded frame shows the picked state again
             renderFloat();
         } else if (m.type === "height" || m.type === "preview-height") {
             if (viewportLoop(m.height)) return;

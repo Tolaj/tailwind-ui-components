@@ -71,7 +71,8 @@ const panelActions = {
     closePanel: () => setPanel(false),
     // a breakpoint picked: the frame goes to its width, so what is edited is what is seen; All sizes leaves the frame as it is
     setBreakpoint: (bp) => { panelStore.set({ bp }); if (bp) setDevice(BREAKPOINT_WIDTH[bp]); },
-    setState: (st) => panelStore.set({ st }),
+    // the state picked: classes are written for it, and the selected element shows it on the canvas (its hover look...)
+    setState: (st) => { panelStore.set({ st }); send({ cmd: "previewState", state: st }); },
     setText: (text) => { if (S.selected) cmd({ cmd: "setText", path: S.selected.path, text }, "text"); },
     // position and layout (figma-sections.js)
     setGeom: (key, text) => {

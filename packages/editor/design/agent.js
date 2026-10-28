@@ -37,6 +37,7 @@ export function agentMain() {
     let zoom = 1;
     let sels = [];
     let inside = null; // the group gone into with a double-click (see pickable)
+    let shownState = ""; // the state picked in the panel, shown on the selection (see showState)
     let hov = null;
     let editing = null;
     let gesture = null;
@@ -491,6 +492,7 @@ export function agentMain() {
     const serialize = () => {
         const c = document.body.cloneNode(true);
         c.querySelectorAll("[contenteditable]").forEach((e) => e.removeAttribute("contenteditable"));
+        c.querySelectorAll("[data-wc-state]").forEach((e) => e.removeAttribute("data-wc-state")); // a state shown while editing, not part of the design
         c.querySelectorAll("script[data-wc-agent]").forEach((e) => e.remove());
         return c.innerHTML.trim();
     };
@@ -503,6 +505,7 @@ export function agentMain() {
     }
     function setSelection(list, quiet) {
         sels = list.filter(Boolean);
+        showState(); // the picked state shows on whatever is selected now
         if (inside && !(sels.length && sels.every((el) => el !== inside && inside.contains(el)))) inside = null; // picked something outside: out of the group
         redraw();
         if (!quiet) post({ type: "selected", info: describe(primary()) });
@@ -1815,21 +1818,40 @@ export function agentMain() {
     // ── While editing, the page holds still: hover, focus and active styles are off ──────────────────────
     // A button that changes colour under the pointer, or a field's focus ring, would get in the way of selecting and editing (and
     // the panel would show a look that isn't the element's own). Every rule for those states (hover:, focus:, active:, group-hover:,
-    // in Tailwind's output or the design's CSS) is rewritten to match nothing; the Interact tool shows the page with them, live.
-    // Tailwind rewrites its styles as classes change, so new rules are caught as they appear.
+    // in Tailwind's output or the design's CSS) is rewritten to match an attribute instead (data-wc-state="hover"), which no element
+    // has, so it shows nowhere; the Interact tool shows the page with them, live. The panel's State picks one to show on the selected
+    // element (previewState), so its hover look can be seen and edited. Tailwind rewrites its styles as classes change, so new rules
+    // are caught as they appear.
     // a real pseudo-class, not an escaped colon inside a class name (.md\:hover\:bg-x is a name; its :hover at the end is the state)
     const STATE = /(?<!\\):(?:hover|focus-visible|focus-within|focus|active)\b/;
     const STATES = /(?<!\\):(?:hover|focus-visible|focus-within|focus|active)\b/g;
     function freezeStates() {
         const walk = (rules) => {
             for (const r of rules) {
-                if (r.selectorText && STATE.test(r.selectorText)) { try { r.selectorText = r.selectorText.replace(STATES, ":not(*)"); } catch (_) { /* a selector the browser won't take back stays */ } }
+                if (r.selectorText && STATE.test(r.selectorText)) { try { r.selectorText = r.selectorText.replace(STATES, (m) => `[data-wc-state~="${m.slice(1)}"]`); } catch (_) { /* a selector the browser won't take back stays */ } }
                 if (r.cssRules) walk(r.cssRules); // @media, @supports, @layer, and nested rules (&:hover)
             }
         };
         for (const sheet of document.styleSheets) { try { walk(sheet.cssRules); } catch (_) { /* a stylesheet from another site can't be read */ } }
     }
     freezeStates();
+    /**
+     * The state picked in the panel, shown on the selected element: hover / focus / active on the element itself, group-hover on
+     * its .group parent, peer-hover on the .peer before it. Kept as the selection changes; never saved (serialize strips it).
+     */
+    function showState() {
+        document.querySelectorAll("[data-wc-state]").forEach((n) => n.removeAttribute("data-wc-state"));
+        const el = primary();
+        if (!shownState || !el || el === document.body) return;
+        const m = shownState.match(/^(group|peer)-(hover|focus|focus-visible|focus-within|active)$/);
+        let target = el, st = shownState;
+        if (m) {
+            st = m[2];
+            if (m[1] === "group") target = el.parentElement && el.parentElement.closest(".group");
+            else { target = el.previousElementSibling; while (target && !target.classList.contains("peer")) target = target.previousElementSibling; }
+        }
+        if (target && /^(hover|focus|focus-visible|focus-within|active)$/.test(st)) target.setAttribute("data-wc-state", st === "focus-visible" ? "focus focus-visible" : st);
+    }
     document.addEventListener("load", (e) => { if (e.target && e.target.tagName === "LINK") freezeStates(); }, true); // a stylesheet that arrives later
 
     // Tailwind writes its styles a moment after an element appears, so the numbers the editor shows can be stale
@@ -1948,6 +1970,7 @@ export function agentMain() {
             return;
         }
         if (m.cmd === "select") { if (Array.isArray(m.paths)) setSelection(m.paths.map(elAt).filter(Boolean)); else select(elAt(m.path)); return; } // paths: several at once
+        if (m.cmd === "previewState") { shownState = m.state || ""; showState(); redraw(); if (primary() && alive(primary())) post({ type: "info", info: describe(primary()) }); return; }
         if (m.cmd === "deselect") { editing = null; setSelection([], true); post({ type: "body", info: describe(document.body) }); return; } // the page's styling, for the page panel
         if (m.cmd === "hover") { hov = m.path ? elAt(m.path) : null; redraw(); return; }
         if (m.cmd === "tool") { setTool(m.tool, true); return; }
