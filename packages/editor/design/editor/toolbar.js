@@ -187,16 +187,7 @@ function setupFigmaButton(info, designId) {
     btn.textContent = label;
     btn.title = info.outdated ? "A newer converter is available: convert this design again from its Figma data" : "Convert this design again from the Figma data kept with it";
     btn.dataset.design = designId;
-    // the layout grid the design has in Figma, drawn over the page as guides while the button is on
-    const grid = $("gridBtn"), hasGrid = Array.isArray(info.grids) && info.grids.length > 0;
-    grid.dataset.design = designId; grid.dataset.on = "";
-    grid.onclick = () => {
-        const on = grid.dataset.on !== "1";
-        grid.dataset.on = on ? "1" : "";
-        grid.classList.toggle("bg-neutral-900", on); grid.classList.toggle("text-white", on); grid.classList.toggle("hover:bg-neutral-900", on);
-        send({ cmd: "layoutGrids", on, grids: info.grids });
-    };
-    const show = () => { btn.classList.toggle("hidden", S.curKey !== btn.dataset.design); grid.classList.toggle("hidden", !hasGrid || S.curKey !== grid.dataset.design); };
+    const show = () => btn.classList.toggle("hidden", S.curKey !== btn.dataset.design);
     show();
     if (figmaButtonReady) return; // the listeners are set once; a later save only changes which design the button belongs to
     figmaButtonReady = true;

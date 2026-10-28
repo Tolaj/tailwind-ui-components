@@ -20,8 +20,7 @@ export function agentMain() {
     const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
-    const gridLayer = mk("position:absolute;left:0;top:0;pointer-events:none;"); // Figma's layout grids, when switched on
-    overlay.append(gridLayer, hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -1598,40 +1597,6 @@ export function agentMain() {
     }
 
     /**
-     * Draws the layout grids the design has in Figma (columns, rows, a square grid) over the page, as guides: pass null to clear.
-     * Figma's rules: with STRETCH alignment the columns share the width between the margins (offset) with the gutter between them;
-     * otherwise each is sectionSize wide and the set sits at the start, middle or end.
-     */
-    function drawLayoutGrids(grids) {
-        gridLayer.innerHTML = "";
-        if (!grids || !grids.length) return;
-        const b = document.body.getBoundingClientRect();
-        const W = b.width, H = Math.max(b.height, document.body.scrollHeight);
-        const o = originOf(document.body);
-        for (const g of grids) {
-            const c = g.color || { r: 1, g: 0, b: 0, a: 0.1 };
-            const colour = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${c.a ?? 0.1})`;
-            if (g.pattern === "GRID" && g.sectionSize > 0) {
-                gridLayer.appendChild(mk(`position:absolute;left:${o.x}px;top:${o.y}px;width:${W}px;height:${H}px;background-image:linear-gradient(to right,${colour} 1px,transparent 1px),linear-gradient(to bottom,${colour} 1px,transparent 1px);background-size:${g.sectionSize}px ${g.sectionSize}px;`));
-                continue;
-            }
-            const horizontal = g.pattern === "COLUMNS", total = horizontal ? W : H;
-            const count = Number.isFinite(g.count) && g.count > 0 ? g.count : 0, gutter = g.gutterSize || 0, offset = g.offset || 0;
-            if (!count) continue;
-            const stretch = g.alignment === "STRETCH" || !g.sectionSize;
-            const size = stretch ? (total - 2 * offset - (count - 1) * gutter) / count : g.sectionSize;
-            const used = count * size + (count - 1) * gutter;
-            const start = stretch ? offset : g.alignment === "CENTER" ? (total - used) / 2 : g.alignment === "MAX" ? total - offset - used : offset;
-            for (let i = 0; i < count; i++) {
-                const at = start + i * (size + gutter);
-                gridLayer.appendChild(mk(horizontal
-                    ? `position:absolute;left:${o.x + at}px;top:${o.y}px;width:${size}px;height:${H}px;background:${colour};`
-                    : `position:absolute;left:${o.x}px;top:${o.y + at}px;width:${W}px;height:${size}px;background:${colour};`));
-            }
-        }
-    }
-
-    /**
      * Shift+G: free elements that sit in a matrix (every column in line, every row in line, a cell each) become a grid: columns as wide as
      * their widest cell, the gaps they have most often, in a free box where they were, like Shift+A does for a row or column. Anything that
      * is not a clean matrix is left alone.
@@ -2012,7 +1977,6 @@ export function agentMain() {
         }
         if (m.cmd === "autoLayout") { autoLayout(); return; }
         if (m.cmd === "gridLayout") { gridLayout(); return; }
-        if (m.cmd === "layoutGrids") { drawLayoutGrids(m.on ? m.grids : null); return; }
         if (m.cmd === "setProp") {
             const el = elAt(m.path);
             if (el) setProp(el, m).then(() => { changed(false, m.key); if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) }); });
