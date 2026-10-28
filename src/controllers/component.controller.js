@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import FigmaSource from "../models/figmaSource.model.js";
 import { adoptDraftSource } from "../services/figma-update.service.js";
 import Component from "../models/component.model.js";
@@ -317,6 +318,32 @@ export const getProfile = async (req, res) => {
         }
         const profile = component.profile || buildProfile(component.htmlCode);
         res.status(200).json({ success: true, profile, markdown: profileToMarkdown({ ...component, profile }) });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Like or unlike a gallery design for the signed-in person. Body `{ liked: true | false }` sets it (so a like made before signing in
+ * can be applied once, safely, after); without it the like is toggled. One like per person; the count follows.
+ */
+export const setLike = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const id = req.params.id;
+        if (!mongoose.isValidObjectId(id)) return res.status(404).json({ success: false, message: 'Component not found' });
+        const component = await Component.findOne({ _id: id, isPublished: true }).select('likedBy').lean();
+        if (!component) return res.status(404).json({ success: false, message: 'Component not found' });
+        const has = (component.likedBy || []).some((u) => String(u) === userId);
+        const want = typeof req.body?.liked === 'boolean' ? req.body.liked : !has;
+        if (want && !has) {
+            // the filter makes it count once even when two requests arrive together
+            await Component.updateOne({ _id: id, likedBy: { $ne: userId } }, { $addToSet: { likedBy: userId }, $inc: { likes: 1 } });
+        } else if (!want && has) {
+            await Component.updateOne({ _id: id, likedBy: userId }, { $pull: { likedBy: userId }, $inc: { likes: -1 } });
+        }
+        const now = await Component.findById(id).select('likes likedBy').lean();
+        res.status(200).json({ success: true, likes: Math.max(0, now.likes || 0), liked: (now.likedBy || []).some((u) => String(u) === userId) });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

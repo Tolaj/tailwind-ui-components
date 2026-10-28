@@ -63,3 +63,42 @@ async function saveToLibrary(id, button) {
         button.disabled = false;
     }
 }
+
+// ── Likes ────────────────────────────────────────────────────────────────────
+function paintLike(btn, liked, count) {
+  btn.dataset.liked = liked ? "1" : "";
+  btn.setAttribute("aria-pressed", String(liked));
+  btn.classList.toggle("is-liked", liked);
+  btn.classList.toggle("text-red-600", liked);
+  btn.querySelector(".like-heart").setAttribute("fill", liked ? "currentColor" : "none");
+  btn.querySelector(".like-count").textContent = String(count);
+}
+async function sendLike(id, btn, liked) {
+  const res = await fetch(`/api/components/${id}/like`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(typeof liked === "boolean" ? { liked } : {}),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.message || "Could not like it");
+  paintLike(btn, json.liked, json.likes);
+}
+/** The Like button. Signed out: sign in first, and come back to this page, where the like is counted (see below). */
+async function toggleLike(id, btn) {
+  if (!btn.dataset.signedIn) {
+    const back = new URL(location.href);
+    back.searchParams.set("like", id);
+    location.href = `/auth/sign-in?returnTo=${encodeURIComponent(back.pathname + back.search)}`;
+    return;
+  }
+  btn.disabled = true;
+  try { await sendLike(id, btn); } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+}
+// back from signing in with ?like=<id>: count that like once, then clean the address
+document.addEventListener("DOMContentLoaded", async () => {
+  const url = new URL(location.href);
+  const id = url.searchParams.get("like");
+  if (!id) return;
+  url.searchParams.delete("like");
+  history.replaceState({}, "", url.pathname + url.search);
+  const btn = document.querySelector(`[data-like="${CSS.escape(id)}"]`);
+  if (btn && btn.dataset.signedIn && !btn.dataset.liked) { try { await sendLike(id, btn, true); } catch { /* the like button still works by hand */ } }
+});

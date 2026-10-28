@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Component from "../models/component.model.js";
 
 const router = express.Router();
@@ -121,7 +122,7 @@ router.get("/category/:category", async (req, res) => {
             isPublished: true
         })
             .populate('createdBy', 'name email')
-            .sort('-createdAt')
+            .sort({ likes: -1, createdAt: -1 }) // the most liked first; the newest first among equals
             .lean();
 
         const categoryInfo = categories[category];
@@ -138,8 +139,12 @@ router.get("/category/:category", async (req, res) => {
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
+        const me = req.session.user ? req.session.user.id : null;
         components.forEach(component => {
             component.isNew = new Date(component.createdAt) >= oneMonthAgo;
+            component.likes = component.likes || 0;
+            component.liked = Boolean(me) && (component.likedBy || []).some((u) => String(u) === me); // whether this person likes it
+            delete component.likedBy; // who liked it is not sent to the page
         });
 
         res.status(200).render("main/category-detail", {
@@ -165,9 +170,12 @@ router.get("/category/:category", async (req, res) => {
 // Component detail page
 router.get("/component/:id", async (req, res) => {
     try {
-        const component = await Component.findById(req.params.id).populate('createdBy', 'name email');
+        const me = req.session.user ? req.session.user.id : null;
+        const component = mongoose.isValidObjectId(req.params.id) ? await Component.findById(req.params.id).populate('createdBy', 'name email').lean() : null;
+        // a design that is not in the gallery can only be opened by its owner
+        const visible = component && (component.isPublished || (component.createdBy && String(component.createdBy._id) === me));
 
-        if (!component) {
+        if (!visible) {
             return res.status(404).render("error", {
                 layout: "main",
                 title: "Component Not Found",
@@ -178,6 +186,9 @@ router.get("/component/:id", async (req, res) => {
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
         component.isNew = new Date(component.createdAt) >= oneMonthAgo;
+        component.likes = component.likes || 0;
+        component.liked = Boolean(me) && (component.likedBy || []).some((u) => String(u) === me);
+        delete component.likedBy;
 
         res.status(200).render("main/component-detail", {
             activePage: 'component',

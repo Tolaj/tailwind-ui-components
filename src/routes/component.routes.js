@@ -8,6 +8,7 @@ import {
     getVersions,
     restoreVersion,
     exportComponentCode,
+    setLike,
     forkComponent,
     getProfile
 } from "../controllers/component.controller.js";
@@ -43,6 +44,7 @@ router.post("/import", ensureAuthAPI, async (req, res) => {
 });
 router.put("/:id", ensureAuthAPI, updateComponent);
 router.delete("/:id", ensureAuthAPI, deleteComponent);
+router.post("/:id/like", ensureAuthAPI, setLike);
 router.post("/:id/fork", ensureAuthAPI, forkComponent);
 
 export default router;

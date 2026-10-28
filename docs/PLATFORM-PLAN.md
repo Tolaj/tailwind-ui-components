@@ -47,7 +47,7 @@ It is free.
 | Gallery home, category pages, design page with Preview / Code / phone / full screen / format / copy | **Exists** |
 | Design page: **Save** into a chosen project | **Change**: today "Save to library" copies it into the library with no project |
 | Design page: **Open in editor** | **New** |
-| **Likes**: button, count, most liked first, sign-in-then-like | **New** (the fields and the endpoint were removed earlier and need to come back) |
+| **Likes**: button, count, most liked first, sign-in-then-like | **Done**: `likes` and `likedBy` are back; `POST /api/components/:id/like` (signed in; one like per person; counts once even if sent twice); the Like button shows on the design card; category pages sort by likes, then newest; signed out, it goes to sign in and the like is counted when the person returns; `/component/:id` now opens only published designs (or your own) |
 | **Report** button and a way for the owner to review and remove | **New** |
 | **Public** switch on a design in a project | **Change**: a publish flag exists in the data and in the editor's Details form; it needs to become a switch on the project page and in the editor |
 | **New project** opens the editor on a blank page with code left | **Change**: today it creates the project and opens the project page |

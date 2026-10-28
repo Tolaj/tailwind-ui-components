@@ -25,6 +25,9 @@ const componentSchema = new mongoose.Schema(
             ref: "User",
             required: true
         },
+        // likes: people who like a design in the gallery (the most liked show first); one like per person
+        likes: { type: Number, default: 0, index: true },
+        likedBy: { type: [mongoose.Schema.Types.ObjectId], ref: "User", default: [] },
         project: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Project",

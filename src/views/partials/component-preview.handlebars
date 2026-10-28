@@ -68,6 +68,14 @@
                 <option>HTML</option>
             </select>
 
+            <!-- Like: the most liked designs show first. Signed out, it asks you to sign in and counts the like afterwards -->
+            <button type="button" onclick="toggleLike('{{_id}}', this)" data-like="{{_id}}" data-liked="{{#if liked}}1{{/if}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                class="like-btn inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 {{#if liked}}is-liked{{/if}}"
+                title="Like this design" aria-pressed="{{#if liked}}true{{else}}false{{/if}}">
+                <svg class="h-4 w-4 like-heart" viewBox="0 0 24 24" fill="{{#if liked}}currentColor{{else}}none{{/if}}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 7.9a4.2 4.2 0 0 1 7.5 2.6c0 5.4-7.5 10-7.5 10z"/></svg>
+                <span class="like-count">{{#if likes}}{{likes}}{{else}}0{{/if}}</span>
+            </button>
+
             <!-- Save to library -->
             {{#if @root.user}}
             <button onclick="saveToLibrary('{{_id}}', this)" title="Save a private copy to your library"
