@@ -12,7 +12,7 @@ import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
 import { PositionSection, LayoutSection } from "./figma-sections.js";
-import { PropSections } from "./prop-sections.js";
+import { AppearanceSection, FillSection, StrokeSection, EffectsSection, TypographySection, MarginSection, OtherSection } from "./style-sections.js";
 import { ExtrasSection } from "./extras-section.js";
 import { ClassesSection } from "./classes-section.js";
 
@@ -167,8 +167,12 @@ function PagePanel({ page: pg, actions }) {
         </div></div>`;
 }
 
-// the sections Position and Layout (figma-sections.js) took over
-const FIGMA_DONE = ["css-layout", "css-size", "css-offsets"];
+/** The style sections, Figma's order: Appearance, Fill, Stroke, Effects, then Typography, Margin and the rest (style-sections.js). */
+// The page (its body) gets no Stroke or Effects: a border or shadow there is almost always a slip meant for an element, and a border
+// on a page as tall as the screen makes it outgrow its frame.
+const Styles = ({ k, s, actions, page }) => html`${!page && html`<${AppearanceSection} key=${`a${k}`} s=${s} actions=${actions} />`}<${FillSection} key=${`f${k}`} s=${s} actions=${actions} />
+    ${!page && html`<${StrokeSection} key=${`s${k}`} s=${s} actions=${actions} /><${EffectsSection} key=${`e${k}`} s=${s} actions=${actions} />`}
+    <${TypographySection} key=${`t${k}`} s=${s} actions=${actions} /><${MarginSection} key=${`m${k}`} s=${s} actions=${actions} /><${OtherSection} key=${`o${k}`} s=${s} actions=${actions} />`;
 
 const CLOSE = html`<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>`;
 const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
@@ -188,15 +192,15 @@ function Panel({ view, tab, actions }) {
     if (view.design) {
         const { key, s } = view.design;
         body = html`<${DesignTop} key=${key} s=${s} actions=${actions} />
-            ${s.tag !== "body" && html`<${PositionSection} key=${`p${key}`} s=${s} actions=${actions} /><${LayoutSection} key=${`l${key}`} s=${s} actions=${actions} />`}
-            <${PropSections} key=${key} s=${s} actions=${actions} skip=${s.tag === "body" ? [] : FIGMA_DONE} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
+            ${s.tag !== "body" && html`<${PositionSection} key=${`p${key}`} s=${s} actions=${actions} />`}<${LayoutSection} key=${`l${key}`} s=${s} actions=${actions} />
+            <${Styles} k=${key} s=${s} actions=${actions} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
     else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />${view.pageBody && html`
-        <div class="sec"><div class="secb nopad"><p class="sub first">Page styling</p><p class="text-[10px] text-neutral-500">The page's own background, text and spacing (its body).</p></div></div>
-        <${PropSections} key="page-body" s=${view.pageBody.s} actions=${view.pageBody.actions} />`}`;
+        <div class="pagehead"><b>Page styling</b><span>Applies to the whole page (its body), not an element. Click an element to style it.</span></div>
+        <${LayoutSection} key="page-l" s=${view.pageBody.s} actions=${view.pageBody.actions} /><${Styles} k="page" page s=${view.pageBody.s} actions=${view.pageBody.actions} />`}`;
     return html`<${Head} page=${view.page} tab=${tab} actions=${actions} />${body}`;
 }
 

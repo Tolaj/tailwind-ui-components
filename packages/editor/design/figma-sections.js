@@ -8,7 +8,7 @@ import { srcOf, shownOf, ownsValue, styled } from "./panel-model.js";
 import { TextInput } from "./controls.js";
 
 const svg = (d, fill) => html`<svg width="14" height="14" viewBox="0 0 16 16" fill=${fill ? "currentColor" : "none"} stroke=${fill ? "none" : "currentColor"} stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" dangerouslySetInnerHTML=${{ __html: d }}></svg>`;
-const I = {
+export const I = {
     alignL: svg('<path d="M2.5 2v12"/><rect x="5" y="4" width="8" height="3" rx=".8"/><rect x="5" y="9" width="5" height="3" rx=".8"/>'),
     alignC: svg('<path d="M8 2v12"/><rect x="3.5" y="4" width="9" height="3" rx=".8"/><rect x="5" y="9" width="6" height="3" rx=".8"/>'),
     alignR: svg('<path d="M13.5 2v12"/><rect x="3" y="4" width="8" height="3" rx=".8"/><rect x="6" y="9" width="5" height="3" rx=".8"/>'),
@@ -27,24 +27,31 @@ const I = {
     between: svg('<path d="M2.5 2v12M13.5 2v12"/><rect x="4.5" y="5" width="2.5" height="6" rx=".6"/><rect x="9" y="5" width="2.5" height="6" rx=".6"/>'),
     sides: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="2.2 1.8"/>'),
     plus: svg('<path d="M8 3.5v9M3.5 8h9"/>'),
+    minus: svg('<path d="M3.5 8h9"/>'),
+    dots: svg('<circle cx="3.5" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.5" cy="8" r="1.1"/>', true),
+    corners: svg('<path d="M2.5 6V4.5a2 2 0 0 1 2-2H6M10 2.5h1.5a2 2 0 0 1 2 2V6M13.5 10v1.5a2 2 0 0 1-2 2H10M6 13.5H4.5a2 2 0 0 1-2-2V10"/>'),
+    textL: svg('<path d="M2.5 4h11M2.5 8h7M2.5 12h9"/>'),
+    textC: svg('<path d="M2.5 4h11M4.5 8h7M3.5 12h9"/>'),
+    textR: svg('<path d="M2.5 4h11M6.5 8h7M4.5 12h9"/>'),
+    textJ: svg('<path d="M2.5 4h11M2.5 8h11M2.5 12h11"/>'),
     lock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
     unlock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/>'),
 };
 
 /** An icon button: `on` is drawn pressed, `faint` greyed (it does not apply here, so it does nothing). */
-const IconBtn = ({ icon, title, on, faint, onClick }) => html`<button type="button" class=${`ib ${on ? "on" : ""} ${faint ? "faint" : ""}`} title=${title}
+export const IconBtn = ({ icon, title, on, faint, onClick }) => html`<button type="button" class=${`ib ${on ? "on" : ""} ${faint ? "faint" : ""}`} title=${title}
     disabled=${faint || undefined} onClick=${onClick}>${icon}</button>`;
 /** A number field with a letter (or icon) in front, as Figma draws X, Y, W, H: solid when the element sets the value, faint otherwise. */
-const NumField = ({ label, value, set, disabled, title, onCommit, children }) => html`<label class=${`nf ${set ? "" : "unset"} ${disabled ? "off" : ""}`} title=${title}>
+export const NumField = ({ label, value, set, disabled, title, onCommit, children }) => html`<label class=${`nf ${set ? "" : "unset"} ${disabled ? "off" : ""}`} title=${title}>
     <span class="nfl">${label}</span><${TextInput} class="nfi" value=${value ?? ""} disabled=${disabled} onCommit=${onCommit} />${children}</label>`;
 /** A section as Figma draws it: a bold title, buttons on the right, always open. */
-const FSection = ({ title, extra, children }) => html`<div class="fsec"><div class="fsech"><span>${title}</span><span class="fsx">${extra}</span></div>${children}</div>`;
-const Sub = ({ children }) => html`<p class="fsub">${children}</p>`;
+export const FSection = ({ title, extra, children }) => html`<div class="fsec"><div class="fsech"><span>${title}</span><span class="fsx">${extra}</span></div>${children}</div>`;
+export const Sub = ({ children }) => html`<p class="fsub">${children}</p>`;
 
-const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? String(Math.round(n * 10) / 10) : ""; };
-const owns = (s, p) => ownsValue(srcOf(s, p)); // set on this element itself: can be taken off
-const has = (s, p) => styled(srcOf(s, p)); // given by its own styling (also the design's CSS): drawn solid
-const comp = (s, p) => (s.computed || {})[p] || "";
+export const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? String(Math.round(n * 10) / 10) : ""; };
+export const owns = (s, p) => ownsValue(srcOf(s, p)); // set on this element itself: can be taken off
+export const has = (s, p) => styled(srcOf(s, p)); // given by its own styling (also the design's CSS): drawn solid
+export const comp = (s, p) => (s.computed || {})[p] || "";
 
 /** A child of a flex box that flex sizes along its axis ignores a width (or height) set on it: say so, with a one-click way out. */
 function FlexNote({ s, actions }) {
@@ -232,7 +239,7 @@ function toggleRatio(s, actions) {
 }
 
 /** A property as a Figma field: what the element sets, else its computed value, faint. */
-const PropField = ({ s, actions, p, label, title }) => html`<${NumField} label=${label} title=${title || p} value=${num(shownOf(s, p, srcOf(s, p))) || shownOf(s, p, srcOf(s, p))}
+export const PropField = ({ s, actions, p, label, title }) => html`<${NumField} label=${label} title=${title || p} value=${num(shownOf(s, p, srcOf(s, p))) || shownOf(s, p, srcOf(s, p))}
     set=${has(s, p)} onCommit=${(t) => actions.setProp(p, t)} />`;
 
 const MORE = [["min-width", "Min W"], ["max-width", "Max W"], ["min-height", "Min H"], ["max-height", "Max H"], ["z-index", "Z"]];
@@ -275,11 +282,11 @@ export function LayoutSection({ s, actions }) {
                 <${NumField} label="↕" title="Top and bottom padding" value=${pad("padding-top", "padding-bottom")} set=${padSet("padding-top", "padding-bottom")}
                     onCommit=${(t) => actions.setProps(["padding-top", "padding-bottom"], t, "py", ["pt", "pb"])} />
                 <${IconBtn} icon=${I.sides} title="Each side on its own" onClick=${() => setSides(true)} /></div>`}
-        <${Sub}>Dimensions</${Sub}>
+        ${s.tag !== "body" && html`<${Sub}>Dimensions</${Sub}>
         <${FlexNote} s=${s} actions=${actions} />
         <div class="frow"><${SizeField} s=${s} actions=${actions} axis="w" /><${SizeField} s=${s} actions=${actions} axis="h" />
             <${IconBtn} icon=${ratioOf(s) ? I.lock : I.unlock} on=${Boolean(ratioOf(s))} title=${ratioOf(s) ? `Ratio locked (${comp(s, "aspect-ratio")}): click to unlock` : "Lock the aspect ratio: it keeps its shape when the width changes"}
-                onClick=${() => toggleRatio(s, actions)} /></div>
+                onClick=${() => toggleRatio(s, actions)} /></div>`}
         ${shownMore.length > 0 && html`<div class="frow two2">${shownMore.map(([p, l]) => html`<${PropField} s=${s} actions=${actions} p=${p} label=${l} />`)}</div>`}
         <label class=${`fcheck ${has(s, "overflow") ? "" : "unset"}`}><input type="checkbox" checked=${clip}
             onChange=${(e) => (e.target.checked ? actions.setProp("overflow", "hidden") : owns(s, "overflow") ? actions.resetProp("overflow") : actions.setProp("overflow", "visible"))} />Clip content</label>

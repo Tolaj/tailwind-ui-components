@@ -102,6 +102,9 @@ const panelActions = {
     setProp: (prop, value, css) => { if (S.selected) setProp(prop, value, css); }, // css: what to write when it goes to CSS (fit -> fit-content)
     setPropLive: (prop, hex) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
     setPropDone: (prop, hex, input) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); pickerClosed(input); },
+    // one colour on several properties at once (a stroke's four sides), dragged in the picker as one undo step
+    setPropsLive: (props, hex, group) => { if (S.selected) setProps(props, hex, group, [], undefined, liveKey(`ps-${group}`)); },
+    setPropsDone: (props, hex, group, input) => { if (S.selected) setProps(props, hex, group, [], undefined, liveKey(`ps-${group}`)); pickerClosed(input); },
     resetProp: (prop) => { if (S.selected) setProp(prop, ""); },
     arrange: (kind) => { if (S.selected) arrange(kind); },
     toggleSection,
@@ -176,6 +179,7 @@ function applyValue(key, value, undoKey = "") {
     if (!S.selected) return;
     const next = setGroup(S.selected.classes, key, value, variant());
     if (next === null) return renderInspector();
+    if (next === S.selected.classes) return; // nothing to change (a class it doesn't have, taken off): no empty undo step
     S.selected.classes = next;
     cmd({ cmd: "setClasses", path: S.selected.path, value: next }, undoKey);
 }

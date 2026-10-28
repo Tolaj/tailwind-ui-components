@@ -18,6 +18,22 @@ export const cmd = (msg, key = "") => { pendingKey = key; send(key ? { key, ...m
 function hideBoot() { const b = document.getElementById("boot"); if (b) { b.classList.add("hidden"); b.classList.remove("flex"); } }
 
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
+/**
+ * A frame that follows its content's height can't follow content sized by the screen (min-h-screen, h-screen, 100vh) plus
+ * anything more (a border, padding, a second section): each time the frame grows to fit, the screen grows with it and the content
+ * outgrows it again, without end. Growth that repeats by the same amount, quickly, is that loop: the frame stops following it
+ * and keeps the height it has. A height that is smaller starts over.
+ */
+const growth = [];
+function viewportLoop(h) {
+    const now = performance.now(), prev = S.frameHeight || 0;
+    if (h <= prev) { growth.length = 0; return false; }
+    growth.push({ t: now, d: h - prev });
+    while (growth.length && now - growth[0].t > 2000) growth.shift();
+    const last = growth.slice(-4);
+    return last.length >= 4 && last.every((g) => Math.abs(g.d - last[0].d) <= 1);
+}
+
 export function init() {
     const boot = document.getElementById("boot");
     if (boot && (data.htmlCode || data.id)) { boot.classList.remove("hidden"); boot.classList.add("flex"); setTimeout(hideBoot, 15000); }
@@ -75,6 +91,7 @@ export function init() {
             send({ cmd: "cssProps", props: CSS_PROP_LIST });
             renderFloat();
         } else if (m.type === "height" || m.type === "preview-height") {
+            if (viewportLoop(m.height)) return;
             S.frameHeight = m.height;
             layout();
             if (!S.viewTouched) fitTo([S.curKey]);

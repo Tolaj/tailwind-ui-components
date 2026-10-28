@@ -197,10 +197,6 @@ textarea.field { height: auto; padding: 6px 8px; font-family: ui-monospace, mono
 .cp-drop:hover { background: #f5f5f5; }
 .tagrow { margin: 4px 10px 6px; }
 .tagrow small { color: #999; font-size: 9.5px; }
-.arrange { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; font-size: 10.5px; color: #555; }
-.arrange span { flex: 1; }
-.arrange button { padding: 3px 8px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fff; font-size: 10.5px; }
-.arrange button:hover { background: #f5f5f5; }
 .hintnote { margin: 0 0 6px; padding: 6px 8px; border-radius: 6px; background: #fff7ed; color: #9a3412; font-size: 10.5px; line-height: 1.5; }
 .hintnote button { margin-left: 2px; font-weight: 600; text-decoration: underline; color: inherit; }
 .vnote { padding: 0 10px 6px; color: #111; font-size: 10.5px; margin: 0; }
@@ -259,15 +255,6 @@ textarea.fi.area { height: auto; padding: 6px; line-height: 1.4; resize: vertica
 .sw2.custom { position: relative; overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
 .sw2.custom input { opacity: 0; position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
 .clear { grid-column: span 5; font-size: 10px; color: #666; height: 18px; border-radius: 3px; background: #f5f5f5; }
-.bm { background: #f5f5f5; border: 1px dashed #cfcfcf; border-radius: 6px; padding: 14px 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; }
-.bml { position: absolute; left: 6px; top: 3px; font-size: 9px; color: #999; }
-.bmr { display: flex; justify-content: center; }
-.bmr.mid { width: 100%; align-items: center; justify-content: space-between; gap: 2px; }
-.bmi { width: 32px; height: 18px; text-align: center; background: transparent; border: 1px solid transparent; border-radius: 3px; font-size: 10.5px; color: #222; }
-.bmi:hover { border-color: #ccc; background: #fff; }
-.bmi:focus { outline: none; border-color: #111; background: #fff; }
-.bp { background: #fff; border: 1px dashed #c5d4de; border-radius: 4px; padding: 14px 4px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; position: relative; }
-.bc { background: #f4f4f4; border: 1px solid #d4d4d4; border-radius: 3px; font-size: 10px; color: #111; padding: 3px 4px; flex: 1; text-align: center; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { display: inline-flex; align-items: center; gap: 3px; background: #f0f0f0; border-radius: 4px; padding: 1px 3px 1px 6px; font: 10.5px ui-monospace, Menlo, monospace; }
 .chip.var { background: #e5f4ff; color: #0a6cc4; }
@@ -284,8 +271,6 @@ textarea.fi.area { height: auto; padding: 6px; line-height: 1.4; resize: vertica
 .stag.tw { background: #e0f2fe; color: #0369a1; }
 .stag.css { background: #fef3c7; color: #92400e; }
 .stag.up { background: #f3f4f6; color: #6b7280; font-weight: 500; }
-.bmi.tw { color: #0369a1; font-weight: 600; }
-.bmi.css { color: #92400e; font-weight: 600; }
 .legend { margin: 6px 10px 2px; font-size: 10.5px; line-height: 1.6; color: #8c8c8c; }
 .legend .stag { display: inline-block; vertical-align: 1px; }
 .rst { width: 18px; height: 18px; flex: none; border-radius: 4px; color: #8c8c8c; line-height: 1; }
@@ -297,8 +282,6 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 /* a value the element's own styling does not give (a default, or inherited) is faint until it is set */
 .row.unset .fi, .row.unset .seg2, .row.unset .lbl { opacity: .5; }
 .row.unset:hover .fi, .row.unset .fi:focus { opacity: 1; }
-.bmi:not(.tw):not(.css) { opacity: .55; }
-.bmi:focus { opacity: 1 !important; }
 
 /* ── Position and Layout, laid out as Figma's (figma-sections.js) ── */
 .fsec { border-bottom: 1px solid #e5e5e5; padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
@@ -316,6 +299,8 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .nfl { flex: none; min-width: 20px; padding: 0 2px 0 7px; color: #8c8c8c; font-size: 10.5px; white-space: nowrap; }
 .nfi { flex: 1; min-width: 0; width: 100%; height: 100%; border: 0; background: transparent; padding: 0 4px 0 2px; font: inherit; font-size: 11px; color: #111; outline: none; }
 .nfu { padding-right: 6px; color: #8c8c8c; }
+.nf .nfi { min-width: 30px; }
+.nfs:not(.wide) { max-width: 46px; padding: 0 13px 0 4px; font-size: 10px; background-position: right 2px center; background-size: 10px; text-overflow: clip; }
 .nfs { flex: none; height: 100%; border: 0; border-left: 1px solid #ebebeb; background-color: transparent; font-size: 10.5px; color: #555; padding: 0 16px 0 6px; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23737373' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 3px center; background-size: 11px; outline: none; }
 .nf.unset .nfi, .nf.unset .nfl { opacity: .5; }
 .nf.unset:hover .nfi, .nf.unset:focus-within .nfi, .nf.unset:focus-within .nfl { opacity: 1; }
@@ -342,3 +327,15 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .fbtns { display: flex; gap: 4px; flex-wrap: wrap; }
 .fbtns button { flex: 1; height: 24px; padding: 0 6px; border-radius: 4px; border: 1px solid #e5e5e5; font-size: 10.5px; background: #fff; white-space: nowrap; }
 .fbtns button:hover { background: #f5f5f5; }
+/* the style sections (style-sections.js): a colour swatch in a field, a dropdown filling a field, an add button with a menu */
+.cin { flex: none; width: 16px; height: 16px; margin-left: 5px; padding: 0; border: 1px solid rgba(0,0,0,.15); border-radius: 3px; background: none; cursor: pointer; }
+.cin::-webkit-color-swatch-wrapper { padding: 0; }
+.cin::-webkit-color-swatch { border: 0; border-radius: 2px; }
+.nfs.wide { flex: 1; min-width: 0; border-left: 0; padding-left: 7px; font-size: 11px; color: #111; background-position: right 6px center; }
+.nf.unset .nfs.wide { opacity: .5; }
+.addsel { position: relative; overflow: hidden; cursor: pointer; }
+.addsel select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 12px; }
+.pagehead { display: flex; flex-direction: column; gap: 2px; margin: 8px 10px 0; padding: 7px 9px; border-radius: 6px; background: #eef4ff; color: #1e3a8a; font-size: 10.5px; line-height: 1.4; }
+.pagehead b { font-size: 11px; }
+.fsec .row { gap: 6px; }
+.fsec .row .lbl { width: 56px; }

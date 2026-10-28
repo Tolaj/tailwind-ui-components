@@ -31,7 +31,7 @@ const WORDS = {
     "mix-blend-mode": ["mixBlend", same("mix-blend-")],
     "pointer-events": ["pointerEvents", same("pointer-events-")],
     "object-fit": ["objectFit", same("object-")],
-    "box-shadow": ["shadow", (v) => (/^(sm|md|lg|xl|2xl|inner|none)$/.test(v) ? `shadow-${v}` : v === "default" || v === "shadow" ? "shadow" : null)],
+    "box-shadow": ["shadow", (v) => (/^(sm|md|lg|xl|2xl|inner|none)$/.test(v) ? v : v === "default" || v === "shadow" ? "default" : null)], // the shadow group takes the size, not the class
 };
 
 // properties whose values are sizes: the group, and whether a negative value is allowed

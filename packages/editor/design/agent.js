@@ -459,6 +459,7 @@ export function agentMain() {
             style: el.getAttribute("style") || "",
             leaf: el.children.length === 0,
             group: el.hasAttribute("data-wc-group"),
+            ownText: Array.prototype.some.call(el.childNodes, (n) => n.nodeType === 3 && n.textContent.trim() !== ""), // text of its own: Typography shows
             text: el.children.length === 0 ? el.textContent : null,
             attrs, crumbs,
             geom: geomOf(el),
