@@ -68,25 +68,13 @@
                 <option>HTML</option>
             </select>
 
-            <!-- Like: the most liked designs show first. Signed out, it asks you to sign in and counts the like afterwards -->
-            <button type="button" onclick="toggleLike('{{_id}}', this)" data-like="{{_id}}" data-liked="{{#if liked}}1{{/if}}" data-signed-in="{{#if @root.user}}1{{/if}}"
-                class="like-btn inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 {{#if liked}}is-liked{{/if}}"
-                title="Like this design" aria-pressed="{{#if liked}}true{{else}}false{{/if}}">
-                <svg class="h-4 w-4 like-heart" viewBox="0 0 24 24" fill="{{#if liked}}currentColor{{else}}none{{/if}}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 7.9a4.2 4.2 0 0 1 7.5 2.6c0 5.4-7.5 10-7.5 10z"/></svg>
-                <span class="like-count">{{#if likes}}{{likes}}{{else}}0{{/if}}</span>
-            </button>
-
-            <!-- Report: tells the site owners; the design stays visible until they remove it -->
-            <button type="button" onclick="reportDesign('{{_id}}', this)" data-report="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100" title="Report this design" aria-label="Report this design">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4m0 0h11l-1.5 4L16 12H5"/></svg>
-            </button>
-
             <!-- Save into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
+            {{#unless savedId}}
             <button type="button" onclick="chooseProject('{{_id}}', 'save', this)" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
                 title="Save a private copy in one of your projects"
                 class="h-8 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">Save</button>
-            <button type="button" onclick="chooseProject('{{_id}}', 'edit', this)" data-card-action="edit" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+            {{/unless}}
+            <button type="button" onclick="chooseProject('{{_id}}', 'edit', this)" data-card-action="edit" data-card-id="{{_id}}" data-saved-id="{{savedId}}" data-signed-in="{{#if @root.user}}1{{/if}}"
                 title="Make your own copy in a project and open it in the editor"
                 class="h-8 rounded-md bg-black px-2.5 text-xs font-medium text-white hover:bg-neutral-800 whitespace-nowrap">Open in editor</button>
 

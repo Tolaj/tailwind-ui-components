@@ -138,7 +138,7 @@ export function init() {
         syncCode();
     });
 // ── Where the code sits: below the design, or to its left (side by side) ──────────────────────────────────────────────────────────────────
-// The choice is remembered; a design opened with `codeDock` (a new component) starts there.
+// Below the design by default. The choice is remembered; a design opened with `codeDock` starts there.
 let dock = "bottom";
 const sectionEl = () => $("canvas").parentElement; // the column that holds the design (and the code, when it is below)
 const DOCK_ICON = {

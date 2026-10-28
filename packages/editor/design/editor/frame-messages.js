@@ -16,7 +16,13 @@ export const cmd = (msg, key = "") => { pendingKey = key; send(key ? { key, ...m
 
 // A design takes a moment to load into the canvas (its Tailwind styling, its pictures): until it does, the canvas shows a loading
 // message instead of an empty frame in a corner. It goes at the first "ready" from the frame, or after 15 seconds whatever happens.
-function hideBoot() { const b = document.getElementById("boot"); if (b) { b.classList.add("hidden"); b.classList.remove("flex"); } }
+let announced = false;
+function hideBoot() {
+    const b = document.getElementById("boot");
+    if (b) { b.classList.add("hidden"); b.classList.remove("flex"); }
+    // the first design is painted: whoever opened the editor (a page, the embedding dialog) can take its own loading message away
+    if (!announced) { announced = true; document.dispatchEvent(new CustomEvent("wc-editor-ready")); }
+}
 
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
 /**

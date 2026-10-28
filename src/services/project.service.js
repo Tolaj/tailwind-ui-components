@@ -38,7 +38,16 @@ export async function listProjects(userId) {
         else if (c._id.kind === "section") by[k].sections += c.n;
         else by[k].components += c.n;
     });
+    // the categories of the designs in each project (sections are parts of pages, not designs of their own)
+    const catRows = await Component.aggregate([
+        { $match: { createdBy: new mongoose.Types.ObjectId(String(userId)), project: { $in: projects.map((p) => p._id) }, kind: { $ne: "section" } } },
+        { $group: { _id: { project: "$project", category: "$category" }, n: { $sum: 1 } } },
+    ]);
+    const cats = {};
+    catRows.forEach((c) => { (cats[String(c._id.project)] ||= []).push({ slug: c._id.category, count: c.n }); });
+    Object.values(cats).forEach((list) => list.sort((a, b) => b.count - a.count));
     return projects.map((p) => ({
+        cats: cats[String(p._id)] || [],
         id: String(p._id), name: p.name, description: p.description, updatedAt: p.updatedAt, active: String(p._id) === activeId,
         pages: by[String(p._id)]?.pages || 0, sections: by[String(p._id)]?.sections || 0, components: by[String(p._id)]?.components || 0,
     }));

@@ -57,6 +57,10 @@ app.engine(
             or: (a, b) => a || b,
             and: (a, b) => a && b,
             not: (a) => !a,
+            lt: (a, b) => a < b,
+            gt: (a, b) => a > b,
+            minus: (a, b) => a - b,
+            any: (v, ...opts) => opts.slice(0, -1).includes(v), // {{#if (any activePage "home" "category")}}: is the value one of these
             json: (obj) => JSON.stringify(obj),
             formatDate: formatDate,
             substring: substring

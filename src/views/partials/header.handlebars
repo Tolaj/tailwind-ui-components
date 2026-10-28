@@ -7,7 +7,7 @@
             <div id="toggleLogoContainer" class="flex items-center gap-4">
                 <!-- Sidebar Toggle Button -->
                 <button type="button" id="sidebarToggle"
-                    class="size-8 flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 hover:text-gray-500 focus:outline-hidden focus:text-gray-500"
+                    class="order-2 size-8 flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 hover:text-gray-500 focus:outline-hidden focus:text-gray-500"
                     aria-label="Toggle sidebar" onclick="toggleSidebar()">
                     <span class="sr-only">Toggle Sidebar</span>
                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -69,6 +69,7 @@
         </div>
 
         <div class="flex items-center py-2 gap-3">
+            {{#if (any activePage "home" "category" "component")}}
             <!-- Category Filter Dropdown -->
             <div class="relative hidden sm:block">
                 <select id="categoryFilter" onchange="handleCategoryFilter(event)"
@@ -91,21 +92,28 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </div>
+            {{/if}}
 
             {{#if user}}
-            {{#if isAdmin}}
-            <a href="/admin/reports" class="hidden h-8 items-center rounded-xl border border-gray-400 px-3 text-sm text-gray-800 hover:bg-gray-100 sm:flex" title="Designs people reported">Reports</a>
-            {{/if}}
-            <!-- New project: made at once; the editor opens on a blank page -->
-            <button type="button" id="navNewProject" onclick="newProject(this)"
-                class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 transition-all"
+            {{#if (any activePage "home" "category" "component")}}
+            <!-- New design (in the gallery): opens the dialog: code on the left, the design on the right -->
+            <button type="button" id="navNewDesign" command="show-modal" commandfor="dialog" class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 transition-all"
+                title="Write or paste the code, see it, and save it into a project">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                    <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
+                <span class="hidden sm:inline">New design</span>
+            </button>
+            {{else if (eq activePage "projects")}}
+            <!-- New project (on the Projects page): made at once; the editor opens on a blank page -->
+            <button type="button" id="navNewProject" onclick="newProject(this)" class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 transition-all"
                 title="Create a new project">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
-                    <path
-                        d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                    <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
                 </svg>
                 <span class="hidden sm:inline">New project</span>
             </button>
+            {{/if}}
 
             <!-- User Menu Dropdown -->
             <div class="relative">
@@ -120,14 +128,6 @@
                         <p class="text-sm font-semibold text-gray-800">{{user.name}}</p>
                         <p class="text-xs text-gray-500 truncate">{{user.email}}</p>
                     </div>
-                    <a href="/my-components" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <svg class="inline size-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none"
-                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 0 1-1.125-1.125v-3.75ZM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-8.25ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-2.25Z" />
-                        </svg>
-                        My Components
-                    </a>
                     <button onclick="openSettingsModal()"
                         class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         <svg class="inline size-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none"

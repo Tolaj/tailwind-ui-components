@@ -1,10 +1,11 @@
 <aside id="{{sidebarId}}"
     class=" w-64 bg-white border-r border-gray-300 min-h-screen sticky top-0 overflow-y-auto transition-all duration-300 ease-in-out"
-    style="margin-left: -256px;">
+    style="margin-left: 0px;">
 
     <div class="p-6 fixed">
         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Navigation</h3>
         <nav class="space-y-1">
+            {{#if user}}
             <a href="/projects"
                 class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{#if (eq activePage 'projects')}}bg-primary text-secondary font-semibold{{else}}text-gray-700 hover:bg-gray-100{{/if}}">
                 <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -20,6 +21,7 @@
                 </svg>
                 Connect
             </a>
+            {{/if}}
 
             <a href="/"
                 class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{#if (eq activePage 'home')}}bg-primary text-secondary font-semibold{{else}}text-gray-700 hover:bg-gray-100{{/if}}">

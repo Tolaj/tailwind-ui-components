@@ -24,6 +24,11 @@ addEventListener("message", async (e) => {
         });
         api.onChange((state) => post({ t: "change", state }));
         post({ t: "mounted", html: api.getHtml(), details: api.details() });
+        // the first design is on the canvas: the embedding page can drop its loading message (or after 8 seconds, whatever happens)
+        let told = false;
+        const painted = () => { if (!told) { told = true; post({ t: "painted" }); } };
+        document.addEventListener("wc-editor-ready", painted, { once: true });
+        setTimeout(painted, 8000);
     } else if (m.t === "rpcResult") {
         const w = waiting.get(m.id);
         waiting.delete(m.id);

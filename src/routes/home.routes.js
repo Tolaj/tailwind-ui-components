@@ -4,6 +4,15 @@ import Component from "../models/component.model.js";
 
 const router = express.Router();
 
+/** Which of these gallery designs the person has already saved: Map of the design's id to their (latest) copy's id. */
+async function savedCopies(userId, ids) {
+    const map = new Map();
+    if (!userId || !ids.length) return map;
+    const copies = await Component.find({ createdBy: userId, forkedFrom: { $in: ids } }).select("forkedFrom").sort("-createdAt").lean();
+    copies.forEach((c) => { const k = String(c.forkedFrom); if (!map.has(k)) map.set(k, String(c._id)); });
+    return map;
+}
+
 // Category definitions with display names
 const categories = {
     'marketing-hero': { name: 'Hero Sections', group: 'Marketing' },
@@ -140,7 +149,9 @@ router.get("/category/:category", async (req, res) => {
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
         const me = req.session.user ? req.session.user.id : null;
+        const saved = await savedCopies(me, components.map((c) => c._id));
         components.forEach(component => {
+            component.savedId = saved.get(String(component._id)) || ""; // your own copy of this design, if you have saved it
             component.isNew = new Date(component.createdAt) >= oneMonthAgo;
             component.likes = component.likes || 0;
             component.liked = Boolean(me) && (component.likedBy || []).some((u) => String(u) === me); // whether this person likes it
@@ -186,6 +197,7 @@ router.get("/component/:id", async (req, res) => {
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
         component.isNew = new Date(component.createdAt) >= oneMonthAgo;
+        component.savedId = (await savedCopies(me, [component._id])).get(String(component._id)) || "";
         component.likes = component.likes || 0;
         component.liked = Boolean(me) && (component.likedBy || []).some((u) => String(u) === me);
         delete component.likedBy;
@@ -207,5 +219,7 @@ router.get("/component/:id", async (req, res) => {
     }
 });
 
+/** What a design is follows its category: the "Pages" group (a pricing page...) are pages; every other category is a component (a part). */
+export const kindOfCategory = (slug) => (categories[slug]?.group === "Pages" ? "page" : "component");
 export { categories };
 export default router;

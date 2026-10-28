@@ -6,6 +6,7 @@ import Component from "../models/component.model.js";
 import FigmaSource from "../models/figmaSource.model.js";
 import { listProjects, getActiveProject, setActiveProject } from "../services/project.service.js";
 import { buildDesignGuide } from "../services/guide.service.js";
+import { categories } from "./home.routes.js";
 import { normalizeTheme } from "@windcraft/core/theme.js";
 
 // ── Pages ────────────────────────────────────────────────────────────────────
@@ -13,7 +14,16 @@ export const projectPages = express.Router();
 
 projectPages.get("/", async (req, res) => {
     try {
-        res.render("main/projects", { layout: "main", activePage: "projects", title: "Projects", user: req.session.user, projects: await listProjects(req.session.user.id) });
+        const projects = (await listProjects(req.session.user.id)).map((p) => ({
+            ...p,
+            catNames: p.cats.map((c) => ({ slug: c.slug, name: categories[c.slug]?.name || c.slug, count: c.count })),
+            catSlugs: p.cats.map((c) => c.slug).join(" "),
+        }));
+        // every category used across the projects, with how many designs: the filter chips
+        const all = {};
+        projects.forEach((p) => p.cats.forEach((c) => { all[c.slug] = (all[c.slug] || 0) + c.count; }));
+        const catChips = Object.entries(all).sort((a, b) => b[1] - a[1]).map(([slug, count]) => ({ slug, name: categories[slug]?.name || slug, count }));
+        res.render("main/projects", { layout: "main", activePage: "projects", title: "Projects", user: req.session.user, projects, catChips });
     } catch (error) {
         console.error("Projects page error:", error);
         res.status(500).render("error", { layout: "main", title: "Error", message: "Failed to load projects" });
@@ -45,6 +55,7 @@ projectPages.get("/:id", async (req, res) => {
             .lean();
         const data = {
             project: { id: String(project._id), name: project.name, shareToken: project.shareToken || "", theme: normalizeTheme(project.theme), description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
+            categories: Object.entries(Object.entries(categories).reduce((g, [slug, c]) => ((g[c.group] ||= []).push({ slug, name: c.name }), g), {})).map(([group, list]) => ({ group, items: list })), // for each design's category
             projects: (await Project.find({ owner: req.session.user.id }).select("name").sort("name").lean()).map((x) => ({ id: String(x._id), name: x.name })), // for "Move to project"
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, useAsReference: c.useAsReference !== false, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,

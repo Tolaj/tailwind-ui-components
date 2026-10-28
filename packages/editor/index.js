@@ -40,7 +40,7 @@ export async function mountEditor(root, { host, data = {}, back = null, tailwind
     if (mounted) throw new Error("The editor is already mounted on this page");
     mounted = true;
     setHost(host);
-    config.data = { id: null, title: "", version: 0, htmlCode: "", category: "", description: "", tags: [], isPublished: true, project: null, projects: [], categories: [], ...data };
+    config.data = { id: null, title: "", version: 0, htmlCode: "", category: "", description: "", tags: [], isPublished: false, project: null, projects: [], categories: [], ...data };
     config.ui = { panels: true, nav: true, tools: null, ...ui };
     if (ui.onDetails) config.hooks.details = ui.onDetails;
     keepPageUnzoomed();

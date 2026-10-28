@@ -1,19 +1,23 @@
 <!-- Main Content Area -->
 <main class="flex-1">
-    <!-- Library hero -->
+    <!-- Hero -->
     <section class="mx-6 mt-6 rounded-xl border border-gray-200 bg-white p-6 md:p-8">
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Component library</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Design in Tailwind, keep it as code</p>
         <h1 class="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-gray-900 md:text-4xl">The component library your AI tools can actually use.</h1>
-        <p class="mt-3 max-w-2xl text-[15px] text-gray-600">Save components once. AI generation matches your design, every component exports to React, Vue and Svelte, and coding agents fetch them over MCP instead of guessing.</p>
+        <p class="mt-3 max-w-2xl text-[15px] text-gray-600">Bring a design in from Figma, or write and edit it here. Keep everything in projects, export it to React, Vue and Svelte, and let coding agents read and write it over MCP instead of guessing.</p>
         <div class="mt-5 flex flex-wrap items-center gap-3">
-            <a href="/library" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">{{#if user}}Open your library{{else}}Get started{{/if}}</a>
-            <a href="#gallery" class="inline-flex h-10 items-center rounded-md border border-gray-300 px-5 text-sm font-medium text-gray-800 hover:bg-gray-50">Browse the gallery</a>
+            {{#if user}}
+            <a href="/projects" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">Open your projects</a>
+            <button type="button" command="show-modal" commandfor="dialog" class="inline-flex h-10 items-center rounded-md border border-gray-300 px-5 text-sm font-medium text-gray-800 hover:bg-gray-50">Open editor</button>
+            {{else}}
+            <a href="/auth/sign-up" class="inline-flex h-10 items-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-neutral-800">Get started</a>
+            {{/if}}
         </div>
         <ul class="mt-6 grid gap-3 text-sm text-gray-700 sm:grid-cols-2 lg:grid-cols-4">
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Tagged and versioned</span><br>Find anything, roll back any change.</li>
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">AI grounded in your library</span><br>New components match what you already built.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Figma to code</span><br>Send a Figma design and get editable Tailwind code, not a picture.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Projects and a theme</span><br>Every design lives in a project that shares one look.</li>
             <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">Export anywhere</span><br>HTML, React, Vue or Svelte in one click.</li>
-            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">MCP for coding agents</span><br>Claude Code and Cursor read and write it.</li>
+            <li class="rounded-lg border border-gray-200 p-3"><span class="font-medium text-gray-900">MCP for coding agents</span><br>Claude Code and Cursor read and write your projects.</li>
         </ul>
     </section>
 
@@ -98,3 +102,4 @@
 
 {{!-- Modals --}}
 
+{{> component-playground/index}}

@@ -28,7 +28,8 @@ export function embedEditor(container, { host, data = {}, ui = {}, src = here(".
         const m = e.data;
         if (e.source !== iframe.contentWindow || !m || m.wc !== "editor") return;
         if (m.t === "ready") tell({ t: "init", data, ui, tailwind, hostMethods: Object.keys(host).filter((k) => typeof host[k] === "function") });
-        else if (m.t === "mounted") { html = m.html; details = m.details; mountedOk(); }
+        else if (m.t === "mounted") { html = m.html; details = m.details; }
+        else if (m.t === "painted") mountedOk();
         else if (m.t === "change") { ({ html, dirty, status } = m.state); listeners.forEach((fn) => fn(m.state)); }
         else if (m.t === "details") onDetails && onDetails(m.fields);
         else if (m.t === "rpc") {
@@ -43,7 +44,7 @@ export function embedEditor(container, { host, data = {}, ui = {}, src = here(".
     addEventListener("message", onMessage);
 
     return {
-        /** Resolves when the editor has opened the design. */
+        /** Resolves when the editor has opened the design and painted it (show your own loading message until then). */
         ready: mounted,
         getHtml: () => html,
         setHtml: (value) => { html = String(value); tell({ t: "setHtml", html }); },

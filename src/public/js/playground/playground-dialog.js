@@ -21,8 +21,21 @@ function guessTitle(html) {
     } catch { return ""; }
 }
 
+/** A loading message over the editor's place until the editor has painted. */
+function showEditorLoader() {
+    const host_ = $("editorHost");
+    const el = document.createElement("div");
+    el.id = "editorLoader";
+    el.setAttribute("role", "status");
+    el.className = "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-neutral-100 text-[13px] text-neutral-500";
+    el.innerHTML = '<span class="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-800"></span><span>Opening the editor…</span>';
+    host_.append(el);
+    return el;
+}
+
 function openEditor() {
     if (ed) return;
+    const loader = showEditorLoader();
     ed = embedEditor($("editorHost"), {
         host, data: { htmlCode: $("htmlEditor").value, ...(resume || {}) }, ui: { panels: false, nav: false, tools: TOOLS }, onDetails: showDetails,
     });
@@ -32,6 +45,7 @@ function openEditor() {
         setCode(html);
         updateSourceBadge(html);
     });
+    ed.ready.then(() => loader.remove());
     resume = null;
 }
 

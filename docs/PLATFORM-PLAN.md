@@ -50,7 +50,7 @@ It is free.
 | **Likes**: button, count, most liked first, sign-in-then-like | **Done**: `likes` and `likedBy` are back; `POST /api/components/:id/like` (signed in; one like per person; counts once even if sent twice); the Like button shows on the design card; category pages sort by likes, then newest; signed out, it goes to sign in and the like is counted when the person returns; `/component/:id` now opens only published designs (or your own) |
 | **Report** button and a way for the owner to review and remove | **Done**: a flag on every design (reason, optional note, one per person, sign in first); it tells the owner and the design stays visible; the owner's **Reports** screen (`/admin/reports`, shown to the emails in the `ADMIN_EMAILS` setting) offers *Keep it* or *Remove from gallery*. Set `ADMIN_EMAILS` on the server for it to appear |
 | **Public** switch on a design in a project | **Done**: designs are private by default; a switch on the project page (and Visibility in the editor's page details) puts a design in the gallery |
-| **New project** opens the editor on a blank page with code left | **Done**: it is created at once as "Untitled project" (2, 3… if taken) and the editor opens |
+| **New project** opens the editor on a blank page with the code panel below (the default; it can be docked left) | **Done**: it is created at once as "Untitled project" (2, 3… if taken) and the editor opens |
 | Project **share link** (look and copy code) | **Done**: `/p/<token>`, view-only, no account, in the project's theme, with HTML / React / Vue / Svelte; on and off from the project page |
 | Project theme (brand colour, gray, font, corners) used by the editor and previews | **Exists** (built, committed) |
 | Editor with the code docked left or below, one-field save | **Exists** |
@@ -60,11 +60,13 @@ It is free.
 | The separate `/catalog` pages (hand-made Button and Input) | **Done: removed**; `/catalog` redirects to the gallery. The files are in git history; the parked families are in a stash |
 | Library page | **Done: removed**. Its jobs are on the project page (export, history and restore, move, delete, import) and the Projects page (design guide); `/library` redirects to Projects |
 
+**For the time being the Like and Report buttons are hidden from the UI** (and the Reports link from the top bar). The code behind them (likes, the like and report endpoints, the Reports screen) stays, so they can be switched back on by putting the two buttons back on the design card.
+
 ## 5. Build order (each step is usable on its own)
 
 1. **Likes and ordering**: bring back likes; Like button on the design page; most liked first; sign-in then like.
 2. **Save into a project** and **Open in editor** on the design page.
-3. **New project opens the editor** (blank page, code left).
+3. **New project opens the editor** (blank page, code below by default).
 4. **Public switch** and publishing to the gallery.
 5. **Report** and the owner's review screen.
 6. **Share link** for a project.

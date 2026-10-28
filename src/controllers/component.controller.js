@@ -7,6 +7,7 @@ import { normalizeGroup } from "@windcraft/core/pages.js";
 import { specOf } from "../services/design-spec.service.js";
 import { buildProfile, profileToMarkdown, enrichProfileWithAI } from "../services/profile.service.js";
 import { resolveProject } from "../services/project.service.js";
+import { kindOfCategory } from "../routes/home.routes.js";
 
 export const normalizeTags = (tags) => {
     const list = Array.isArray(tags) ? tags : String(tags || "").split(",");
@@ -86,7 +87,7 @@ export const createComponent = async (req, res) => {
             tags: normalizeTags(tags),
             profile: buildProfile(htmlCode),
             project: project ? project._id : null,
-            kind: req.body.kind === "component" ? "component" : project ? "page" : "component", // a component made from a project stays a component, not a page
+            kind: kindOfCategory(category), // the category decides: a page (the "Pages" group) or a component
             group: project ? normalizeGroup(group) : "",
             isPublished: isPublished === true || isPublished === "true", // private until its owner turns Public on
             createdBy: req.session.user.id
@@ -147,6 +148,9 @@ export const updateComponent = async (req, res) => {
             component.project = target._id;
             await Component.updateMany({ parent: component._id }, { project: component.project });
         }
+
+        // the category decides what a design is (a section keeps being a section)
+        if (category && component.kind !== 'section') component.kind = kindOfCategory(category);
 
         if (htmlCode && htmlCode !== component.htmlCode) {
             component.versions.push({ version: component.version, htmlCode: component.htmlCode, note: note || "" });
@@ -308,7 +312,7 @@ export const forkComponent = async (req, res) => {
             createdBy: userId,
             forkedFrom: source._id,
             project: project._id,
-            kind: "component",
+            kind: kindOfCategory(source.category), // the same category, so the same kind
             profile: source.profile || buildProfile(source.htmlCode),
             isPublished: false,
         });

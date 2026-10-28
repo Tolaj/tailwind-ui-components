@@ -246,8 +246,7 @@ function renderHeader() {
     const comp = items.filter((i) => i.kind === "component").length;
     const sec = items.filter((i) => i.kind === "section").length;
     $("projStats").textContent = `${pg.length} page${pg.length === 1 ? "" : "s"} · ${comp} component${comp === 1 ? "" : "s"}${sec ? ` · ${sec} section${sec === 1 ? "" : "s"}` : ""}`;
-    $("newPageBtn").href = `/design/new?project=${project.id}`;
-    $("newComponentBtn").href = `/design/new?project=${project.id}&kind=component`;
+    $("newDesignBtn").href = `/design/new?project=${project.id}&kind=component`; // the same as New project: a blank page, the code below it
     const ab = $("activeBtn");
     ab.textContent = project.active ? "Active project ✓" : "Set as active";
     ab.className = project.active ? "h-7 rounded-md border border-[#0d99ff] bg-[#e5f4ff] px-2.5 text-xs font-medium text-[#0b6fc2]" : "h-7 rounded-md border border-neutral-200 px-2.5 text-xs hover:bg-neutral-50";
@@ -255,14 +254,43 @@ function renderHeader() {
     $("boardEmpty").classList.toggle("flex", items.length === 0);
 }
 
+// ── Filters: search, category and tags narrow the list (and dim the other frames on the board) ──────────────────────
+const filter = { q: "", cat: "", tag: "" };
+const filterOn = () => Boolean(filter.q || filter.cat || filter.tag);
+const matchesFilter = (it) => {
+    if (filter.cat && it.category !== filter.cat) return false;
+    if (filter.tag && !(it.tags || []).includes(filter.tag)) return false;
+    if (!filter.q) return true;
+    const hay = `${it.title} ${it.description || ""} ${(it.tags || []).join(" ")}`.toLowerCase();
+    return filter.q.split(/\s+/).every((w) => hay.includes(w));
+};
+const categoryName = (slug) => { for (const g of data.categories || []) for (const c of g.items) if (c.slug === slug) return c.name; return slug; };
+function renderFilters() {
+    const real = items.filter((i) => i.kind !== "section");
+    const cats = [...new Set(real.map((i) => i.category).filter(Boolean))].sort((a, b) => categoryName(a).localeCompare(categoryName(b)));
+    $("fCat").innerHTML = `<option value="">All categories</option>${cats.map((c) => `<option value="${esc(c)}" ${filter.cat === c ? "selected" : ""}>${esc(categoryName(c))}</option>`).join("")}`;
+    const counts = {};
+    real.forEach((i) => (i.tags || []).forEach((t) => (counts[t] = (counts[t] || 0) + 1)));
+    const tags = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 14);
+    const chip = (t, label, on) => `<button type="button" data-tag="${esc(t)}" class="rounded-full border px-2 py-0.5 ${on ? "border-neutral-900 bg-black text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"}">${label}</button>`;
+    $("fTags").innerHTML = tags.length ? chip("", "All", !filter.tag) + tags.map(([t, n]) => chip(t, `${esc(t)} <span class="${filter.tag === t ? "text-neutral-300" : "text-neutral-400"}">${n}</span>`, filter.tag === t)).join("") : "";
+}
+$("fQuery").addEventListener("input", (e) => { filter.q = e.target.value.trim().toLowerCase(); renderOutline(); });
+$("fCat").addEventListener("change", (e) => { filter.cat = e.target.value; renderOutline(); });
+$("fTags").addEventListener("click", (e) => { const b = e.target.closest("[data-tag]"); if (b) { filter.tag = b.dataset.tag; renderFilters(); renderOutline(); } });
+/** Frames that do not match are dimmed on the board. */
+function dimBoard() { wraps.forEach((entry, id) => { const it = byId(id); entry.wrap.style.opacity = it && filterOn() && it.kind !== "section" && !matchesFilter(it) ? "0.18" : ""; }); }
+
 let tab = "page"; // the sidebar lists the project's pages or its components, or shows its theme
 function renderOutline() {
     $("outline").classList.toggle("hidden", tab === "theme");
     $("themePanel").classList.toggle("hidden", tab !== "theme");
     $("tabTheme").className = `flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 ${tab === "theme" ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
+    $("filters").classList.toggle("hidden", tab === "theme");
     if (tab === "theme") { [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id]) => { $(id).className = "flex-1 whitespace-nowrap border-b-2 border-transparent px-2 py-2.5 text-neutral-500 hover:text-neutral-900"; }); return; }
     const mine = (i) => (tab === "component" ? i.kind === "component" : i.kind !== "component");
-    const list = pages().filter(mine);
+    const list = pages().filter(mine).filter(matchesFilter);
+    $("filters").classList.remove("hidden");
     const pc = pages().filter((i) => i.kind !== "component").length, cc = items.filter((i) => i.kind === "component").length;
     $("tabPages").title = `${pc} page${pc === 1 ? "" : "s"}`;
     $("tabComponents").title = `${cc} component${cc === 1 ? "" : "s"}`;
@@ -276,7 +304,8 @@ function renderOutline() {
         prev = g;
         const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : it.kind === "component" ? "comp" : "page"}</span><span class="truncate">${esc(it.title)}</span></div>`;
         return heading + row(p, 0) + sectionsOf(p.id).map((s) => row(s, 1)).join("");
-    }).join("") || `<div class="p-3 text-neutral-500">${tab === "component" ? "No components yet. Press + New component." : "No pages yet."}</div>`;
+    }).join("") || `<div class="p-3 text-neutral-500">${filterOn() ? "Nothing matches." : tab === "component" ? "No components yet. Press + New design." : "No pages yet."}</div>`;
+    dimBoard();
 }
 $("tabPages").addEventListener("click", () => { tab = "page"; renderOutline(); });
 $("tabComponents").addEventListener("click", () => { tab = "component"; renderOutline(); });
@@ -355,6 +384,10 @@ function renderDetails() {
         ${secs.length ? `<p class="mb-1 mt-4 font-semibold text-neutral-700">Sections</p>${secs.map((s) => `<button type="button" data-pick="${s.id}" class="block w-full truncate rounded px-1.5 py-1 text-left hover:bg-neutral-100">${esc(s.title)}</button>`).join("")}` : ""}
         <button type="button" id="focusBtn" class="mt-4 h-8 w-full rounded-md border border-neutral-200 text-xs hover:bg-neutral-50">Zoom to this frame (Shift+2)</button>
         <a href="/design/${it.id}" class="mt-2 flex h-8 items-center justify-center rounded-md bg-[#0d99ff] text-xs font-semibold text-white hover:bg-[#0a84e0]">Open in editor</a>
+        ${it.kind === "section" ? "" : `<label class="mt-3 block text-neutral-500">Category <span class="text-neutral-400">(a pricing page is a page; every other category is a component)</span></label>
+        <select id="detCat" class="fi">${(data.categories || []).map((g) => `<optgroup label="${esc(g.group)}">${g.items.map((c) => `<option value="${esc(c.slug)}" ${it.category === c.slug ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+        <label class="mt-3 block text-neutral-500">Tags <span class="text-neutral-400">(comma separated)</span></label>
+        <input id="detTags" class="fi" value="${esc((it.tags || []).join(", "))}" placeholder="hero, dark, saas" spellcheck="false">`}
         ${it.kind === "section" ? "" : `<label class="mt-3 flex cursor-pointer items-center gap-2 text-neutral-700" title="Public designs appear in the gallery, where anyone can look at them, copy the code and like them"><input id="publicBox" type="checkbox" ${it.isPublished ? "checked" : ""} class="h-3.5 w-3.5 accent-black"> Public in the gallery</label>
         <p id="publicNote" class="mt-1 text-neutral-500">${it.isPublished ? `Shown in the gallery under <a class="underline" href="/category/${esc(it.category)}" target="_blank" rel="noopener">its category</a>.` : "Private: only you can see it."}</p>`}
         <div class="mt-2 flex gap-2">
@@ -379,10 +412,31 @@ function dropItem(it) {
     const ids = new Set([it.id, ...sectionsOf(it.id).map((x) => x.id)]);
     items = items.filter((i) => !ids.has(i.id));
     selectedId = null;
-    renderHeader(); buildFrames(); renderOutline(); renderDetails();
+    renderHeader(); buildFrames(); renderFilters(); renderOutline(); renderDetails();
 }
 
+/** Saves one field of the selected item, then refreshes what depends on it (the lists, the tabs, the filters). */
+async function saveField(body, apply) {
+    const it = byId(selectedId);
+    const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const json = await res.json().catch(() => ({}));
+    if (!json.success) { alert(json.message || "Could not save it"); return false; }
+    apply(it);
+    renderFilters(); renderOutline(); renderHeader();
+    return true;
+}
 document.addEventListener("change", async (e) => {
+    if (e.target.id === "detCat" && selectedId) {
+        const category = e.target.value;
+        // the category decides page or component: the item moves between the Pages and Components tabs
+        await saveField({ category }, (it) => { it.category = category; it.kind = it.kind === "section" ? it.kind : ((data.categories || []).some((g) => g.group === "Pages" && g.items.some((c) => c.slug === category)) ? "page" : "component"); });
+        renderDetails();
+    }
+    if (e.target.id === "detTags" && selectedId) {
+        const tags = e.target.value.split(",").map((t) => t.trim().toLowerCase().replace(/\s+/g, "-")).filter(Boolean);
+        await saveField({ tags }, (it) => { it.tags = [...new Set(tags)].slice(0, 12); });
+        renderDetails();
+    }
     if (e.target.id === "publicBox" && selectedId) {
         const it = byId(selectedId), on = e.target.checked;
         const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPublished: on }) });
@@ -442,6 +496,7 @@ $("deleteProjBtn").addEventListener("click", async () => {
 
 renderHeader();
 buildFrames();
+renderFilters();
 renderOutline();
 renderDetails();
 applyView();

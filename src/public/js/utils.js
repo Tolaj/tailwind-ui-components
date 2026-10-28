@@ -52,6 +52,11 @@ let projectCard = null;
 function closeProjectCard() { if (projectCard) { projectCard.remove(); projectCard = null; } }
 document.addEventListener("click", (e) => { if (projectCard && !projectCard.contains(e.target) && !e.target.closest("[data-card-action], [data-report]")) closeProjectCard(); });
 
+// the person's projects are fetched once, as the page opens, so the chooser appears at once
+let projectsLoad = null;
+const loadProjects = () => (projectsLoad ||= fetch("/api/projects").then((r) => r.json()).then((j) => j.data || []).catch(() => []));
+document.addEventListener("DOMContentLoaded", () => { if (document.querySelector('[data-card-action][data-signed-in="1"]')) loadProjects(); });
+
 async function chooseProject(id, mode, btn) {
   if (!btn.dataset.signedIn) {
     const back = new URL(location.href);
@@ -59,9 +64,10 @@ async function chooseProject(id, mode, btn) {
     location.href = `/auth/sign-in?returnTo=${encodeURIComponent(back.pathname + back.search)}`;
     return;
   }
+  // already saved: open that copy, no questions
+  if (mode === "edit" && btn.dataset.savedId) { location.href = `/design/${btn.dataset.savedId}`; return; }
   closeProjectCard();
-  let projects = [];
-  try { projects = (await (await fetch("/api/projects")).json()).data || []; } catch { /* no list: a new project can still be named */ }
+  const projects = await loadProjects();
   let last = ""; try { last = localStorage.getItem(LAST_PROJECT) || ""; } catch { /* storage is optional */ }
   const pick = projects.find((p) => p.id === last) || projects.find((p) => p.active) || projects[0];
   const card = document.createElement("div");
@@ -84,18 +90,23 @@ async function chooseProject(id, mode, btn) {
     const body = !sel || sel.value === "__new__" ? { projectName: name.value.trim() } : { project: sel.value };
     if (body.projectName === "") { err.textContent = "Name the project first."; err.classList.remove("hidden"); return; }
     go.disabled = true; err.classList.add("hidden");
+    go.textContent = mode === "edit" ? "Opening…" : "Saving…";
     try {
       const res = await fetch(`/api/components/${id}/fork`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
       if (!json.success) throw new Error(json.message || "Could not save it");
       try { localStorage.setItem(LAST_PROJECT, json.project.id); } catch { /* storage is optional */ }
+      projectsLoad = null; // a new project may have been made: fetch the list again next time
       if (mode === "edit") { location.href = `/design/${json.id}`; return; }
       closeProjectCard();
-      btn.textContent = "Saved";
-      btn.title = `Saved in ${json.project.name}: open the project`;
-      btn.onclick = () => (location.href = `/projects/${json.project.id}`);
+      // saved: the Save button goes, and Open in editor now opens this copy straight away
+      const edit = document.querySelector(`[data-card-action="edit"][data-card-id="${CSS.escape(id)}"]`);
+      if (edit) edit.dataset.savedId = json.id;
+      btn.remove();
+      showToast(`Saved in ${json.project.name}`, "success");
     } catch (e2) {
       err.textContent = e2.message; err.classList.remove("hidden"); go.disabled = false;
+      go.textContent = mode === "edit" ? "Open in editor" : "Save";
     }
   });
 }
