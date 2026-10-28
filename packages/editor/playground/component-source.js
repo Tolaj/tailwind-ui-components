@@ -1,3 +1,4 @@
+import { themeHead } from "@windcraft/core/theme.js";
 const TAILWIND_RE = /tailwindcss|@tailwindcss\/browser/i;
 
 const isTailwindScript = (s) => s.src && TAILWIND_RE.test(s.src);
@@ -70,6 +71,16 @@ const HEIGHT_REPORTER = `
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") parent.postMessage({ type: "key", key: "escape" }, "*"); });
 })();`;
 
+// The project's theme and light/dark choice for every document built here (set by the page that shows designs; see core/theme.js).
+// The theme's Tailwind config is added only where this adds Tailwind itself: a design that brings its own script keeps its own config.
+let previewTheme = null, previewDark = false;
+export const setPreviewTheme = (theme) => { previewTheme = theme || null; };
+export const setPreviewDark = (on) => { previewDark = Boolean(on); };
+/** The head markup for the theme (the font and the config), or nothing without one. */
+export const themeMarkup = () => (previewTheme ? themeHead(previewTheme) : "");
+/** The opening <html> tag: a `dark` class turns Tailwind's dark: styles on. */
+export const htmlOpen = () => (previewDark ? '<html class="dark">' : "<html>");
+
 /** Builds a complete, standalone document for an iframe's srcdoc. */
 export function buildPreviewDocument(parsed, { width } = {}) {
     const head = [
@@ -79,6 +90,7 @@ export function buildPreviewDocument(parsed, { width } = {}) {
 
     if (!parsed.hasTailwindScript) {
         head.push('<script src="https://cdn.tailwindcss.com"><\/script>');
+        if (previewTheme) head.push(themeMarkup());
     }
     head.push(...parsed.links);
     parsed.styles.forEach((s) => {
@@ -101,7 +113,7 @@ export function buildPreviewDocument(parsed, { width } = {}) {
         .join("\n");
 
     return `<!DOCTYPE html>
-<html>
+${htmlOpen()}
 <head>
 ${head.join("\n")}
 <style>html,body{margin:0}</style>

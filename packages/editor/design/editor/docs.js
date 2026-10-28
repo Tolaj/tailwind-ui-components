@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { agentMain } from "../agent.js";
-import { buildPreviewDocument, parseComponentSource } from "../../playground/component-source.js";
+import { buildPreviewDocument, parseComponentSource, themeMarkup, htmlOpen } from "../../playground/component-source.js";
 import { panelStore } from "../panel-state.js";
 import { $, S, data, esc, frame, isTailwindScript, model, send } from "./base.js";
 import { renderFloat, renderSel } from "./frame-handles.js";
@@ -16,13 +16,13 @@ const styleTag = (s) => `<style${s.type ? ` type="${esc(s.type)}"` : ""}>${s.tex
 
 function editDocument() {
     const head = ['<meta charset="utf-8">', '<meta name="viewport" content="width=device-width, initial-scale=1">'];
-    if (!S.parsed.hasTailwindScript) head.push('<script src="https://cdn.tailwindcss.com"><\/script>');
+    if (!S.parsed.hasTailwindScript) head.push('<script src="https://cdn.tailwindcss.com"><\/script>', themeMarkup());
     else head.push(...S.parsed.scripts.filter(isTailwindScript).map(scriptTag));
     // the design's own stylesheets are marked, so the panel can tell their rules from the ones Tailwind generates (agent.js sourcesOf)
     const mark = (tag) => tag.replace(/^<(style|link)\b/i, "<$1 data-wc-design");
     head.push(...S.parsed.links.map(mark), ...S.parsed.styles.map(styleTag).map(mark), "<style data-wc-editor>html,body{margin:0}</style>");
     const attrs = Object.entries(S.parsed.bodyAttrs).map(([k, v]) => ` ${k}="${esc(v)}"`).join("");
-    return `<!DOCTYPE html><html><head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${S.loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
+    return `<!DOCTYPE html>${htmlOpen()}<head>${head.join("\n")}</head><body${attrs}>${model.markup}<script data-wc-agent>window.__wcLoad=${S.loadSeq};(${agentMain.toString()})()<\/script></body></html>`;
 }
 
 /** Rebuilds the component source: original head assets and scripts around the edited markup. */

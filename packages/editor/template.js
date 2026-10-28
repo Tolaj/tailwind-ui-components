@@ -103,6 +103,11 @@ export const editorHtml = `<div class="flex h-full flex-col">
                         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                         <path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" />
                     </svg></button>
+                <button id="darkBtn" type="button" title="Show the design in dark mode" class="tbtn"><svg
+                        class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+                    </svg></button>
                 <button id="playBtn" type="button" title="Preview: run it with its JavaScript" class="tbtn"><svg
                         class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">

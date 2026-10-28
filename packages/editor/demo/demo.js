@@ -37,5 +37,6 @@ await mountEditor(document.getElementById("root"), {
     host,
     data: saved
         ? { id: saved._id, title: saved.title, htmlCode: saved.htmlCode, version: saved.version, category: saved.category, description: saved.description, tags: String(saved.tags || "").split(",").filter(Boolean), categories }
-        : { title: "My design", category: new URLSearchParams(location.search).has("blank") ? "" : "demo", description: "A demo design", categories }, // ?blank: a first save asks for details, as on a new design
+        : { theme: new URLSearchParams(location.search).has("theme") ? { brand: "#e11d48", gray: "stone", font: "Poppins", radius: "xl" } : undefined, // ?theme: a project theme, to see it applied
+            title: "My design", category: new URLSearchParams(location.search).has("blank") ? "" : "demo", description: "A demo design", categories }, // ?blank: a first save asks for details, as on a new design
 });

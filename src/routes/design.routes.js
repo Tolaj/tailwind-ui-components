@@ -7,6 +7,7 @@ import FigmaDraft from "../models/figmaDraft.model.js";
 import { figmaSourceInfo, updateFromFigma } from "../services/figma-update.service.js";
 import { publicBase } from "../utils/publicUrl.js";
 import { resolveProject } from "../services/project.service.js";
+import { normalizeTheme } from "@windcraft/core/theme.js";
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ router.get("/new", async (req, res) => {
     renderEditor(res, {
         id: null, draftId: draft ? String(draft._id) : null, frameW: draft && draft.width ? draft.width : null, // the frame opens at the width it has in Figma
          title: draft ? draft.title : "", version: 0, htmlCode: draft ? draft.html : "", category: "", description: "", tags: [], isPublished: true,
-        project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id),
+        project: p ? { id: String(p._id), name: p.name } : null, projects: await projectList(req.session.user.id), theme: normalizeTheme(p && p.theme),
         // "New component" from a project: the code opens beside the design, ready to write or paste into
         ...(req.query.kind === "component" ? { kind: "component", codeOpen: true, codeDock: "left" } : {}),
     }, "New component");
@@ -63,7 +64,9 @@ router.get("/:id", async (req, res) => {
             board: boardOf(p), category: p.category, description: p.description, tags: p.tags || [], isPublished: p.isPublished,
             htmlCode: String(p._id) === String(c._id) ? "" : p.htmlCode,
         })) : [];
+        const proj = c.project ? await Project.findOne({ _id: c.project, owner: req.session.user.id }).select("theme").lean() : null;
         renderEditor(res, {
+            theme: normalizeTheme(proj && proj.theme),
             project: c.project ? projects.find((p) => p.id === String(c.project)) || null : null, projects,
             figmaSource: await figmaSourceInfo(c._id),
             id: String(c._id), title: c.title, group: c.group || "", frameW: c.frameW || null, version: c.version || 1, htmlCode: c.htmlCode,

@@ -7,6 +7,8 @@ const projectSchema = new mongoose.Schema(
         brief: { type: String, default: "", trim: true, maxlength: 4000 },
         // the head the project's pages share (fonts, the Tailwind script and config...): save_pages reuses it when it is not sent again
         sharedHead: { type: String, default: "", maxlength: 20000 },
+        // the project's theme (brand colour, gray palette, font, radius): see packages/core/theme.js; null until it is set, then the default applies
+        theme: { type: mongoose.Schema.Types.Mixed, default: null },
         owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     },
     { timestamps: true }

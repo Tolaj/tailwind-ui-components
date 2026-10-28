@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Project from "../models/project.model.js";
 import Component from "../models/component.model.js";
 import { listProjects, getActiveProject, setActiveProject } from "../services/project.service.js";
+import { normalizeTheme } from "@windcraft/core/theme.js";
 
 // ── Pages ────────────────────────────────────────────────────────────────────
 export const projectPages = express.Router();
@@ -27,7 +28,7 @@ projectPages.get("/:id", async (req, res) => {
             .sort("order createdAt")
             .lean();
         const data = {
-            project: { id: String(project._id), name: project.name, description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
+            project: { id: String(project._id), name: project.name, theme: normalizeTheme(project.theme), description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
             items: items.map((c) => ({
                 id: String(c._id), title: c.title, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
                 version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, frameW: c.frameW || null, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
@@ -71,11 +72,12 @@ projectApi.put("/:id", async (req, res) => {
     const { name, description } = clean(req.body || {});
     const update = {};
     if (name) update.name = name;
+    if (req.body && req.body.theme !== undefined) update.theme = normalizeTheme(req.body.theme); // anything invalid falls back to the default, field by field
     if (req.body && req.body.description !== undefined) update.description = description;
     if (req.body && req.body.brief !== undefined) update.brief = String(req.body.brief).slice(0, 4000);
     const p = await Project.findOneAndUpdate({ _id: req.params.id, owner: req.session.user.id }, update, { new: true });
     if (!p) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, data: { id: String(p._id), name: p.name, description: p.description } });
+    res.json({ success: true, data: { id: String(p._id), name: p.name, description: p.description, theme: normalizeTheme(p.theme) } });
 });
 
 // Makes this the project Claude works in by default (or clears it with { active: false }).

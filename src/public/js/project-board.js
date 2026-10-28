@@ -1,4 +1,5 @@
-import { parseComponentSource, buildPreviewDocument } from "@windcraft/editor/playground/component-source.js";
+import { parseComponentSource, buildPreviewDocument, setPreviewTheme } from "@windcraft/editor/playground/component-source.js";
+import { GRAYS, RADII, SYSTEM_FONT, normalizeTheme, brandScale, grayScale } from "@windcraft/core/theme.js";
 import { computeLayout as layoutItems, PAGE_H, SEC_H } from "@windcraft/core/board-layout.js";
 
 const $ = (id) => document.getElementById(id);
@@ -7,6 +8,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const data = JSON.parse($("projectData").textContent);
 const project = data.project;
 let items = data.items;
+setPreviewTheme(project.theme); // the previews are drawn with the project's theme
 
 // ── Model ────────────────────────────────────────────────────────────────────
 const FRAME_W = 1280, SNAP = 8;
@@ -252,15 +254,19 @@ function renderHeader() {
     $("boardEmpty").classList.toggle("flex", items.length === 0);
 }
 
-let tab = "page"; // the sidebar lists the project's pages or its components
+let tab = "page"; // the sidebar lists the project's pages or its components, or shows its theme
 function renderOutline() {
+    $("outline").classList.toggle("hidden", tab === "theme");
+    $("themePanel").classList.toggle("hidden", tab !== "theme");
+    $("tabTheme").className = `flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 ${tab === "theme" ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
+    if (tab === "theme") { [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id]) => { $(id).className = "flex-1 whitespace-nowrap border-b-2 border-transparent px-2 py-2.5 text-neutral-500 hover:text-neutral-900"; }); return; }
     const mine = (i) => (tab === "component" ? i.kind === "component" : i.kind !== "component");
     const list = pages().filter(mine);
     const pc = pages().filter((i) => i.kind !== "component").length, cc = items.filter((i) => i.kind === "component").length;
-    $("tabPages").textContent = `Pages (${pc})`;
-    $("tabComponents").textContent = `Components (${cc})`;
+    $("tabPages").title = `${pc} page${pc === 1 ? "" : "s"}`;
+    $("tabComponents").title = `${cc} component${cc === 1 ? "" : "s"}`;
     [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id, t]) => {
-        $(id).className = `flex-1 border-b-2 px-3 py-2.5 ${tab === t ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
+        $(id).className = `flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 ${tab === t ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
     });
     let prev = ""; // a heading where the group changes ("Public site", then "Customer area")
     $("outline").innerHTML = list.map((p) => {
@@ -273,6 +279,59 @@ function renderOutline() {
 }
 $("tabPages").addEventListener("click", () => { tab = "page"; renderOutline(); });
 $("tabComponents").addEventListener("click", () => { tab = "component"; renderOutline(); });
+$("tabTheme").addEventListener("click", () => { tab = "theme"; renderOutline(); renderTheme(); });
+
+// ── Theme: brand colour, gray, font, radius; saved to the project and drawn in every preview ──────────────────────────────────────────
+const FONTS = ["Inter", "Roboto", "Open Sans", "Poppins", "Lato", "Montserrat", "Nunito", "DM Sans", "Work Sans", "Source Sans 3", "Playfair Display", SYSTEM_FONT];
+let theme = normalizeTheme(project.theme);
+function redrawPreviews() {
+    wraps.forEach((entry, id) => {
+        const it = byId(id);
+        if (entry.iframe && it) entry.iframe.srcdoc = buildPreviewDocument(parseComponentSource(it.htmlCode), { width: widthOf(it) });
+    });
+}
+function renderTheme() {
+    const strip = (scale) => Object.values(scale).map((c) => `<i style="background:${c}"></i>`).join("");
+    $("themePanel").innerHTML = `<style>.sw{display:flex;height:14px;border-radius:4px;overflow:hidden;margin-top:6px}.sw i{flex:1}.chip{cursor:pointer;border:1px solid #e5e5e5;border-radius:6px;padding:4px 8px;background:#fff}.chip.on{border-color:#111;background:#f5f5f5;font-weight:600}</style>
+        <p class="text-neutral-500">One small set of choices. Every preview, the editor and exports use it: <code>bg-brand-600</code>, <code>gray-*</code>, <code>rounded-*</code>, the sans font.</p>
+        <label class="mt-3 block font-semibold text-neutral-900">Brand colour</label>
+        <div class="mt-1 flex items-center gap-2"><input id="thBrand" type="color" value="${theme.brand}" class="h-7 w-9 cursor-pointer rounded border border-neutral-200 p-0.5"><input id="thBrandHex" class="fi" value="${theme.brand}" maxlength="7" spellcheck="false"></div>
+        <div id="thBrandScale" class="sw">${strip(brandScale(theme.brand))}</div>
+        <label class="mt-4 block font-semibold text-neutral-900">Gray</label>
+        <div id="thGrays" class="mt-1 flex flex-wrap gap-1.5">${GRAYS.map((g) => `<button type="button" class="chip ${theme.gray === g ? "on" : ""}" data-gray="${g}">${g}</button>`).join("")}</div>
+        <div id="thGrayScale" class="sw">${strip(grayScale(theme.gray))}</div>
+        <label class="mt-4 block font-semibold text-neutral-900">Font</label>
+        <input id="thFont" class="fi mt-1" list="thFonts" value="${esc(theme.font)}" placeholder="A Google Fonts family, or System" spellcheck="false">
+        <datalist id="thFonts">${FONTS.map((f) => `<option value="${esc(f)}">`).join("")}</datalist>
+        <label class="mt-4 block font-semibold text-neutral-900">Corners</label>
+        <div id="thRadii" class="mt-1 flex flex-wrap gap-1.5">${RADII.map((r) => `<button type="button" class="chip ${theme.radius === r ? "on" : ""}" data-radius="${r}">${r}</button>`).join("")}</div>
+        <button id="thSave" type="button" class="mt-5 h-8 w-full rounded-md bg-black text-xs font-semibold text-white hover:bg-neutral-800">Apply theme</button>
+        <p id="thMsg" class="mt-2 text-neutral-500"></p>`;
+    const refresh = () => {
+        $("thBrandScale").innerHTML = strip(brandScale(theme.brand));
+        $("thGrayScale").innerHTML = strip(grayScale(theme.gray));
+        document.querySelectorAll("[data-gray]").forEach((b) => b.classList.toggle("on", b.dataset.gray === theme.gray));
+        document.querySelectorAll("[data-radius]").forEach((b) => b.classList.toggle("on", b.dataset.radius === theme.radius));
+    };
+    $("thBrand").addEventListener("input", (e) => { theme.brand = e.target.value; $("thBrandHex").value = e.target.value; refresh(); });
+    $("thBrandHex").addEventListener("input", (e) => { const t = normalizeTheme({ ...theme, brand: e.target.value }); if (/^#?[0-9a-f]{6}$/i.test(e.target.value.trim())) { theme.brand = t.brand; $("thBrand").value = t.brand; refresh(); } });
+    $("thGrays").addEventListener("click", (e) => { const b = e.target.closest("[data-gray]"); if (b) { theme.gray = b.dataset.gray; refresh(); } });
+    $("thRadii").addEventListener("click", (e) => { const b = e.target.closest("[data-radius]"); if (b) { theme.radius = b.dataset.radius; refresh(); } });
+    $("thFont").addEventListener("input", (e) => { theme = normalizeTheme({ ...theme, font: e.target.value }); });
+    $("thSave").addEventListener("click", async () => {
+        theme = normalizeTheme({ ...theme, font: $("thFont").value });
+        $("thMsg").textContent = "Saving…";
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme }) });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.message || "Could not save the theme");
+            project.theme = theme;
+            setPreviewTheme(theme);
+            redrawPreviews();
+            $("thMsg").textContent = "Applied to every page and component in this project.";
+        } catch (err) { $("thMsg").textContent = err.message; }
+    });
+}
 
 function renderDetails() {
     const el = $("details");

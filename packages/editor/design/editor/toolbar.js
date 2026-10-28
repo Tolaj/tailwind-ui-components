@@ -2,8 +2,10 @@ import { host } from "../host.js";
 import { config } from "../config.js";
 import { $, S, data, send } from "./base.js";
 import { assembleDoc, loadFrame, step, updateChrome } from "./docs.js";
+import { setPreviewDark } from "../../playground/component-source.js";
+import { pref } from "./color-ui.js";
 import { applyView, canvas, canvasSize, fitTo, handleWheel, layout, view, zoomAt } from "./plane.js";
-import { activate, anyDirty, boardPayload, docDirty, docs, loadActiveFromStash, pinBoard, remapKey, saveBoard } from "./designs.js";
+import { refreshGhosts, activate, anyDirty, boardPayload, docDirty, docs, loadActiveFromStash, pinBoard, remapKey, saveBoard } from "./designs.js";
 import { openDetails } from "./add-menu.js";
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
@@ -222,6 +224,17 @@ export function init() {
         if (v === "frame") return fitTo([S.curKey]);
         const [W, H] = canvasSize();
         zoomAt(Number(v) / view.z, W / 2, H / 2);
+    });
+    // light / dark: the design is shown with Tailwind's dark: styles on or off (a `dark` class on the page); the choice is remembered
+    const paintDark = (on) => { $("darkBtn").classList.toggle("on", on); $("darkBtn").title = on ? "Dark mode is on: show the design in light" : "Show the design in dark mode"; };
+    paintDark(pref("wc:dark") === "1");
+    $("darkBtn").addEventListener("click", () => {
+        const on = pref("wc:dark") !== "1";
+        pref("wc:dark", on ? "1" : "0");
+        setPreviewDark(on);
+        paintDark(on);
+        refreshGhosts();
+        loadFrame();
     });
     $("undoBtn").addEventListener("click", () => step(-1));
     $("redoBtn").addEventListener("click", () => step(1));

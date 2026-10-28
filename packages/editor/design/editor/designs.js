@@ -96,6 +96,9 @@ function mountGhost(key, force) {
     en.ghost.srcdoc = buildPreviewDocument(p, { width: widthOf(d) });
 }
 
+/** Draws every other page again (the light/dark choice changed). */
+export function refreshGhosts() { [...wraps.keys()].forEach((k) => { const en = wraps.get(k); if (en && en.ghost) mountGhost(k, true); }); }
+
 function setRole(key) {
     const en = wraps.get(key);
     if (!en) return;

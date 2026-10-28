@@ -26,10 +26,12 @@
     <div class="flex min-h-0 flex-1">
         <aside class="flex w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
             <div class="flex border-b border-neutral-200 text-[11px] font-semibold" role="tablist">
-                <button id="tabPages" type="button" role="tab" class="flex-1 border-b-2 border-neutral-900 px-3 py-2.5 text-neutral-900">Pages</button>
-                <button id="tabComponents" type="button" role="tab" class="flex-1 border-b-2 border-transparent px-3 py-2.5 text-neutral-500 hover:text-neutral-900">Components</button>
+                <button id="tabPages" type="button" role="tab" class="flex-1 whitespace-nowrap border-b-2 border-neutral-900 px-2 py-2.5 text-neutral-900">Pages</button>
+                <button id="tabComponents" type="button" role="tab" class="flex-1 whitespace-nowrap border-b-2 border-transparent px-2 py-2.5 text-neutral-500 hover:text-neutral-900">Components</button>
+                <button id="tabTheme" type="button" role="tab" class="flex-1 whitespace-nowrap border-b-2 border-transparent px-2 py-2.5 text-neutral-500 hover:text-neutral-900">Theme</button>
             </div>
             <div id="outline" class="min-h-0 flex-1 overflow-auto p-1 text-[11px]"></div>
+            <div id="themePanel" class="hidden min-h-0 flex-1 overflow-auto p-3 text-[11px]"></div>
         </aside>
 
         <main id="board" class="relative min-w-0 flex-1 overflow-hidden bg-[#e5e5e5]" style="cursor:grab;touch-action:none;user-select:none">

@@ -207,7 +207,18 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | Nav: one button, **New project** (the Catalog link arrives with the Catalog in Phase 3) | **Done** |
 | Remove `isPublished`, the Library page, category and detail pages | **Waits for the Catalog** (Phase 3) |
 
-## 11. What I have not verified
+## 11. Phase 2 progress (theme)
+
+| Item | State |
+|---|---|
+| `packages/core/theme.js`: normalise, brand scale (the colour is `brand-600`), five gray palettes, radius scale, Tailwind config, font link; 4 tests | **Done** |
+| Project stores its theme; `PUT /api/projects/:id` accepts it (invalid fields fall back to the default); the editor and the project page receive it | **Done** |
+| Editor and every preview draw with the theme: `bg-brand-*`, `gray-*` (the project's gray), `rounded-*`, the sans font | **Done** (only where the editor adds Tailwind itself; a design with its own Tailwind script keeps its own config) |
+| Light / dark switch in the editor toolbar (remembered) | **Done** |
+| Project page **Theme** tab: brand colour with live scale, gray, font, corners, Apply (redraws the previews) | **Done**, checked in a test harness; the real page needs sign-in |
+| Exports carry the theme config, so a part pasted elsewhere keeps its look | **Phase 3** (with the catalog's export tabs) |
+
+## 12. What I have not verified
 
 This plan comes from the code I have read: the component and project models, the library and project routes, the editor and the
 docs. I have **not** audited every route, field and page for use, so the removals in section 2 marked "audit" must be checked
