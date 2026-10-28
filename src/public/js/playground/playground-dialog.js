@@ -3,6 +3,7 @@
 import { embedEditor } from "@windcraft/editor/index.js";
 import { appHost } from "../app-host.js";
 import { updateSourceBadge } from "./playground-badge.js";
+import { setCode, codeHasFocus } from "./playground-code.js";
 
 const $ = (id) => document.getElementById(id);
 const TOOLS = ["move", "hand", "interact", "frame", "shape", "text", "add"];
@@ -27,9 +28,8 @@ function openEditor() {
     });
     // a change made on the canvas (drag, resize, text) writes the code; one typed in the box is not written back over it
     ed.onChange(({ html, source }) => {
-        const box = $("htmlEditor");
-        if (source !== "editor" || document.activeElement === box) return;
-        box.value = html;
+        if (source !== "editor" || codeHasFocus()) return;
+        setCode(html);
         updateSourceBadge(html);
     });
     resume = null;
@@ -170,7 +170,7 @@ dialog.addEventListener("close", () => {
     projects = null;
     closeEditor();
     handleBack();
-    $("htmlEditor").value = "";
+    setCode("");
     $("componentForm").reset();
     updateSourceBadge("");
 });
@@ -197,9 +197,43 @@ try {
     const back = JSON.parse(sessionStorage.getItem("wc:resume") || "null");
     sessionStorage.removeItem("wc:resume");
     if (back) {
-        $("htmlEditor").value = back.html || "";
+        setCode(back.html || "");
         updateSourceBadge(back.html || "");
         resume = { title: back.title || "", category: back.category || "", description: back.description || "", tags: Array.isArray(back.tags) ? back.tags : String(back.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: back.isPublished !== false };
         dialog.showModal();
     }
 } catch { /* nothing to resume */ }
+
+// ── The split between the code and the design: drag it to give the design more room (the code never gets wider than it starts) ──────────────
+{
+    const form = $("componentForm"), pane = $("codePane");
+    const MAX = 0.42, MIN_PX = 240, KEY = "wc:dialogSplit";
+    const set = (frac) => { if (!form.offsetWidth) return; pane.style.width = `${Math.round(Math.max(MIN_PX / form.offsetWidth, Math.min(MAX, frac)) * 1000) / 10}%`; };
+    if (form && pane) {
+        const handle = document.createElement("div");
+        handle.title = "Drag to give the design more room, double-click to reset";
+        handle.style.cssText = "position:absolute;top:0;bottom:0;right:-4px;width:8px;z-index:20;cursor:col-resize;touch-action:none";
+        const line = document.createElement("div");
+        line.style.cssText = "position:absolute;top:0;bottom:0;left:3px;width:1px;background:#0090f1;opacity:0;transition:opacity .12s";
+        handle.append(line);
+        handle.addEventListener("mouseenter", () => { line.style.opacity = ".7"; });
+        handle.addEventListener("mouseleave", () => { if (!drag) line.style.opacity = "0"; });
+        pane.append(handle);
+        const restore = () => { try { const f = Number(localStorage.getItem(KEY)); if (f) set(f); } catch { /* storage is optional */ } };
+        new MutationObserver(() => { if (dialog.open) restore(); }).observe(dialog, { attributes: true, attributeFilter: ["open"] }); // the width is known once the dialog shows
+        restore();
+        let drag = null;
+        handle.addEventListener("pointerdown", (e) => { e.preventDefault(); drag = { x: e.clientX, w: pane.offsetWidth }; handle.setPointerCapture(e.pointerId); document.body.style.cursor = "col-resize"; });
+        handle.addEventListener("pointermove", (e) => { if (drag) set((drag.w + e.clientX - drag.x) / form.offsetWidth); });
+        const end = (e) => {
+            if (!drag) return;
+            drag = null;
+            line.style.opacity = "0";
+            document.body.style.cursor = "";
+            try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+            try { localStorage.setItem(KEY, String(pane.offsetWidth / form.offsetWidth)); } catch { /* storage is optional */ }
+        };
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach((t) => handle.addEventListener(t, end));
+        handle.addEventListener("dblclick", () => { pane.style.width = ""; try { localStorage.removeItem(KEY); } catch { /* storage is optional */ } });
+    }
+}

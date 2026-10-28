@@ -1,6 +1,7 @@
 import { handleChangeEditor, clearEditor } from "./playground-editor.js";
 import { handleBack, handleClose, handleSave, openFullEditor } from "./playground-dialog.js";
 import { handleAIGenerate } from "./playground-ai.js";
+import { formatCode } from "./playground-code.js";
 
 // ── Expose to inline HTML handlers (onclick="...") ───────────────────────────
 window.handleChangeEditor = handleChangeEditor;
@@ -10,6 +11,13 @@ window.handleClose = handleClose;
 window.handleSave = handleSave;
 window.openFullEditor = openFullEditor;
 window.handleAIGenerate = handleAIGenerate;
+window.formatCode = async (btn) => {
+    const r = await formatCode();
+    const was = btn.dataset.label || btn.textContent;
+    btn.dataset.label = was;
+    btn.textContent = !r.ok ? "Fix the errors first" : r.changed ? "Formatted" : "Already tidy";
+    setTimeout(() => { btn.textContent = was; }, 1400);
+};
 
 // ── AI prompt: Enter key to submit ────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -22,13 +30,4 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
-});
-
-// ── Editor: Tab inserts two spaces instead of leaving the field ──────────────
-document.getElementById("htmlEditor")?.addEventListener("keydown", (e) => {
-    if (e.key !== "Tab") return;
-    e.preventDefault();
-    const t = e.target;
-    t.setRangeText("  ", t.selectionStart, t.selectionEnd, "end");
-    t.dispatchEvent(new Event("input", { bubbles: true }));
 });

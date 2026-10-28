@@ -1,9 +1,10 @@
 import { updateSourceBadge } from "./playground-badge.js";
 import { pushCode } from "./playground-dialog.js";
+import { setCode } from "./playground-code.js";
 
 export const clearEditor = () => {
     if (confirm("Clear all content?")) {
-        document.getElementById("htmlEditor").value = "";
+        setCode("");
         pushCode("");
         updateSourceBadge("");
     }

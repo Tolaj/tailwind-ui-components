@@ -1,20 +1,17 @@
-import { highlight, lineNumbers, checkTags, formatHtml } from "../code-view.js";
+import { checkTags } from "../code-view.js";
 import { parseComponentSource } from "../../playground/component-source.js";
+import { createCodeEditor, tagProblems } from "../code-editor.js";
 import { $, S, model } from "./base.js";
 import { assemble, commit, loadFrame } from "./docs.js";
 import { layout } from "./plane.js";
 
 // ── Code panel (two-way with the canvas) ─────────────────────────────────────
-const codeText = $("codeText");
+// The editor itself is design/code-editor.js (CodeMirror); this part keeps it and the canvas in step.
+let ed = null;          // the code editor, once the panel has been opened
+let starting = false;
 const codeOpen = () => !$("codePanel").classList.contains("hidden");
-export const codeFocused = () => document.activeElement === codeText;
-const CODE_LINE = 20, CODE_PAD = 12; // the code box's line height and padding (canvas.handlebars .code-layer)
-/** Scrolls the code box so the character at `index` is in view (lines don't wrap, so its line gives its height). */
-function revealInCode(text, index) {
-    const y = CODE_PAD + (text.slice(0, index).split("\n").length - 1) * CODE_LINE;
-    if (y < codeText.scrollTop || y > codeText.scrollTop + codeText.clientHeight - 2 * CODE_LINE) codeText.scrollTop = Math.max(0, y - codeText.clientHeight / 2);
-    syncCodeScroll();
-}
+export const codeFocused = () => Boolean(ed && ed.hasFocus());
+const codeValue = () => (ed ? ed.getValue() : "");
 /** Copies text and says so on the button for a moment. */
 function copyText(text, btn) {
     const done = (msg) => { if (!btn) return; const was = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = was; }, 1200); };
@@ -50,54 +47,49 @@ export function elementRange(markup, path) {
     }
     return null;
 }
-const codeHl = $("codeHl"), codeGutter = $("codeGutter");
-/** The coloured copy and the line numbers follow the textarea's scrolling. */
-function syncCodeScroll() {
-    codeHl.scrollTop = codeText.scrollTop;
-    codeHl.scrollLeft = codeText.scrollLeft;
-    codeGutter.scrollTop = codeText.scrollTop;
-}
-/** Paints the code in colour, shading the selected element's source (its opening tag darker), and when the selection just changed, scrolls to it. */
+/** Paints the selected element's source in the code (its opening tag darker), and when the selection just changed, scrolls to it. */
 export function updateCodeHighlight(reveal) {
-    if (!codeOpen()) return;
-    const text = codeText.value;
+    if (!codeOpen() || !ed) return;
+    const text = ed.getValue();
     const base = model.markup ? text.indexOf(model.markup) : -1;
     const r = S.selected && S.selected.path && S.selected.path.length && base >= 0 ? elementRange(model.markup, S.selected.path) : null;
-    const marks = r ? [[base + r.start, base + r.end, "sel"], [base + r.start, base + r.openEnd, "selt"]] : [];
-    codeHl.innerHTML = highlight(text, marks);
-    const n = text.split("\n").length;
-    if (codeGutter.dataset.n !== String(n)) { codeGutter.textContent = lineNumbers(text) + "\n"; codeGutter.dataset.n = String(n); }
+    ed.setMarks(r ? [[base + r.start, base + r.end, "sel"], [base + r.start, base + r.openEnd, "selt"]] : []);
+    const n = ed.lineCount();
     $("codeLines").textContent = `${n} line${n === 1 ? "" : "s"}`;
-    syncCodeScroll();
-    if (reveal && r) revealInCode(text, base + r.start);
+    if (reveal && r) ed.reveal(base + r.start);
 }
 
 export function syncCode() {
-    if (!codeOpen()) return;
+    if (!codeOpen() || !ed) return;
     const next = model.markup.trim() ? assemble() : "";
-    const prev = codeText.value;
+    const prev = ed.getValue();
     if (prev === next) return updateCodeHighlight(false);
-    const left = codeText.scrollLeft, top = codeText.scrollTop;
-    codeText.value = next;
-    codeText.scrollLeft = left;
-    codeText.scrollTop = top;
+    ed.setValue(next); // keeps the scroll position and the cursor
     // show what changed: the first place the new code differs from the old
     let i = 0;
     while (i < prev.length && i < next.length && prev[i] === next[i]) i++;
-    if (prev) revealInCode(next, i);
+    if (prev) ed.reveal(i);
     updateCodeHighlight(false);
 }
-function setCodePanel(open) {
+async function setCodePanel(open) {
     $("codePanel").classList.toggle("hidden", !open);
     $("codePanel").classList.toggle("flex", open);
     $("codeBtn").classList.toggle("on", open);
-    if (open) { syncCode(); updateCodeHighlight(true); codeText.focus(); }
+    if (open && !ed && !starting) {
+        starting = true;
+        try {
+            ed = await createCodeEditor($("codeMount"), {
+                value: model.markup.trim() ? assemble() : "", onChange: onCodeInput, problems: tagProblems, onSave: () => $("saveBtn").click(),
+            });
+        } finally { starting = false; }
+    }
+    if (open && ed) { syncCode(); updateCodeHighlight(true); ed.focus(); }
     layout();
 }
 let codeTimer = null;
 /** Shows the first place the tags don't match up (and returns it), or hides the warning. */
 function showCodeProblem() {
-    const bad = checkTags(codeText.value);
+    const bad = checkTags(codeValue());
     const w = $("codeWarn");
     w.classList.toggle("hidden", !bad);
     if (bad) { w.textContent = `Line ${bad.line}: ${bad.message}. Not applied until fixed.`; w.dataset.line = String(bad.line); }
@@ -108,62 +100,68 @@ function applyCode() {
     clearTimeout(codeTimer);
     codeTimer = null;
     if (showCodeProblem()) return false;
-    S.parsed = parseComponentSource(codeText.value);
+    S.parsed = parseComponentSource(codeValue());
     commit(S.parsed.markup, "code");
     loadFrame();
     return true;
+}
+/** Typing in the code: the squiggles and the warning show at once; the canvas follows once typing pauses (broken tags are never sent to it, where the browser would "repair" them its own way). */
+function onCodeInput() {
+    const n = ed.lineCount();
+    $("codeLines").textContent = `${n} line${n === 1 ? "" : "s"}`;
+    showCodeProblem();
+    clearTimeout(codeTimer);
+    codeTimer = setTimeout(applyCode, 500);
 }
 const copyFlash = (btn, msg) => { const was = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = was; }, 1200); };
 
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
 export function init() {
-    codeText.addEventListener("scroll", syncCodeScroll);
     $("codeBtn").addEventListener("click", () => setCodePanel(!codeOpen()));
     $("codeClose").addEventListener("click", () => setCodePanel(false));
-    codeText.addEventListener("input", () => {
-        updateCodeHighlight(false);
-        clearTimeout(codeTimer);
-        // broken tags are shown at once but never sent to the canvas, where the browser would "repair" them its own way
-        codeTimer = setTimeout(applyCode, 500);
-    });
-    codeText.addEventListener("keydown", (e) => {
-        if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); document.execCommand("insertText", false, "  "); }
-    });
     $("codeWarn").addEventListener("click", () => {
-        const line = Number($("codeWarn").dataset.line) || 1;
-        const lines = codeText.value.split("\n");
-        const at = lines.slice(0, line - 1).reduce((s, l) => s + l.length + 1, 0);
-        codeText.focus();
-        codeText.setSelectionRange(at, at + (lines[line - 1] || "").length);
-        revealInCode(codeText.value, at);
+        if (!ed) return;
+        const [from, to] = ed.lineRange(Number($("codeWarn").dataset.line) || 1);
+        ed.select(from, to);
     });
-    $("codeCopy").addEventListener("click", (e) => copyText(codeText.value, e.currentTarget));
-    // Format: tidy indentation of the design's markup (its <style> and <script> stay as they are), as one undo step
-    $("codeFormat").addEventListener("click", (e) => {
-        if (codeTimer && !applyCode()) return;
-        if (showCodeProblem()) return;
-        const next = formatHtml(model.markup);
-        if (next === model.markup) { copyFlash(e.currentTarget, "Already tidy"); return; }
-        model.markup = next;
-        commit(next, "format");
-        loadFrame();
+    $("codeCopy").addEventListener("click", (e) => copyText(codeValue(), e.currentTarget));
+    $("codeFind").addEventListener("click", () => ed && ed.openSearch());
+    // Format: Prettier tidies the whole code (markup, <style> and <script>), as one undo step
+    $("codeFormat").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        if (!ed) return;
+        const r = await ed.format();
+        if (!r.ok) { copyFlash(btn, "Fix the errors first"); return; }
+        if (!r.changed) { copyFlash(btn, "Already tidy"); return; }
+        applyCode();
         syncCode();
     });
-// Resize: drag the panel's top edge; the height is remembered
+// Resize: drag the panel's top edge; the height is remembered. The handle keeps the pointer (setPointerCapture) so the drag follows it over the
+// design's iframe too, which would otherwise take the pointer and leave the drag stuck.
 (() => {
-    const panel = $("codePanel");
+    const panel = $("codePanel"), handle = $("codeResize");
     try { const h = Number(localStorage.getItem("wc:codeH")); if (h) panel.style.height = `${h}px`; } catch { /* storage is optional */ }
-    $("codeResize").addEventListener("pointerdown", (e) => {
+    let drag = null;
+    handle.addEventListener("pointerdown", (e) => {
         e.preventDefault();
-        const startY = e.clientY, startH = panel.offsetHeight;
-        const move = (ev) => { panel.style.height = `${Math.round(Math.min(innerHeight * 0.8, Math.max(120, startH + startY - ev.clientY)))}px`; layout(); };
-        const up = () => {
-            removeEventListener("pointermove", move);
-            removeEventListener("pointerup", up);
-            try { localStorage.setItem("wc:codeH", String(panel.offsetHeight)); } catch { /* storage is optional */ }
-        };
-        addEventListener("pointermove", move);
-        addEventListener("pointerup", up);
+        drag = { y: e.clientY, h: panel.offsetHeight };
+        handle.setPointerCapture(e.pointerId);
+        document.body.style.cursor = "row-resize";
     });
+    handle.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        panel.style.height = `${Math.round(Math.min(innerHeight * 0.8, Math.max(120, drag.h + drag.y - e.clientY)))}px`;
+        layout();
+    });
+    const end = (e) => {
+        if (!drag) return;
+        drag = null;
+        document.body.style.cursor = "";
+        try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+        try { localStorage.setItem("wc:codeH", String(panel.offsetHeight)); } catch { /* storage is optional */ }
+    };
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+    handle.addEventListener("lostpointercapture", end);
 })();
 }

@@ -1,11 +1,9 @@
-<section class="flex w-[42%] min-w-0 flex-col border-r border-neutral-200 bg-neutral-50">
+<section id="codePane" class="relative flex w-[42%] min-w-0 flex-col border-r border-neutral-200 bg-neutral-50">
 
     {{!-- Code editor --}}
     <div class="relative flex-1 min-h-0">
-        <textarea id="htmlEditor" name="htmlEditor"
-            class="absolute inset-0 h-full w-full resize-none border-0 bg-neutral-50 p-5 font-mono text-[13px] leading-6 text-neutral-900 placeholder-neutral-400 focus:bg-white focus:outline-none focus:ring-0 transition-colors"
-            spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
-            oninput="handleChangeEditor(event)"></textarea>
+        <div id="htmlMount" class="absolute inset-0"></div>
+        <textarea id="htmlEditor" name="htmlEditor" class="hidden" tabindex="-1" aria-hidden="true" oninput="handleChangeEditor(event)"></textarea>
     </div>
 
     {{#if user.llmEnabled}}

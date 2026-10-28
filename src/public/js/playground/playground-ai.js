@@ -634,6 +634,7 @@ const setEditorSkeleton = (active) => {
 // can measure the real pixel offset of any character, then centre it.
 let _scrollMirror = null;
 const scrollToChar = (textarea, charIndex) => {
+    if (textarea.reveal) return textarea.reveal(charIndex); // the code box is the design editor's code editor: it scrolls itself
     if (!_scrollMirror) {
         _scrollMirror = document.createElement("div");
         _scrollMirror.setAttribute("aria-hidden", "true");

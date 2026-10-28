@@ -173,6 +173,7 @@ export const editorHtml = `<div class="flex h-full flex-col">
                     <span id="codeLines" class="min-w-0 truncate text-neutral-400"></span>
                     <button id="codeWarn" type="button" class="hidden min-w-0 truncate rounded px-1.5 py-0.5 text-left text-amber-700 hover:bg-amber-50" title="Go to the line"></button>
                     <span class="ml-auto flex shrink-0 items-center gap-1">
+                        <button id="codeFind" type="button" title="Find and replace (Ctrl/Cmd+F)" class="rounded px-2 py-0.5 text-neutral-600 hover:bg-neutral-200">Find</button>
                         <button id="codeFormat" type="button" title="Tidy the indentation (one undo step)" class="rounded px-2 py-0.5 text-neutral-600 hover:bg-neutral-200">Format</button>
                         <button id="codeCopy" type="button" title="Copy all the code" class="rounded px-2 py-0.5 text-neutral-600 hover:bg-neutral-200">Copy</button>
                         <button id="codeClose" type="button" title="Close the code" aria-label="Close the code"
@@ -182,14 +183,7 @@ export const editorHtml = `<div class="flex h-full flex-col">
                             </svg></button>
                     </span>
                 </div>
-                                <div class="flex min-h-0 flex-1 bg-white">
-                    <pre id="codeGutter" aria-hidden="true" class="code-gutter"></pre>
-                    <div class="relative min-w-0 flex-1">
-                        <pre id="codeHl" aria-hidden="true" class="code-layer ck pointer-events-none absolute inset-0 m-0"></pre>
-                        <textarea id="codeText" spellcheck="false"
-                            class="code-layer code-input absolute inset-0 h-full w-full resize-none border-0 bg-transparent focus:outline-none"></textarea>
-                    </div>
-                </div>
+                                <div id="codeMount" class="min-h-0 min-w-0 flex-1 overflow-hidden bg-white"></div>
             </div>
         </section>
 
