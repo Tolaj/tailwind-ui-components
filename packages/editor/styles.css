@@ -338,4 +338,15 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .pagehead { display: flex; flex-direction: column; gap: 2px; margin: 8px 10px 0; padding: 7px 9px; border-radius: 6px; background: #eef4ff; color: #1e3a8a; font-size: 10.5px; line-height: 1.4; }
 .pagehead b { font-size: 11px; }
 .fsec .row { gap: 6px; }
+/* where a set value comes from: a blue edge for a Tailwind class, amber for CSS; a × on hover takes it off */
+.nf { position: relative; }
+.nf.src-tw { box-shadow: inset 2px 0 0 #38bdf8; }
+.nf.src-css { box-shadow: inset 2px 0 0 #f59e0b; }
+.nfx { display: none; flex: none; width: 16px; height: 16px; margin-right: 3px; border-radius: 3px; color: #8c8c8c; font-size: 12px; line-height: 16px; text-align: center; }
+.nf:hover .nfx { display: block; }
+.nfx:hover { background: #e5e5e5; color: #111; }
+.nf.disp { flex: none; width: 74px; }
+.ib.txt { font-size: 10.5px; padding: 0 6px; color: #555; }
+.ib.txt.on { color: #111; }
+.fsec .crow .lbl { width: 40px; }
 .fsec .row .lbl { width: 56px; }

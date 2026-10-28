@@ -4,16 +4,15 @@
 // sections...) comes from panel-state.js through context; what to show comes from inspectorView (panel-model.js); what the
 // components ask of the editor goes through `actions` (editor.js panelActions).
 //   here: the head (tabs), the page panel, the AI tab, the Code tab's element code
-//   design-tab.js · figma-sections.js · prop-sections.js · extras-section.js: the Design tab
+//   design-tab.js · figma-sections.js · style-sections.js · prop-sections.js: the Design tab
 //   classes-section.js: the Code tab below the element's code; controls.js, group-controls.js: the blocks they are made of
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { UiContext } from "./panel-state.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
-import { PositionSection, LayoutSection } from "./figma-sections.js";
-import { AppearanceSection, FillSection, StrokeSection, EffectsSection, TypographySection, MarginSection, OtherSection } from "./style-sections.js";
-import { ExtrasSection } from "./extras-section.js";
+import { PositionSection, LayoutSection, ItemSection } from "./figma-sections.js";
+import { TypographySection, BackgroundSection, BorderSection, EffectsSection, TransformSection, MotionSection, InteractionSection, MarginSection, AddBox } from "./style-sections.js";
 import { ClassesSection } from "./classes-section.js";
 
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
@@ -167,12 +166,15 @@ function PagePanel({ page: pg, actions }) {
         </div></div>`;
 }
 
-/** The style sections, Figma's order: Appearance, Fill, Stroke, Effects, then Typography, Margin and the rest (style-sections.js). */
-// The page (its body) gets no Stroke or Effects: a border or shadow there is almost always a slip meant for an element, and a border
-// on a page as tall as the screen makes it outgrow its frame.
-const Styles = ({ k, s, actions, page }) => html`${!page && html`<${AppearanceSection} key=${`a${k}`} s=${s} actions=${actions} />`}<${FillSection} key=${`f${k}`} s=${s} actions=${actions} />
-    ${!page && html`<${StrokeSection} key=${`s${k}`} s=${s} actions=${actions} /><${EffectsSection} key=${`e${k}`} s=${s} actions=${actions} />`}
-    <${TypographySection} key=${`t${k}`} s=${s} actions=${actions} /><${MarginSection} key=${`m${k}`} s=${s} actions=${actions} /><${OtherSection} key=${`o${k}`} s=${s} actions=${actions} />`;
+/**
+ * The style sections after Position and Layout, in the order a frontend developer reaches for them (style-sections.js). The page
+ * (its body) gets no Border, Effects, Transform or Interaction: those on a whole page are almost always a slip meant for an element,
+ * and a border on a page as tall as the screen makes it outgrow its frame.
+ */
+const Styles = ({ k, s, actions, page }) => html`<${TypographySection} key=${`t${k}`} s=${s} actions=${actions} /><${BackgroundSection} key=${`b${k}`} s=${s} actions=${actions} />
+    ${!page && html`<${BorderSection} key=${`r${k}`} s=${s} actions=${actions} /><${EffectsSection} key=${`e${k}`} s=${s} actions=${actions} />
+        <${TransformSection} key=${`x${k}`} s=${s} actions=${actions} /><${MotionSection} key=${`n${k}`} s=${s} actions=${actions} /><${InteractionSection} key=${`i${k}`} s=${s} actions=${actions} />`}
+    <${MarginSection} key=${`m${k}`} s=${s} actions=${actions} /><${AddBox} key=${`c${k}`} actions=${actions} />`;
 
 const CLOSE = html`<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>`;
 const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
@@ -193,7 +195,7 @@ function Panel({ view, tab, actions }) {
         const { key, s } = view.design;
         body = html`<${DesignTop} key=${key} s=${s} actions=${actions} />
             ${s.tag !== "body" && html`<${PositionSection} key=${`p${key}`} s=${s} actions=${actions} />`}<${LayoutSection} key=${`l${key}`} s=${s} actions=${actions} />
-            <${Styles} k=${key} s=${s} actions=${actions} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
+            <${ItemSection} key=${`f${key}`} s=${s} actions=${actions} /><${Styles} k=${key} s=${s} actions=${actions} page=${s.tag === "body"} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;

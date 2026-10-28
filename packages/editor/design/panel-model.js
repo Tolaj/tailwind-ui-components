@@ -1,6 +1,6 @@
 // What the Properties panel draws from: the data tables behind its controls (suggestions, options, tags), small selectors
 // that read the selection and the panel's state (panel-state.js), and inspectorView, which says what the panel shows. The
-// components themselves are in panel.js, design-tab.js, figma-sections.js, prop-sections.js, extras-section.js and classes-section.js.
+// components themselves are in panel.js, design-tab.js, figma-sections.js, style-sections.js, prop-sections.js and classes-section.js.
 import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, GROUPS, getGroup, parseToken } from "@windcraft/core/class-groups.js";
 import { twShown } from "@windcraft/core/prop-tailwind.js";
 import { panelStore } from "./panel-state.js";
@@ -70,7 +70,7 @@ const CSS_PROPS = ["background", "background-image", "background-color", "border
 
 const DATALISTS = Object.entries(PRESETS).map(([k, list]) => `<datalist id="dl-${k}">${list.map((v) => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("") +
     `<datalist id="dl-colors">${[...SPECIAL_COLORS, ...HUES.flatMap((h) => SHADES.map((s) => `${h}-${s}`))].map((v) => `<option value="${v}"></option>`).join("")}</datalist>` +
-    `<datalist id="dl-fonts">${["system-ui", "Inter", "Arial", "Helvetica", "Georgia", "Times New Roman", "Courier New", "monospace", "sans-serif", "serif"].map((v) => `<option value="${v}"></option>`).join("")}</datalist>` + `<datalist id="dl-cssprops">${CSS_PROPS.map((v) => `<option value="${v}"></option>`).join("")}</datalist>`;
+    `<datalist id="dl-fonts">${["sans", "serif", "mono", "system-ui", "Inter", "Arial", "Helvetica", "Georgia", "Times New Roman", "Courier New", "monospace", "sans-serif", "serif"].map((v) => `<option value="${v}"></option>`).join("")}</datalist>` + `<datalist id="dl-cssprops">${CSS_PROPS.map((v) => `<option value="${v}"></option>`).join("")}</datalist>`;
 
 export function mountDatalists() {
     const d = document.createElement("div");

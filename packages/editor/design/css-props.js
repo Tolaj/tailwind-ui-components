@@ -77,7 +77,8 @@ export const TOOLBAR_PROPS = [
 
 /** Every property the panel can show, sent to the in-frame agent so it can report computed values. */
 export const CSS_PROP_LIST = [...new Set([
-    "align-self", "flex-grow", "column-gap", "row-gap", "scale", // Position and Layout (figma-sections.js)
+    "align-self", "flex-grow", "flex-shrink", "flex-basis", "column-gap", "row-gap", "scale", "justify-items", "grid-template-rows", // Position, Layout, item (figma-sections.js)
+    "outline-style", "outline-offset", "user-select", "visibility", "object-position", "text-overflow", "border-top-left-radius", // style-sections.js
     ...CSS_SECTIONS.flatMap(([, , c]) => (c === "box" ? [] : c.map((x) => x.p))),
     ...BOX_PROPS,
     ...TOOLBAR_PROPS,
