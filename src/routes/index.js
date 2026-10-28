@@ -14,6 +14,7 @@ import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
 import designRoutes from "./design.routes.js";
 import { projectPages, projectApi } from "./project.routes.js";
+import { adminPages, adminApi } from "./admin.routes.js";
 import { catalogPages, catalogApi } from "./catalog.routes.js";
 
 import {
@@ -21,6 +22,7 @@ import {
     noCacheAuth,
     ensureAuth,
     ensureAuthAPI,
+    ensureAdmin,
 } from "../middlewares/auth.js";
 
 const constructorMethod = (app) => {
@@ -50,6 +52,8 @@ const constructorMethod = (app) => {
     app.use("/design", ensureAuth, designRoutes);
     app.use("/projects", ensureAuth, projectPages);
     app.use("/api/projects", ensureAuthAPI, projectApi);
+    app.use("/admin", ensureAuth, ensureAdmin, adminPages);
+    app.use("/api/admin", ensureAuthAPI, ensureAdmin, adminApi);
     app.use("/catalog", catalogPages);
     app.use("/api/catalog", catalogApi);
 

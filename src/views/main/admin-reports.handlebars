@@ -1,0 +1,41 @@
+<main class="min-w-0 flex-1 p-6">
+    <h1 class="text-3xl font-semibold tracking-[-0.035em] text-gray-900">Reports</h1>
+    <p class="mt-1 mb-6 text-sm text-gray-500">Designs people flagged. They stay in the gallery until you remove them.</p>
+    {{#if rows.length}}
+    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <tr><th class="px-4 py-2">Design</th><th class="px-4 py-2">Reports</th><th class="px-4 py-2">Owner</th><th class="px-4 py-2"></th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {{#each rows}}
+                <tr data-row="{{id}}">
+                    <td class="px-4 py-3 align-top"><a class="font-medium text-gray-900 underline" href="/component/{{id}}" target="_blank" rel="noopener">{{title}}</a>
+                        <div class="text-xs text-gray-500">{{categoryName}} · {{likes}} likes · {{#if public}}public{{else}}already private{{/if}}</div></td>
+                    <td class="px-4 py-3 align-top"><div class="font-medium">{{count}}</div><div class="text-xs text-gray-600">{{reasons}}</div>
+                        {{#each notes}}<div class="mt-1 text-xs text-gray-500">“{{this}}”</div>{{/each}}</td>
+                    <td class="px-4 py-3 align-top text-gray-600">{{owner}}</td>
+                    <td class="px-4 py-3 align-top text-right whitespace-nowrap">
+                        <button type="button" data-act="dismiss" data-id="{{id}}" class="h-8 rounded-md border border-gray-300 px-3 text-xs font-medium hover:bg-gray-50">Keep it</button>
+                        <button type="button" data-act="remove" data-id="{{id}}" class="ml-1 h-8 rounded-md bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-700">Remove from gallery</button>
+                    </td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center text-sm text-gray-500">Nothing reported.</div>
+    {{/if}}
+</main>
+<script>
+    document.addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-act]");
+        if (!b) return;
+        if (b.dataset.act === "remove" && !confirm("Take this design out of the gallery? It becomes private to its owner.")) return;
+        b.disabled = true;
+        const res = await fetch(`/api/admin/reports/${b.dataset.id}/${b.dataset.act}`, { method: "POST" });
+        if ((await res.json()).success) document.querySelector(`[data-row="${b.dataset.id}"]`).remove();
+        else b.disabled = false;
+    });
+</script>

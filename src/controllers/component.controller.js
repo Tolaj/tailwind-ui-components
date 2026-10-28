@@ -359,3 +359,24 @@ export const setLike = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const REPORT_REASONS = ["inappropriate", "broken", "copied", "other"];
+
+/** Flag a gallery design for the site's owners. One report per person (a second one replaces the first); the design stays visible. */
+export const reportComponent = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const id = req.params.id;
+        if (!mongoose.isValidObjectId(id)) return res.status(404).json({ success: false, message: 'Component not found' });
+        const reason = REPORT_REASONS.includes(req.body?.reason) ? req.body.reason : "other";
+        const note = String(req.body?.note || "").trim().slice(0, 300);
+        const component = await Component.findOne({ _id: id, isPublished: true }).select('createdBy').lean();
+        if (!component) return res.status(404).json({ success: false, message: 'Component not found' });
+        if (String(component.createdBy) === userId) return res.status(400).json({ success: false, message: "That is your own design" });
+        await Component.updateOne({ _id: id }, { $pull: { reports: { by: userId } } });
+        await Component.updateOne({ _id: id }, { $push: { reports: { by: userId, reason, note, at: new Date() } } });
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

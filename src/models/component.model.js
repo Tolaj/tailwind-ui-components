@@ -25,6 +25,11 @@ const componentSchema = new mongoose.Schema(
             ref: "User",
             required: true
         },
+        // reports from people who flagged a gallery design (one per person); the owner of the site reviews them
+        reports: {
+            type: [{ by: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, reason: String, note: { type: String, maxlength: 300 }, at: { type: Date, default: Date.now } }],
+            default: [],
+        },
         // likes: people who like a design in the gallery (the most liked show first); one like per person
         likes: { type: Number, default: 0, index: true },
         likedBy: { type: [mongoose.Schema.Types.ObjectId], ref: "User", default: [] },

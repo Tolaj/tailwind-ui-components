@@ -50,7 +50,7 @@ document.head.appendChild(style);
 const LAST_PROJECT = "wc:lastProject";
 let projectCard = null;
 function closeProjectCard() { if (projectCard) { projectCard.remove(); projectCard = null; } }
-document.addEventListener("click", (e) => { if (projectCard && !projectCard.contains(e.target) && !e.target.closest("[data-card-action]")) closeProjectCard(); });
+document.addEventListener("click", (e) => { if (projectCard && !projectCard.contains(e.target) && !e.target.closest("[data-card-action], [data-report]")) closeProjectCard(); });
 
 async function chooseProject(id, mode, btn) {
   if (!btn.dataset.signedIn) {
@@ -166,3 +166,50 @@ async function newProject(btn) {
     if (btn) btn.disabled = false;
   }
 }
+
+// ── Report ───────────────────────────────────────────────────────────────────
+// A flag next to Like. It tells the site owners (the design stays visible until they decide). Signed out: sign in, then carry on.
+async function reportDesign(id, btn) {
+  if (!btn.dataset.signedIn) {
+    const back = new URL(location.href);
+    back.searchParams.set("report", id);
+    location.href = `/auth/sign-in?returnTo=${encodeURIComponent(back.pathname + back.search)}`;
+    return;
+  }
+  closeProjectCard();
+  const card = document.createElement("div");
+  card.className = "absolute z-50 w-72 rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.16)]";
+  card.innerHTML = `<p class="mb-2 font-semibold text-gray-900">Report this design</p>
+    <select class="h-9 w-full rounded-md border border-gray-300 px-2 text-sm"><option value="inappropriate">Inappropriate or rude</option><option value="broken">Broken or doesn't work</option><option value="copied">Copied from someone else</option><option value="other">Something else</option></select>
+    <textarea rows="2" maxlength="300" placeholder="Anything we should know? (optional)" class="mt-2 w-full rounded-md border border-gray-300 p-2 text-sm"></textarea>
+    <p class="mt-1 hidden text-xs text-red-700" data-err></p>
+    <div class="mt-2 flex justify-end gap-2"><button type="button" data-cancel class="h-8 rounded-md border border-gray-300 px-3 text-xs font-medium hover:bg-gray-50">Cancel</button><button type="button" data-go class="h-8 rounded-md bg-black px-3 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50">Send report</button></div>`;
+  const r = btn.getBoundingClientRect();
+  card.style.top = `${window.scrollY + r.bottom + 6}px`;
+  card.style.left = `${Math.max(8, Math.min(window.scrollX + r.right - 288, window.scrollX + document.documentElement.clientWidth - 296))}px`;
+  document.body.appendChild(card);
+  projectCard = card; // closes like the project card: on a click elsewhere
+  const err = card.querySelector("[data-err]"), go = card.querySelector("[data-go]");
+  card.querySelector("[data-cancel]").addEventListener("click", closeProjectCard);
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    try {
+      const res = await fetch(`/api/components/${id}/report`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: card.querySelector("select").value, note: card.querySelector("textarea").value }) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Could not send the report");
+      closeProjectCard();
+      btn.disabled = true;
+      btn.title = "Reported, thank you";
+      btn.classList.add("text-red-600");
+    } catch (e2) { err.textContent = e2.message; err.classList.remove("hidden"); go.disabled = false; }
+  });
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const url = new URL(location.href);
+  const id = url.searchParams.get("report");
+  if (!id) return;
+  url.searchParams.delete("report");
+  history.replaceState({}, "", url.pathname + url.search);
+  const btn = document.querySelector(`[data-report="${CSS.escape(id)}"]`);
+  if (btn && btn.dataset.signedIn) reportDesign(id, btn);
+});

@@ -96,6 +96,9 @@
             </div>
 
             {{#if user}}
+            {{#if isAdmin}}
+            <a href="/admin/reports" class="hidden h-8 items-center rounded-xl border border-gray-400 px-3 text-sm text-gray-800 hover:bg-gray-100 sm:flex" title="Designs people reported">Reports</a>
+            {{/if}}
             <!-- New project: made at once; the editor opens on a blank page -->
             <button type="button" id="navNewProject" onclick="newProject(this)"
                 class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 transition-all"

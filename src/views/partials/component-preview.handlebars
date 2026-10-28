@@ -76,6 +76,12 @@
                 <span class="like-count">{{#if likes}}{{likes}}{{else}}0{{/if}}</span>
             </button>
 
+            <!-- Report: tells the site owners; the design stays visible until they remove it -->
+            <button type="button" onclick="reportDesign('{{_id}}', this)" data-report="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100" title="Report this design" aria-label="Report this design">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4m0 0h11l-1.5 4L16 12H5"/></svg>
+            </button>
+
             <!-- Save into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
             <button type="button" onclick="chooseProject('{{_id}}', 'save', this)" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
                 title="Save a private copy in one of your projects"
