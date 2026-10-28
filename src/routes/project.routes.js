@@ -18,12 +18,17 @@ projectPages.get("/", async (req, res) => {
             ...p,
             catNames: p.cats.map((c) => ({ slug: c.slug, name: categories[c.slug]?.name || c.slug, count: c.count })),
             catSlugs: p.cats.map((c) => c.slug).join(" "),
+            tagList: p.tags.join("\u0001"),
         }));
         // every category used across the projects, with how many designs: the filter chips
         const all = {};
         projects.forEach((p) => p.cats.forEach((c) => { all[c.slug] = (all[c.slug] || 0) + c.count; }));
         const catChips = Object.entries(all).sort((a, b) => b[1] - a[1]).map(([slug, count]) => ({ slug, name: categories[slug]?.name || slug, count }));
-        res.render("main/projects", { layout: "main", activePage: "projects", title: "Projects", user: req.session.user, projects, catChips });
+        // every tag across the projects, with how many projects use it: the tag chips
+        const tagCount = {};
+        projects.forEach((p) => p.tags.forEach((t) => { tagCount[t] = (tagCount[t] || 0) + 1; }));
+        const tagChips = Object.entries(tagCount).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count }));
+        res.render("main/projects", { layout: "main", activePage: "projects", title: "Projects", user: req.session.user, projects, catChips, tagChips });
     } catch (error) {
         console.error("Projects page error:", error);
         res.status(500).render("error", { layout: "main", title: "Error", message: "Failed to load projects" });

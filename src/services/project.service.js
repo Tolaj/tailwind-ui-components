@@ -46,8 +46,16 @@ export async function listProjects(userId) {
     const cats = {};
     catRows.forEach((c) => { (cats[String(c._id.project)] ||= []).push({ slug: c._id.category, count: c.n }); });
     Object.values(cats).forEach((list) => list.sort((a, b) => b.count - a.count));
+    const tagRows = await Component.aggregate([
+        { $match: { createdBy: new mongoose.Types.ObjectId(String(userId)), project: { $in: projects.map((p) => p._id) }, kind: { $ne: "section" }, tags: { $exists: true, $ne: [] } } },
+        { $unwind: "$tags" },
+        { $group: { _id: { project: "$project", tag: "$tags" } } },
+    ]);
+    const tags = {};
+    tagRows.forEach((t) => { (tags[String(t._id.project)] ||= []).push(t._id.tag); });
     return projects.map((p) => ({
         cats: cats[String(p._id)] || [],
+        tags: (tags[String(p._id)] || []).sort(),
         id: String(p._id), name: p.name, description: p.description, updatedAt: p.updatedAt, active: String(p._id) === activeId,
         pages: by[String(p._id)]?.pages || 0, sections: by[String(p._id)]?.sections || 0, components: by[String(p._id)]?.components || 0,
     }));
