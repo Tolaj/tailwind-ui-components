@@ -188,7 +188,7 @@ export const openFullEditor = () => {
         sessionStorage.setItem("wc:draft", JSON.stringify(draft));
         sessionStorage.setItem("wc:return", window.location.href);
     } catch { /* storage unavailable: the full editor opens empty */ }
-    if (ed) ed.release(); // the work goes with us: no "Leave site?"
+    closeEditor(); // the work goes with us (it is in the draft): the editor's "Leave site?" question must not appear, so it is removed first
     window.location.href = "/design/new?draft=1";
 };
 
