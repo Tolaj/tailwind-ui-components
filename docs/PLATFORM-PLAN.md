@@ -202,7 +202,10 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | One-field save when the project is already chosen (name only; defaults for the rest, private) | **Done** |
 | Project page: Pages / Components tabs in the sidebar, "+ New component", component count | **Done** (not opened in a browser: needs sign-in) |
 | Theme tab | Phase 2 |
-| Required `project` on every save, nav reduced to Catalog · Projects, remove the Add component dialog (archive it), remove `isPublished`, Library and category pages | **Next** |
+| `POST /api/components` requires a project | **Done** |
+| Add component dialog archived to `archive/add-component/` (README explains how to restore; the tag `archive/add-component-dialog` holds it too); its openers and the draft/return plumbing removed | **Done** |
+| Nav: one button, **New project** (the Catalog link arrives with the Catalog in Phase 3) | **Done** |
+| Remove `isPublished`, the Library page, category and detail pages | **Waits for the Catalog** (Phase 3) |
 
 ## 11. What I have not verified
 

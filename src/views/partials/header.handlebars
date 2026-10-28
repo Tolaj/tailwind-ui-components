@@ -93,18 +93,6 @@
             </div>
 
             {{#if user}}
-            <!-- Add Component (opens the quick dialog; the full editor opens from inside it). On the Library page the nav offers New project instead: its own New component button is on the page -->
-            {{#unless (eq activePage 'library')}}
-            <button command="show-modal" commandfor="dialog"
-                class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 rounded-lg focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none transition-all"
-                title="Create new component">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
-                    <path
-                        d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-                </svg>
-                <span class="hidden sm:inline">Add Component</span>
-            </button>
-            {{else}}
             <!-- New project: name it, then open its canvas -->
             <button type="button" id="navNewProject"
                 class="h-8 px-3 text-sm hover:text-white hover:bg-primary hover:cursor-pointer hover:shadow-xl flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 transition-all"
@@ -125,7 +113,6 @@
                     else alert(json.message || "Could not create the project");
                 });
             </script>
-            {{/unless}}
 
             <!-- User Menu Dropdown -->
             <div class="relative">

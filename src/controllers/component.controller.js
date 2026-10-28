@@ -68,6 +68,7 @@ export const createComponent = async (req, res) => {
     try {
         const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group, draftId } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
+        if (!project) return res.status(400).json({ success: false, message: 'Choose a project: every design belongs to one' });
 
         if (!title || !category || !description || !htmlCode) {
             return res.status(400).json({
