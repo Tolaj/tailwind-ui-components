@@ -59,7 +59,7 @@ test("layout: without groups it is one row, as before", () => {
     assert.deepEqual(pos.s, { x: 0, y: H + 260 }, "a section sits under its page");
 });
 
-test("layout: each group is its own row, in the order the groups first appear; saved positions win", () => {
+test("layout: each group is its own row, in the order the groups first appear; saved positions win, and nothing lands on them", () => {
     const pos = layout([
         { id: "home", kind: "page", group: "Public site" },
         { id: "pricing", kind: "page", group: "Public site" },
@@ -69,13 +69,15 @@ test("layout: each group is its own row, in the order the groups first appear; s
         { id: "bill", kind: "page", group: "Customer area" },
         { id: "loose", kind: "page" },
     ]);
-    assert.deepEqual(pos.home, { x: 0, y: 0 });
-    assert.deepEqual(pos.pricing, { x: W + GAP_X, y: 0 });
-    assert.deepEqual(pos.docs, { x: 2 * (W + GAP_X), y: 0 }, "the third page of the group is in the same row, though another group's page came between");
+    // "dragged" was put at -50, 7: over the first row's start, so that row begins past it
+    const start = -50 + W + GAP_X;
+    assert.deepEqual(pos.home, { x: start, y: 0 }, "a page placed automatically keeps clear of one placed by hand");
+    assert.deepEqual(pos.pricing, { x: start + W + GAP_X, y: 0 });
+    assert.deepEqual(pos.docs, { x: start + 2 * (W + GAP_X), y: 0 }, "the third page of the group is in the same row, though another group's page came between");
     const second = H + ROW_GAP;
     assert.deepEqual(pos.keys, { x: 0, y: second });
     assert.deepEqual(pos.dragged, { x: -50, y: 7 }, "a saved position wins");
-    assert.deepEqual(pos.bill, { x: 2 * (W + GAP_X), y: second }, "it still takes its place in the row, which keeps the others where they were");
+    assert.deepEqual(pos.bill, { x: W + GAP_X, y: second }, "a page placed by hand keeps no slot in its row: the next one takes it");
     assert.deepEqual(pos.loose, { x: 0, y: 2 * second }, "pages with no group get a row of their own");
 });
 
@@ -88,4 +90,13 @@ test("layout: a row starts below the sections of the row above", () => {
     ]);
     const lastSectionBottom = pos.s2.y + H;
     assert.equal(pos.b.y, lastSectionBottom + ROW_GAP);
+});
+
+test("layout: a new page never lands on a page that was dragged into the row", () => {
+    const pos = layout([{ id: "a", kind: "page" }, { id: "moved", kind: "page", board: { x: 2 * (W + GAP_X), y: 0 } }, { id: "b", kind: "page" }, { id: "new", kind: "page" }]);
+    const boxes = Object.values(pos).map((p) => ({ ...p, w: W, h: H }));
+    const overlap = boxes.some((p, i) => boxes.some((q, j) => i < j && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h));
+    assert.equal(overlap, false);
+    assert.deepEqual(pos.b, { x: W + GAP_X, y: 0 }, "the slot it left is used");
+    assert.deepEqual(pos.new, { x: 3 * (W + GAP_X), y: 0 }, "the next one goes past the dragged page");
 });
