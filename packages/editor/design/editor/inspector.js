@@ -1,5 +1,5 @@
 import { panelStore, togglePalette, toggleSection } from "../panel-state.js";
-import { BREAKPOINT_WIDTH, setGroup, BREAKPOINTS, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
+import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "@windcraft/core/class-groups.js";
 import { renderPanel } from "../panel.js";
 import { inspectorView, variant, val, srcOf, modeFor } from "../panel-model.js";
 import { checkTags } from "../code-view.js";
@@ -69,7 +69,8 @@ const panelActions = {
     setTag: (tag) => { if (S.selected) cmd({ cmd: "setTag", path: S.selected.path, tag }); },
     setTab: (tab) => panelStore.set({ tab }),
     closePanel: () => setPanel(false),
-    setBreakpoint: (bp) => { panelStore.set({ bp }); setDevice(BREAKPOINT_WIDTH[bp]); },
+    // a breakpoint picked: the frame goes to its width, so what is edited is what is seen; All sizes leaves the frame as it is
+    setBreakpoint: (bp) => { panelStore.set({ bp }); if (bp) setDevice(BREAKPOINT_WIDTH[bp]); },
     setState: (st) => panelStore.set({ st }),
     setText: (text) => { if (S.selected) cmd({ cmd: "setText", path: S.selected.path, text }, "text"); },
     // position and layout (figma-sections.js)
@@ -133,7 +134,7 @@ const bodyActions = Object.fromEntries(Object.entries(panelActions).map(([k, f])
 }]));
 /** Draws the panel. Every part is a component that keeps its own typed text, so it can be redrawn at any time, whatever has focus. */
 export function renderInspector() {
-    const ui = { ...panelStore.get(), frameBp: frameBp() }; // the panel's state, and the frame's breakpoint (worked out now)
+    const ui = { ...panelStore.get(), frameW: curWidth() }; // the panel's state, and the frame's width (for the Screen chips)
     const sel = S.selected && S.selected === S.pageBody ? null : S.selected; // drawn while a body action runs: still the page
     const elementCode = sel && ui.tab === "classes" ? sourceOf(sel.path) : null;
     const top = insp.scrollTop;
@@ -197,29 +198,12 @@ let liveSession = 0;
 export const liveKey = (field) => `live:${field}:${liveSession}`;
 export const pickerClosed = (t) => { liveSession++; t.blur(); };
 
-// ── Which breakpoint a new class gets ────────────────────────────────────────
-// Sizes, position and spacing follow the frame's width, mobile-first: Desktop (1280) writes xl:, Tablet (768) md:, Mobile the
-// base class, so each screen size is designed by switching the frame. Colours, type and borders stay plain classes.
-const RESPONSIVE = new Set(["w", "h", "minW", "maxW", "minH", "maxH", "gap", "gapX", "gapY", "inset", "top", "right", "bottom", "left", "p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml"]);
-const familyOf = (g) => (/^p[xytrbl]?$/.test(g) ? ["p", "px", "py", "pt", "pr", "pb", "pl"] : /^m[xytrbl]?$/.test(g) ? ["m", "mx", "my", "mt", "mr", "mb", "ml"] : ["inset", "top", "right", "bottom", "left"].includes(g) ? ["inset", "top", "right", "bottom", "left"] : [g]);
-/** "xl:" for a 1280 frame, "md:" for 768, "" for a phone-sized one: the largest breakpoint the frame's width reaches. */
-function frameBp() {
-    const w = curWidth();
-    let bp = "";
-    BREAKPOINTS.forEach((b) => { if (b && BREAKPOINT_WIDTH[b] <= w) bp = b; });
-    return bp ? `${bp}:` : "";
-}
-/**
- * The variant for a new class of `group`: the one picked by hand in the panel, if any; else, for sizes and spacing, the frame's
- * breakpoint, unless the element has no class of that kind yet: then the base class, so smaller screens keep the value too.
- */
-function newVariant(classes, group) {
-    if (panelStore.get().bp || panelStore.get().st) return variant();
-    if (!RESPONSIVE.has(group)) return "";
-    const fam = familyOf(group).map((k) => GROUPS[k]);
-    const has = String(classes || "").split(/\s+/).filter(Boolean).some((t) => fam.some((g) => g.re.test(parseToken(t).base)));
-    return has ? frameBp() : "";
-}
+// ── Which breakpoint and state a class gets ──────────────────────────────────
+// Only the ones picked in the panel (the Screen and State chips): with none picked, an edit changes the class that gives the
+// value where it is (md:p-6 stays md:), and anything new is a plain class for every size, as a frontend developer writes it.
+/** The variant picked in the panel ("md:hover:"), or "" for none. */
+const picked = () => (panelStore.get().bp || panelStore.get().st ? variant() : "");
+function newVariant() { return picked(); }
 
 /**
  * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
@@ -232,10 +216,11 @@ export function setProp(prop, raw, cssOverride, key) {
     const group = groupOf(prop);
     const onTw = src.source === "tailwind";
     const winning = onTw ? variantOf(src.token) : "";
-    const vp = winning || newVariant(s.classes, group); // a md:/xl: class that gives the value is edited where it is
+    // a breakpoint or state picked in the panel is where the edit goes; else the md:/xl: class that gives the value, where it is
+    const vp = picked() || winning;
     const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, key, ...m }, key);
     if (v === "") {
-        if (onTw && group) { const next = setGroup(s.classes, group, "", winning); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
+        if (group && (onTw || picked())) { const next = setGroup(s.classes, group, "", vp); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
     }
@@ -246,7 +231,8 @@ export function setProp(prop, raw, cssOverride, key) {
     const tv = group ? twValue(prop, v, scale) : null;
     let token = null;
     if (tv !== null) { const built = GROUPS[group].build(tv); if (GROUPS[group].re.test(built)) token = built; }
-    const toTw = onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
+    // a md: or hover: value can only be a class (a style attribute has no breakpoints or states)
+    const toTw = Boolean(picked()) || onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
     if (toTw && token) {
         const next = setGroup(s.classes, group, tv, vp);
         // kept here at once, so an edit sent right after this one (a line style, then a width) builds on it
@@ -269,12 +255,12 @@ export function setProps(props, raw, group, clear = [], cssOverride, key) {
     const n = parseFloat(v);
     const css = cssOverride !== undefined ? cssOverride : px ? `${n}px` : CSS.supports(props[0], v) ? v : null;
     const own = srcs.find((x) => x.source === "tailwind");
-    const vp = (own && variantOf(own.token)) || newVariant(s.classes, group);
+    const vp = picked() || (own && variantOf(own.token)) || "";
     const fromCss = srcs.some((x) => x.source === "inline" || x.source === "design");
     const tv = group ? (px ? fromPx(group, n) : twValue(props[0], v, false) ?? v) : null;
     let token = null;
     if (tv !== null) { const built = GROUPS[group].build(tv); if (GROUPS[group].re.test(built)) token = built; }
-    if (!fromCss && token && (own || modeFor(s) === "tailwind")) {
+    if ((!fromCss || picked()) && token && (own || picked() || modeFor(s) === "tailwind")) {
         let classes = s.classes;
         for (const k of clear) { const next = setGroup(classes, k, "", vp); if (next !== null) classes = next; }
         const next = setGroup(classes, group, tv, vp);
@@ -307,7 +293,7 @@ export function convertGesture(items) {
             const built = GROUPS[group].build(tv);
             if (!GROUPS[group].re.test(built)) return;
             // judged on the classes from before this gesture: a left-[..] written a moment ago must not make top an xl: class
-            const vp = (pre.source === "tailwind" && variantOf(pre.token)) || newVariant(it.classes, group);
+            const vp = (pre.source === "tailwind" && variantOf(pre.token)) || newVariant();
             const next = setGroup(classes, group, tv, vp);
             if (next === null) return;
             classes = next;

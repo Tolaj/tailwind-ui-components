@@ -178,6 +178,21 @@ textarea.field { height: auto; padding: 6px 8px; font-family: ui-monospace, mono
 .itabs { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; background: #fff; z-index: 5; }
 .itabs button { padding: 5px 9px; border-radius: 5px; font-size: 11px; font-weight: 500; color: #777; }
 .itabs button.on { background: #f0f0f0; color: #000; }
+/* Screen and State: where edits go (design-tab.js VariantBar) */
+.vbar2 { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px 6px; }
+.vrow { display: flex; align-items: center; gap: 6px; }
+.vl { width: 38px; flex: none; font-size: 10px; color: #8c8c8c; }
+.vchips { display: flex; flex: 1; min-width: 0; gap: 2px; background: #f5f5f5; border-radius: 5px; padding: 2px; }
+.vchip { position: relative; flex: 1; min-width: 0; height: 20px; padding: 0 3px; border-radius: 3px; font-size: 10.5px; color: #555; white-space: nowrap; }
+.vchip:hover { color: #111; }
+.vchip.on { background: #fff; color: #111; box-shadow: 0 0 0 1px #e0e0e0; }
+.vchip i { position: absolute; top: 2px; right: 1px; width: 4px; height: 4px; border-radius: 50%; background: #38bdf8; }
+.vrow:first-child .vchip.on:not(:first-child), .vrow .vchip.on:not(:first-child) { background: #e0f2fe; color: #0369a1; box-shadow: 0 0 0 1px #7dd3fc; }
+.vmore { flex: none; width: 44px; height: 20px; border: 0; border-radius: 3px; background: transparent; font-size: 10.5px; color: #555; -webkit-appearance: none; appearance: none; padding: 0 4px; }
+.vmore.on { background: #e0f2fe; color: #0369a1; }
+.vnote.on { margin: 2px 0 0; padding: 6px 8px; border-radius: 6px; background: #e0f2fe; color: #075985; font-size: 10.5px; line-height: 1.45; }
+.vnote.on code { font-weight: 600; }
+.vnote.on button { margin-left: 2px; font-weight: 600; text-decoration: underline; color: inherit; }
 .vbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 8px 4px; }
 /* the editor's colour picker (color-picker.js), opened beside the selection */
 .cpick { position: fixed; z-index: 60; display: none; width: 232px; padding: 10px; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.14); }

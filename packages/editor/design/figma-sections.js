@@ -4,7 +4,9 @@
 // the value comes from (setProp in editor/inspector.js):
 //   setProp · setProps · resetProp · setGeom · freePosition · align · arrange · group · ungroup · autoLayout · sizeItMyself
 import { html, useState } from "../vendor/preact-htm.js";
-import { srcOf, shownOf, ownsValue, styled, val, PRESETS, OPTS } from "./panel-model.js";
+import { srcOf, shownOf, ownsValue, styled, val, variant, PRESETS, OPTS } from "./panel-model.js";
+import { getGroup, GROUPS } from "@windcraft/core/class-groups.js";
+import { groupOf, twShown } from "@windcraft/core/prop-tailwind.js";
 import { useUi } from "./panel-state.js";
 import { TextInput } from "./controls.js";
 
@@ -53,15 +55,32 @@ export const NumField = ({ label, value, set, src, onReset, disabled, title, lis
     <span class="nfl">${label}</span><${TextInput} class="nfi" value=${value ?? ""} disabled=${disabled} list=${list} placeholder=${placeholder} onCommit=${onCommit} />${children}
     ${onReset && html`<button type="button" class="nfx" title="Remove this value" onMouseDown=${(e) => e.preventDefault()} onClick=${(e) => { e.preventDefault(); onReset(); }}>×</button>`}</label>`;
 /** Where a property's value comes from, for a field's edge mark and tooltip: "tw" (a class), "css" (a style), or "". */
-export const srcKind = (s, p) => { const k = srcOf(s, p).source; return k === "tailwind" ? "tw" : k === "inline" || k === "design" ? "css" : ""; };
-export const srcNote = (s, p) => { const r = srcOf(s, p); return r.source === "tailwind" ? r.token : r.source === "inline" ? "style attribute" : r.source === "design" ? `design CSS: ${r.selector}` : r.source === "parent" ? `inherited (${r.token})` : "default"; };
+export const srcKind = (s, p) => { if (variant()) return atVariant(s, p) ? "tw" : ""; const k = srcOf(s, p).source; return k === "tailwind" ? "tw" : k === "inline" || k === "design" ? "css" : ""; };
+export const srcNote = (s, p) => {
+    if (variant()) { const a = atVariant(s, p); return a ? a.token : `no ${variant()} class: inherits the value shown`; }
+    const r = srcOf(s, p); return r.source === "tailwind" ? r.token : r.source === "inline" ? "style attribute" : r.source === "design" ? `design CSS: ${r.selector}` : r.source === "parent" ? `inherited (${r.token})` : "default"; };
 /** A section as Figma draws it: a bold title, buttons on the right, always open. */
 export const FSection = ({ title, extra, children }) => html`<div class="fsec"><div class="fsech"><span>${title}</span><span class="fsx">${extra}</span></div>${children}</div>`;
 export const Sub = ({ children }) => html`<p class="fsub">${children}</p>`;
 
 export const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? String(Math.round(n * 10) / 10) : ""; };
-export const owns = (s, p) => ownsValue(srcOf(s, p)); // set on this element itself: can be taken off
-export const has = (s, p) => styled(srcOf(s, p)); // given by its own styling (also the design's CSS): drawn solid
+// With a breakpoint or state picked in the panel (md:, hover:) a field is about that variant: set when the element has a class
+// for it there, faint (showing the value it inherits) when not. Without one, about the value the element shows.
+/** The element's class for `p` at the picked breakpoint / state, or null (also when none is picked). */
+// the shorter classes that also set a property (md:px-8 sets padding-left, md:rounded-lg every corner), looked at after its own
+const SHORTER = { pl: ["px", "p"], pr: ["px", "p"], pt: ["py", "p"], pb: ["py", "p"], ml: ["mx", "m"], mr: ["mx", "m"], mt: ["my", "m"], mb: ["my", "m"],
+    top: ["inset"], right: ["inset"], bottom: ["inset"], left: ["inset"], gapX: ["gap"], gapY: ["gap"],
+    radiusTL: ["radius"], radiusTR: ["radius"], radiusBR: ["radius"], radiusBL: ["radius"], borderT: ["borderWidth"], borderR: ["borderWidth"], borderB: ["borderWidth"], borderL: ["borderWidth"] };
+const GROUP_OF = { "column-gap": "gapX", "row-gap": "gapY", "border-top-left-radius": "radiusTL", "border-top-right-radius": "radiusTR", "border-bottom-right-radius": "radiusBR",
+    "border-bottom-left-radius": "radiusBL", "border-top-width": "borderT", "border-right-width": "borderR", "border-bottom-width": "borderB", "border-left-width": "borderL" };
+export const atVariant = (s, p) => {
+    const v = variant(), g = v && (GROUP_OF[p] || groupOf(p));
+    if (!g) return null;
+    for (const k of [g, ...(SHORTER[g] || [])]) { const r = GROUPS[k] && getGroup(s.classes, k, v); if (r) return r; }
+    return null;
+};
+export const owns = (s, p) => (variant() ? Boolean(atVariant(s, p)) : ownsValue(srcOf(s, p))); // set on this element itself: can be taken off
+export const has = (s, p) => (variant() ? Boolean(atVariant(s, p)) : styled(srcOf(s, p))); // given by its own styling (also the design's CSS): drawn solid
 export const comp = (s, p) => (s.computed || {})[p] || "";
 
 /** A child of a flex box that flex sizes along its axis ignores a width (or height) set on it: say so, with a one-click way out. */
@@ -271,7 +290,7 @@ function toggleRatio(s, actions) {
 
 /** A property as a Figma field: what the element sets, else its computed value, faint; marked with where it comes from, × to remove it. */
 export const PropField = ({ s, actions, p, label, title, list }) => {
-    const shown = shownOf(s, p, srcOf(s, p)), n = num(shown);
+    const a = atVariant(s, p), shown = (a && twShown(p, a.token)) || shownOf(s, p, srcOf(s, p)), n = num(shown);
     // a number shows as one (24px -> 24), a word or a Tailwind value as itself (auto, 2xl, 1/2)
     const value = /^-?[\d.]+(px)?$/.test(shown) ? n : shown;
     return html`<${NumField} label=${label} title=${`${title || p} · ${srcNote(s, p)}`} value=${value} list=${list}

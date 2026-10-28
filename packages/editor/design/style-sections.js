@@ -6,11 +6,12 @@
 // from: setProp · setProps · resetProp · setPropLive · setPropDone · setPropsLive · setPropsDone · applyValue · applyColor · addClasses
 import { html, useState } from "../vendor/preact-htm.js";
 import { rgbToHex } from "./css-props.js";
-import { srcOf, shownOf, styled, val } from "./panel-model.js";
+import { srcOf, shownOf, val } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, ColorInput } from "./controls.js";
 import { GroupColor } from "./group-controls.js";
-import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, comp, srcKind, srcNote } from "./figma-sections.js";
+import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, comp, srcKind, srcNote, atVariant } from "./figma-sections.js";
+import { twShown } from "@windcraft/core/prop-tailwind.js";
 import { PropRow } from "./prop-sections.js";
 
 const SIDES = ["top", "right", "bottom", "left"];
@@ -36,13 +37,14 @@ const Cancel = ({ onClick }) => html`<${IconBtn} icon=${I.close} title="Cancel" 
 
 /** A colour as a row: a swatch, its value (a Tailwind name where a class gives it, else hex), its opacity when not full. */
 function ColorRow({ s, actions, p, all, group, onRemove, removeTitle, title, label }) {
-    const src = srcOf(s, p), c = comp(s, p), hex = rgbToHex(c) || "#000000", a = alphaOf(c);
-    const shown = src.source === "tailwind" ? shownOf(s, p, src) : hex.replace(/^#/, "").toUpperCase();
+    const src = srcOf(s, p), c = comp(s, p), hex = rgbToHex(c) || "#000000", a = alphaOf(c), at = atVariant(s, p);
+    // at a picked breakpoint / state: its class's colour; else a Tailwind name where a class gives it, or the hex
+    const shown = at ? twShown(p, at.token) : src.source === "tailwind" ? shownOf(s, p, src) : hex.replace(/^#/, "").toUpperCase();
     const value = (v) => (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v.trim()) ? `#${v.trim()}` : v);
     // `all`: the colour goes on every one of these properties (a border's four sides), as one class where it can
     const commit = (v) => (all ? actions.setProps(all, value(v), group) : actions.setProp(p, value(v)));
     return html`<div class="frow">
-        <div class=${`nf ${styled(src) ? "" : "unset"} ${srcKind(s, p) ? `src-${srcKind(s, p)}` : ""}`} title=${`${title || p} · ${srcNote(s, p)}`}>
+        <div class=${`nf ${has(s, p) ? "" : "unset"} ${srcKind(s, p) ? `src-${srcKind(s, p)}` : ""}`} title=${`${title || p} · ${srcNote(s, p)}`}>
             ${label && html`<span class="nfl">${label}</span>`}
             <${ColorInput} class="cin" value=${hex} title="Pick a colour" hook=${{ "data-propcolor": p }}
                 onLive=${(h) => (all ? actions.setPropsLive(all, h, group) : actions.setPropLive(p, h))}

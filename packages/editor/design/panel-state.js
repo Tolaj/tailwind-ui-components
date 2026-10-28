@@ -22,8 +22,8 @@ export const panelStore = createStore({
     docTailwind: true,
 });
 
-/** The state the panel is drawn from: the store's, plus what is worked out at the time of drawing (the frame's breakpoint). */
-export const UiContext = createContext({ ...panelStore.get(), frameBp: "" });
+/** The state the panel is drawn from: the store's, plus what is worked out at the time of drawing (the frame's width). */
+export const UiContext = createContext({ ...panelStore.get(), frameW: 0 });
 export const useUi = () => useContext(UiContext);
 
 /** Opens or closes a section: `wasOpen` is what was shown (a section can open by itself), so a click always flips what you see. */
