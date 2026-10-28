@@ -81,6 +81,7 @@ router.get("/", async (req, res) => {
                     slug: r._id,
                     name: categories[r._id]?.name || r._id,
                     group: categories[r._id]?.group || 'Other',
+                    kind: kindOfCategory(r._id), // pages and components are shown on their own tabs
                     count: r.count,
                     newCount: r.newCount,
                     hasNew: r.newCount > 0
@@ -93,6 +94,8 @@ router.get("/", async (req, res) => {
             title: 'Tailwind UI Components',
             user: req.session.user || null,
             categories: categoryCards,
+            pageCount: categoryCards.filter(c => c.kind === 'page').reduce((n, c) => n + c.count, 0),
+            componentCount: categoryCards.filter(c => c.kind === 'component').reduce((n, c) => n + c.count, 0),
             totalComponents
         });
     } catch (error) {

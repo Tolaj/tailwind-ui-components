@@ -74,6 +74,7 @@ const componentSchema = new mongoose.Schema(
             ref: "Component",
             default: null
         },
+        partHash: { type: String, default: "" }, // a generated part: a fingerprint of the code made for it, to tell if someone has changed it by hand
         useAsReference: {
             type: Boolean,
             default: true

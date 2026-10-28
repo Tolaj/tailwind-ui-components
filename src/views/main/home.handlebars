@@ -22,6 +22,19 @@
     </section>
 
     <h2 id="gallery" class="mx-6 mt-10 text-lg font-semibold tracking-tight text-gray-900">Gallery</h2>
+    {{#if pageCount}}{{#if componentCount}}
+    <div id="kindTabs" class="mx-6 mt-3 flex gap-1.5" role="tablist" aria-label="Show">
+        <button type="button" role="tab" data-kind="" aria-selected="true" class="kind-tab rounded-full border px-3.5 py-1 text-sm font-medium">All <span class="opacity-60">{{totalComponents}}</span></button>
+        <button type="button" role="tab" data-kind="page" aria-selected="false" class="kind-tab rounded-full border px-3.5 py-1 text-sm font-medium">Pages <span class="opacity-60">{{pageCount}}</span></button>
+        <button type="button" role="tab" data-kind="component" aria-selected="false" class="kind-tab rounded-full border px-3.5 py-1 text-sm font-medium">Components <span class="opacity-60">{{componentCount}}</span></button>
+    </div>
+    <style>
+        .kind-tab { background: #fff; border-color: #d1d5db; color: #374151; }
+        .kind-tab:hover { border-color: #9ca3af; }
+        .kind-tab[aria-selected="true"] { background: #111827; border-color: #111827; color: #fff; }
+        .component-card.kind-hidden { display: none !important; }
+    </style>
+    {{/if}}{{/if}}
     <!-- Skeleton Loader -->
     <div id="skeletonGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
         <div class="bg-white border border-gray-200 rounded-xl h-[225px] overflow-hidden">
@@ -63,7 +76,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
 
             {{#each categories}}
-            <a href="/category/{{this.slug}}" class="component-card group block">
+            <a href="/category/{{this.slug}}" data-kind="{{this.kind}}" class="component-card group block">
                 <div
                     class="bg-gray-50 h-[225px] overflow-hidden border border-gray-400 rounded-xl group-hover:border-2 group-hover:border-gray-400 group-hover:shadow-xl">
                     <div
@@ -95,6 +108,18 @@
     <script>
         document.getElementById("skeletonGrid").classList.add("hidden");
         document.getElementById("contentGrid").classList.remove("hidden");
+        (function () {
+            var tabs = document.getElementById("kindTabs");
+            if (!tabs) return;
+            var show = function (kind) {
+                [].forEach.call(tabs.querySelectorAll(".kind-tab"), function (t) { t.setAttribute("aria-selected", String(t.dataset.kind === kind)); });
+                [].forEach.call(document.querySelectorAll(".component-card[data-kind]"), function (c) { c.classList.toggle("kind-hidden", Boolean(kind) && c.dataset.kind !== kind); });
+                try { sessionStorage.setItem("wc:galleryKind", kind); } catch (e) {}
+            };
+            tabs.addEventListener("click", function (e) { var b = e.target.closest(".kind-tab"); if (b) show(b.dataset.kind); });
+            var saved = ""; try { saved = sessionStorage.getItem("wc:galleryKind") || ""; } catch (e) {}
+            if (saved) show(saved);
+        })();
     </script>
 </main>
 

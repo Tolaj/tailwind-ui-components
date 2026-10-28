@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import Component from "../models/component.model.js";
 import { buildProfile, enrichProfileWithAI } from "./profile.service.js";
 import { normalizeTags } from "../controllers/component.controller.js";
@@ -50,6 +51,61 @@ async function existingPage(userId, { id, project, title }) {
     return Component.findOne({ createdBy: userId, project, kind: "page", title: new RegExp(`^${escapeRe(title)}$`, "i") });
 }
 
+const hashOf = (html) => crypto.createHash("sha1").update(String(html)).digest("hex");
+
+/**
+ * Makes (or brings up to date) the parts of a page: one "section" component per clear section (header, hero, footer...), linked to the
+ * page, with the page's styles so each renders on its own. A page saved again: each section is matched to an old one by name, else by its
+ * kind (hero, pricing...) and place (a hero whose heading changed is still the hero), then updated; new ones are added, ones no longer
+ * there removed. A part someone changed by hand since it was made (its code no longer matches what was generated) keeps its code.
+ */
+export async function syncSections(userId, page, { doc, baseTags = [], project, isNew = false }) {
+    const sections = [], created = [];
+    const assets = [...doc.links, ...doc.styles].join("\n");
+    const fresh = splitSections(doc.body).map((s, order) => buildDoc(userId, {
+        title: `${page.title}: ${s.name}`,
+        description: `${s.name} section from "${page.title}"`,
+        htmlCode: `${assets ? assets + "\n" : ""}${s.html}`,
+        tags: [...baseTags, "section", s.kind],
+        project, kind: "section", parent: project ? page._id : null, order,
+    }));
+    const old = !isNew ? await Component.find({ createdBy: userId, parent: page._id, kind: "section" }) : [];
+    const kept = new Set();
+    const kindOf = (tags) => (tags || [])[(tags || []).length - 1]; // a section's last tag is its kind (header, section, footer)
+    const byName = new Map(fresh.map((f) => [f, old.find((o) => o.title.toLowerCase() === f.title.toLowerCase())]));
+    byName.forEach((o) => o && kept.add(o));
+    for (const f of fresh) {
+        const match = byName.get(f) || old.find((o) => !kept.has(o) && kindOf(o.tags) === kindOf(f.tags) && o.order === f.order)
+            || old.find((o) => !kept.has(o) && kindOf(o.tags) === kindOf(f.tags));
+        if (match) {
+            kept.add(match);
+            match.order = f.order;
+            const byHand = match.partHash && match.partHash !== hashOf(match.htmlCode); // edited since it was generated: its code stays
+            if (!byHand) {
+                match.title = f.title;
+                match.description = f.description;
+                if (nextVersion(match, f.htmlCode, "Page saved again")) created.push(match);
+                match.partHash = hashOf(match.htmlCode);
+            }
+            await match.save();
+            sections.push(match);
+        } else {
+            const c = await Component.create({ ...f, partHash: hashOf(f.htmlCode) });
+            created.push(c);
+            sections.push(c);
+        }
+    }
+    const gone = old.filter((o) => !kept.has(o));
+    if (gone.length) await Component.deleteMany({ _id: { $in: gone.map((o) => o._id) } });
+    return { sections, created, removed: gone.length };
+}
+
+/** A page saved from the editor (or made there): its parts are made or updated to match. Only pages in a project have parts. */
+export async function syncPartsOf(userId, page) {
+    if (!page || page.kind !== "page" || !page.project) return { sections: [], created: [], removed: 0 };
+    return syncSections(userId, page, { doc: parseDocument(page.htmlCode), baseTags: [], project: page.project, isNew: false });
+}
+
 /**
  * Saves a design as one "page" component and, when it has clear sections, one component per section.
  * Everything is private. Sections carry the page's styles so they render on their own.
@@ -93,45 +149,12 @@ export async function importDesign(userId, { title, html, description, tags = []
         created.push(page);
     }
 
-    let sections = [], removedSections = 0;
     const isNew = created.includes(page);
     // sections are only linked to their page inside a project: outside one, a page saved again gets no new copies
+    let sections = [], removedSections = 0;
     if (split && (isNew || project)) {
-        const assets = [...doc.links, ...doc.styles].join("\n");
-        const fresh = splitSections(doc.body).map((s, order) => buildDoc(userId, {
-            title: `${page.title}: ${s.name}`,
-            description: `${s.name} section from "${page.title}"`,
-            htmlCode: `${assets ? assets + "\n" : ""}${s.html}`,
-            tags: [...baseTags, "section", s.kind],
-            project, kind: "section", parent: project ? page._id : null, order,
-        }));
-        // a page saved again: each section is matched to an old one by name, else by its kind (hero, pricing...) and place
-        // (a hero whose heading changed is still the hero), then updated; new ones are added, ones no longer there removed
-        const old = !isNew ? await Component.find({ createdBy: userId, parent: page._id, kind: "section" }) : [];
-        const kept = new Set();
-        const kindOf = (tags) => (tags || [])[(tags || []).length - 1]; // a section's last tag is its kind (header, section, footer)
-        const byName = new Map(fresh.map((f) => [f, old.find((o) => o.title.toLowerCase() === f.title.toLowerCase())]));
-        byName.forEach((o) => o && kept.add(o));
-        for (const f of fresh) {
-            const match = byName.get(f) || old.find((o) => !kept.has(o) && kindOf(o.tags) === kindOf(f.tags) && o.order === f.order)
-                || old.find((o) => !kept.has(o) && kindOf(o.tags) === kindOf(f.tags));
-            if (match) {
-                kept.add(match);
-                match.order = f.order;
-                match.title = f.title;
-                match.description = f.description;
-                if (nextVersion(match, f.htmlCode, "Page saved again")) created.push(match);
-                await match.save();
-                sections.push(match);
-            } else {
-                const c = await Component.create(f);
-                created.push(c);
-                sections.push(c);
-            }
-        }
-        const gone = old.filter((o) => !kept.has(o));
-        if (gone.length) await Component.deleteMany({ _id: { $in: gone.map((o) => o._id) } });
-        removedSections = gone.length;
+        const r = await syncSections(userId, page, { doc, baseTags, project, isNew });
+        sections = r.sections; removedSections = r.removed; created.push(...r.created);
     }
 
     // The owner's AI writes a short summary of what changed (when they turned it on). `summarize: false` skips it: a converter

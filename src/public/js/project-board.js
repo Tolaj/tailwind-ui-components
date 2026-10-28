@@ -258,7 +258,7 @@ function renderHeader() {
 const filter = { q: "", cat: "", tag: "" };
 const filterOn = () => Boolean(filter.q || filter.cat || filter.tag);
 const matchesFilter = (it) => {
-    if (filter.cat && it.category !== filter.cat) return false;
+    if (filter.cat && (it.kind === "section" ? (byId(it.parent) || {}).category : it.category) !== filter.cat) return false; // a part has its page's category
     if (filter.tag && !(it.tags || []).includes(filter.tag)) return false;
     if (!filter.q) return true;
     const hay = `${it.title} ${it.description || ""} ${(it.tags || []).join(" ")}`.toLowerCase();
@@ -288,10 +288,10 @@ function renderOutline() {
     $("tabTheme").className = `flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 ${tab === "theme" ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900"}`;
     $("filters").classList.toggle("hidden", tab === "theme");
     if (tab === "theme") { [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id]) => { $(id).className = "flex-1 whitespace-nowrap border-b-2 border-transparent px-2 py-2.5 text-neutral-500 hover:text-neutral-900"; }); return; }
-    const mine = (i) => (tab === "component" ? i.kind === "component" : i.kind !== "component");
-    const list = pages().filter(mine).filter(matchesFilter);
+    // Components lists the components and the parts made from pages (marked "from <page>"); Pages lists the pages, with their parts nested
+    const list = (tab === "component" ? items.filter((i) => i.kind === "component" || (i.kind === "section" && byId(i.parent))) : pages().filter((i) => i.kind !== "component")).filter(matchesFilter);
     $("filters").classList.remove("hidden");
-    const pc = pages().filter((i) => i.kind !== "component").length, cc = items.filter((i) => i.kind === "component").length;
+    const pc = pages().filter((i) => i.kind !== "component").length, cc = items.filter((i) => i.kind === "component" || (i.kind === "section" && byId(i.parent))).length;
     $("tabPages").title = `${pc} page${pc === 1 ? "" : "s"}`;
     $("tabComponents").title = `${cc} component${cc === 1 ? "" : "s"}`;
     [["tabPages", "page"], ["tabComponents", "component"]].forEach(([id, t]) => {
@@ -302,9 +302,9 @@ function renderOutline() {
         const g = tab === "component" ? "" : p.group || "";
         const heading = g !== prev && (g || prev) ? `<div class="group-head">${esc(g || "No group")}</div>` : "";
         prev = g;
-        const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : it.kind === "component" ? "comp" : "page"}</span><span class="truncate">${esc(it.title)}</span></div>`;
-        return heading + row(p, 0) + sectionsOf(p.id).map((s) => row(s, 1)).join("");
-    }).join("") || `<div class="p-3 text-neutral-500">${filterOn() ? "Nothing matches." : tab === "component" ? "No components yet. Press + New design." : "No pages yet."}</div>`;
+        const row = (it, depth) => `<div class="layer-row cursor-pointer gap-1 px-1 ${it.id === selectedId ? "is-selected" : ""}" style="padding-left:${depth * 14 + 6}px" data-pick="${it.id}"><span class="shrink-0 font-mono text-[10px] text-neutral-500">${it.kind === "section" ? "sec" : it.kind === "component" ? "comp" : "page"}</span><span class="truncate">${esc(it.title)}</span>${tab === "component" && it.kind === "section" && byId(it.parent) ? `<span class="ml-auto shrink-0 truncate pl-2 text-[10px] text-neutral-400">from ${esc(byId(it.parent).title)}</span>` : ""}</div>`;
+        return heading + row(p, 0) + (tab === "component" ? "" : sectionsOf(p.id).map((s) => row(s, 1)).join(""));
+    }).join("") || `<div class="p-3 text-neutral-500">${filterOn() ? "Nothing matches." : tab === "component" ? "No components yet. Press + New design, or save a page: its parts appear here." : "No pages yet."}</div>`;
     dimBoard();
 }
 $("tabPages").addEventListener("click", () => { tab = "page"; renderOutline(); });

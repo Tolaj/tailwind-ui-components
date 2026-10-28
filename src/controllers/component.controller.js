@@ -65,6 +65,16 @@ export const getComponentById = async (req, res) => {
     }
 };
 
+/** A page's parts (header, hero, footer...) are made, or brought up to date, each time the page is saved. A failure here never fails the save. */
+async function makeParts(userId, page) {
+    try {
+        const { syncPartsOf } = await import("../services/import.service.js");
+        await syncPartsOf(userId, page);
+    } catch (err) {
+        console.error("Page parts error:", err);
+    }
+}
+
 // Create component
 export const createComponent = async (req, res) => {
     try {
@@ -95,6 +105,7 @@ export const createComponent = async (req, res) => {
         });
 
         enrichProfileWithAI(component._id, req.session.user.id);
+        await makeParts(req.session.user.id, component);
 
         // a design opened from Figma with Edit brings its Figma data along: it moves from the draft to this new page
         let figmaSource = null;
@@ -135,6 +146,7 @@ export const updateComponent = async (req, res) => {
 
         const { title, category, description, htmlCode, isPublished, tags, note, useAsReference, project: projectRef, board, group } = req.body;
         let codeChanged = false;
+        const kindWas = component.kind === 'page';
 
         if (board !== undefined) {
             component.board = board && Number.isFinite(board.x) && Number.isFinite(board.y)
@@ -168,8 +180,10 @@ export const updateComponent = async (req, res) => {
         if (tags !== undefined) component.tags = normalizeTags(tags);
         if (typeof isPublished !== 'undefined') component.isPublished = isPublished === true || isPublished === "true";
 
+        const wasPage = component.kind === 'page' && !kindWas;
         const updated = await component.save();
         if (codeChanged) enrichProfileWithAI(updated._id, req.session.user.id);
+        if (codeChanged || wasPage) await makeParts(req.session.user.id, updated);
 
         res.status(200).json({
             success: true,
