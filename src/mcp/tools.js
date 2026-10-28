@@ -251,7 +251,6 @@ export async function callTool(userId, name, args = {}) {
                 tags: normalizeTags(args.tags),
                 profile: buildProfile(args.htmlCode),
                 createdBy: userId,
-                isPublished: false,
             });
             enrichProfileWithAI(c._id, userId);
             const warning = tailwindWarning(args.htmlCode);

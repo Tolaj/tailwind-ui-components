@@ -13,7 +13,7 @@ router.get("/", async (req, res) => {
         const projectDocs = await Project.find({ owner: userId }).select("name").sort("name").lean();
         const [components, account] = await Promise.all([
             Component.find({ createdBy: userId })
-                .select("title description category tags version htmlCode isPublished forkedFrom useAsReference project kind updatedAt createdAt")
+                .select("title description category tags version htmlCode forkedFrom useAsReference project kind updatedAt createdAt")
                 .sort("-updatedAt")
                 .lean(),
             User.findById(userId).select("apiTokenPrefix").lean(),
@@ -31,7 +31,6 @@ router.get("/", async (req, res) => {
             tags: c.tags || [],
             version: c.version || 1,
             htmlCode: c.htmlCode,
-            isPublished: c.isPublished,
             forked: Boolean(c.forkedFrom),
             projectId: c.project ? String(c.project) : "",
             kind: c.kind || "component",

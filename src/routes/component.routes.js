@@ -1,14 +1,11 @@
 import express from "express";
 import {
-    getAllComponents,
-    getComponentById,
     createComponent,
     updateComponent,
     deleteComponent,
     getVersions,
     restoreVersion,
     exportComponentCode,
-    forkComponent,
     getProfile
 } from "../controllers/component.controller.js";
 import { ensureAuthAPI } from "../middlewares/auth.js";
@@ -17,12 +14,10 @@ import { importDesign } from "../services/import.service.js";
 const router = express.Router();
 
 // Public routes
-router.get("/", getAllComponents);
-router.get("/:id/export", exportComponentCode);
+router.get("/:id/export", ensureAuthAPI, exportComponentCode);
 router.get("/:id/profile", ensureAuthAPI, getProfile);
 router.get("/:id/versions", ensureAuthAPI, getVersions);
 router.post("/:id/versions/:version/restore", ensureAuthAPI, restoreVersion);
-router.get("/:id", getComponentById);
 
 // Protected routes - using ensureAuthAPI instead of ensureAuth
 router.post("/", ensureAuthAPI, createComponent);
@@ -43,6 +38,5 @@ router.post("/import", ensureAuthAPI, async (req, res) => {
 });
 router.put("/:id", ensureAuthAPI, updateComponent);
 router.delete("/:id", ensureAuthAPI, deleteComponent);
-router.post("/:id/fork", ensureAuthAPI, forkComponent);
 
 export default router;

@@ -37,7 +37,7 @@ const ed = embedEditor(el, {
 });
 ed.onChange(({ html, dirty, status, source }) => {});  // source: "host" (your setHtml), "editor" (a change there), "status" (save state only)
 ed.setHtml(html);  ed.getHtml();  ed.isDirty();  ed.save();
-await ed.saveDetails({ title, category, description, tags, isPublished, project });
+await ed.saveDetails({ title, category, description, tags, project });
 ed.destroy();
 ```
 

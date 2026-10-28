@@ -1,5 +1,5 @@
 import express from "express";
-import Component from "../models/component.model.js";
+import { families, summary } from "../services/catalog.service.js";
 
 const router = express.Router();
 
@@ -43,158 +43,25 @@ const categories = {
     'footer-footers': { name: 'Footers', group: 'Footer' }
 };
 
-// Home page - Shows only categories that have components
+// Home page: what Windcraft is, and a look at the catalog
 router.get("/", async (req, res) => {
     try {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-        const results = await Component.aggregate([
-            { $match: { isPublished: true } },
-            {
-                $group: {
-                    _id: "$category",
-                    count: { $sum: 1 },
-                    newCount: {
-                        $sum: { $cond: [{ $gte: ["$createdAt", oneMonthAgo] }, 1, 0] }
-                    }
-                }
-            }
-        ]);
-
-        let totalComponents = 0;
-        const categoryCards = results
-            .filter(r => r.count > 0)
-            .map(r => {
-                totalComponents += r.count;
-                return {
-                    slug: r._id,
-                    name: categories[r._id]?.name || r._id,
-                    group: categories[r._id]?.group || 'Other',
-                    count: r.count,
-                    newCount: r.newCount,
-                    hasNew: r.newCount > 0
-                };
-            });
-
         res.status(200).render("main/home", {
             activePage: 'home',
             layout: 'main',
-            title: 'Tailwind UI Components',
+            title: 'Windcraft',
             user: req.session.user || null,
-            categories: categoryCards,
-            totalComponents
+            families: (await families()).map(summary),
         });
     } catch (error) {
         console.error('Error loading home page:', error);
-        res.status(500).render("error", {
-            layout: "main",
-            title: "Error",
-            message: "Failed to load components",
-        });
+        res.status(500).render("error", { layout: "main", title: "Error", message: "Failed to load the page" });
     }
 });
 
-// Category detail page - Shows components in that category
-router.get("/category/:category", async (req, res) => {
-    try {
-        const { category } = req.params;
+// The public gallery is replaced by the catalog: old links land there
+router.get("/category/:category", (req, res) => res.redirect(301, "/catalog"));
+router.get("/component/:id", (req, res) => res.redirect(301, "/catalog"));
 
-        // Get category counts for sidebar via aggregation
-        const countResults = await Component.aggregate([
-            { $match: { isPublished: true } },
-            { $group: { _id: "$category", count: { $sum: 1 } } }
-        ]);
-
-        const allCategories = countResults
-            .filter(r => r.count > 0)
-            .map(r => ({
-                slug: r._id,
-                name: categories[r._id]?.name || r._id,
-                count: r.count,
-                isActive: r._id === category
-            }));
-
-        // Get components for current category
-        const components = await Component.find({
-            category: category,
-            isPublished: true
-        })
-            .populate('createdBy', 'name email')
-            .sort('-createdAt')
-            .lean();
-
-        const categoryInfo = categories[category];
-
-        if (!categoryInfo) {
-            return res.status(404).render("error", {
-                layout: "main",
-                title: "Category Not Found",
-                message: "The category you're looking for doesn't exist.",
-            });
-        }
-
-        // Mark which components are new
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-        components.forEach(component => {
-            component.isNew = new Date(component.createdAt) >= oneMonthAgo;
-        });
-
-        res.status(200).render("main/category-detail", {
-            activePage: 'category',
-            layout: 'main',
-            title: categoryInfo.name,
-            user: req.session.user || null,
-            components: components,
-            categoryName: categoryInfo.name,
-            categorySlug: category,
-            categories: allCategories
-        });
-    } catch (error) {
-        console.error('Error loading category:', error);
-        res.status(500).render("error", {
-            layout: "main",
-            title: "Error",
-            message: "Failed to load category",
-        });
-    }
-});
-
-// Component detail page
-router.get("/component/:id", async (req, res) => {
-    try {
-        const component = await Component.findById(req.params.id).populate('createdBy', 'name email');
-
-        if (!component) {
-            return res.status(404).render("error", {
-                layout: "main",
-                title: "Component Not Found",
-                message: "The component you're looking for doesn't exist.",
-            });
-        }
-
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        component.isNew = new Date(component.createdAt) >= oneMonthAgo;
-
-        res.status(200).render("main/component-detail", {
-            activePage: 'component',
-            layout: 'main',
-            title: component.title,
-            user: req.session.user || null,
-            component: component
-        });
-    } catch (error) {
-        console.error('Error loading component:', error);
-        res.status(500).render("error", {
-            layout: "main",
-            title: "Error",
-            message: "Failed to load component",
-        });
-    }
-});
-
-export { categories };
 export default router;
+export { categories }; // the editor's details form still offers these until designs are filed by catalog family

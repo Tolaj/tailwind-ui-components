@@ -14,34 +14,6 @@ function toggleSidebar() {
         toggleButton.classList.add('order-2');
     }
 }
-// Search functionality
-function handleSearch(event) {
-    const searchTerm = event.target.value.toLowerCase();
-    const cards = document.querySelectorAll('.component-card');
-
-    cards.forEach(card => {
-        const title = card.querySelector('h4').textContent.toLowerCase();
-        const category = card.querySelector('p').textContent.toLowerCase();
-
-        if (title.includes(searchTerm) || category.includes(searchTerm)) {
-            card.classList.remove('hidden');
-        } else {
-            card.classList.add('hidden');
-        }
-    });
-}
-
-// Category filter
-function handleCategoryFilter(event) {
-    const category = event.target.value;
-
-    if (category === 'all') {
-        window.location.href = '/';
-    } else {
-        window.location.href = `/category/${category}`;
-    }
-}
-
 // User menu toggle
 function toggleUserMenu() {
     const menu = document.getElementById('userMenu');

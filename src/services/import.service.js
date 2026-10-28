@@ -18,7 +18,6 @@ const buildDoc = (userId, { title, description, htmlCode, tags, project = null, 
         project, kind, parent, order,
         group: normalizeGroup(group),
         ...(Number.isFinite(frameW) ? { frameW: Math.round(frameW) } : {}),
-        isPublished: false,
 });
 
 const createOne = (userId, fields) => Component.create(buildDoc(userId, fields));

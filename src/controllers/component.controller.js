@@ -12,61 +12,12 @@ export const normalizeTags = (tags) => {
     return [...new Set(list.map((t) => String(t).trim().toLowerCase().replace(/\s+/g, "-")).filter(Boolean))].slice(0, 12);
 };
 
-// Get all components
-export const getAllComponents = async (req, res) => {
-    try {
-        const { category } = req.query;
 
-        let query = { isPublished: true };
-
-        if (category) {
-            query.category = category;
-        }
-
-        const components = await Component.find(query)
-            .populate('createdBy', 'name email')
-            .sort('-createdAt');
-
-        res.status(200).json({
-            success: true,
-            data: components
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-// Get single component
-export const getComponentById = async (req, res) => {
-    try {
-        const component = await Component.findById(req.params.id).populate('createdBy', 'name email');
-
-        if (!component) {
-            return res.status(404).json({
-                success: false,
-                message: 'Component not found'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: component
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
 
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group, draftId } = req.body;
+        const { title, category, description, htmlCode, tags, project: projectRef, group, draftId } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
         if (!project) return res.status(400).json({ success: false, message: 'Choose a project: every design belongs to one' });
 
@@ -87,7 +38,6 @@ export const createComponent = async (req, res) => {
             project: project ? project._id : null,
             kind: req.body.kind === "component" ? "component" : project ? "page" : "component", // a component made from a project stays a component, not a page
             group: project ? normalizeGroup(group) : "",
-            isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
             createdBy: req.session.user.id
         });
 
@@ -130,7 +80,7 @@ export const updateComponent = async (req, res) => {
             });
         }
 
-        const { title, category, description, htmlCode, isPublished, tags, note, useAsReference, project: projectRef, board, group } = req.body;
+        const { title, category, description, htmlCode, tags, note, useAsReference, project: projectRef, board, group } = req.body;
         let codeChanged = false;
 
         if (board !== undefined) {
@@ -161,7 +111,6 @@ export const updateComponent = async (req, res) => {
         if (description) component.description = description;
         if (typeof useAsReference === 'boolean') component.useAsReference = useAsReference;
         if (tags !== undefined) component.tags = normalizeTags(tags);
-        if (typeof isPublished !== 'undefined') component.isPublished = isPublished === true || isPublished === "true";
 
         const updated = await component.save();
         if (codeChanged) enrichProfileWithAI(updated._id, req.session.user.id);
@@ -253,7 +202,7 @@ export const restoreVersion = async (req, res) => {
     }
 };
 
-// Export as html | react | vue | svelte, or design (the design spec as JSON) (public components, or the owner's own)
+// Export as html | react | vue | svelte, or design (the design spec as JSON) (the owner's own)
 export const exportComponentCode = async (req, res) => {
     try {
         const format = String(req.query.format || "html").toLowerCase();
@@ -262,7 +211,7 @@ export const exportComponentCode = async (req, res) => {
         }
         const component = await Component.findById(req.params.id).lean();
         const isOwner = component && req.session?.user && String(component.createdBy) === req.session.user.id;
-        if (!component || (!component.isPublished && !isOwner)) {
+        if (!component || !isOwner) {
             return res.status(404).json({ success: false, message: 'Component not found' });
         }
         res.status(200).json({
@@ -276,36 +225,6 @@ export const exportComponentCode = async (req, res) => {
 };
 
 
-// Save a gallery component (or your own) as a private copy in your library
-export const forkComponent = async (req, res) => {
-    try {
-        const userId = req.session.user.id;
-        const source = await Component.findById(req.params.id).lean();
-        if (!source || (!source.isPublished && String(source.createdBy) !== userId)) {
-            return res.status(404).json({ success: false, message: 'Component not found' });
-        }
-
-        const existing = await Component.findOne({ createdBy: userId, forkedFrom: source._id }).select('_id').lean();
-        if (existing) {
-            return res.status(200).json({ success: true, existing: true, id: String(existing._id) });
-        }
-
-        const copy = await Component.create({
-            title: source.title,
-            category: source.category,
-            description: source.description,
-            htmlCode: source.htmlCode,
-            tags: source.tags,
-            createdBy: userId,
-            forkedFrom: source._id,
-            profile: source.profile || buildProfile(source.htmlCode),
-            isPublished: false,
-        });
-        res.status(201).json({ success: true, existing: false, id: String(copy._id) });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 
 // Profile card (owner only): structured analysis + markdown for humans and agents

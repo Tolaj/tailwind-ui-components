@@ -16,7 +16,7 @@ import { DEFAULT_CATEGORY, setTool } from "./toolbar.js";
 // ── Many designs on one plane ────────────────────────────────────────────────
 // One design is live (the iframe you edit). The others are previews in the same project; click one to switch to it.
 // Each design keeps its own history, so switching never loses edits. Save writes every changed design.
-const META_KEYS = ["id", "title", "version", "category", "description", "tags", "isPublished", "project", "group"];
+const META_KEYS = ["id", "title", "version", "category", "description", "tags", "project", "group"];
 const takeMeta = () => Object.fromEntries(META_KEYS.map((k) => [k, data[k]]));
 const applyMeta = (m) => META_KEYS.forEach((k) => { data[k] = m[k]; });
 
@@ -428,7 +428,7 @@ export function init() {
         if (it.id === S.curKey) return;
         docs.set(it.id, {
             key: it.id, kind: it.kind, parent: it.parent, board: it.board, frameW: it.frameW || null, source: it.htmlCode, loaded: false, isNew: false, height: 0,
-            meta: { id: it.id, title: it.title, group: it.group || "", version: it.version, category: it.category, description: it.description, tags: it.tags, isPublished: it.isPublished, project: data.project },
+            meta: { id: it.id, title: it.title, group: it.group || "", version: it.version, category: it.category, description: it.description, tags: it.tags, project: data.project },
         });
     });
     $("designs").addEventListener("click", (e) => {
@@ -554,7 +554,7 @@ $("newDesignBtn").addEventListener("click", async () => {
     docs.set(key, {
         key, kind: "page", parent: null, board: spot, source: "", loaded: true, isNew: true, height: 0,
         parsed: parseComponentSource(""), markup: "", history: [], hIndex: -1, savedMarkup: "",
-        meta: { id: null, title: "Untitled page", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A page on the canvas.", tags: [], isPublished: false, project },
+        meta: { id: null, title: "Untitled page", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A page on the canvas.", tags: [], project },
     });
     makeWrap(key);
     S.viewTouched = true;

@@ -31,7 +31,7 @@ if ($("catalogData")) {
     const list = JSON.parse($("catalogData").textContent);
     document.querySelectorAll("[data-sample]").forEach((f) => {
         const fam = list.find((x) => x.slug === f.dataset.sample);
-        if (fam) show(f, `<div class="flex h-full min-h-[8rem] items-center justify-center">${fam.sample}</div>`, DEFAULT_THEME, false, false, 0);
+        if (fam) show(f, `<div class="flex h-full min-h-[8rem] items-center justify-center">${fam.previewClass ? `<div class="${fam.previewClass}">${fam.sample}</div>` : fam.sample}</div>`, DEFAULT_THEME, false, false, 0);
     });
 }
 

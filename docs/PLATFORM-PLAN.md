@@ -177,7 +177,7 @@ Without theme the catalog is a snippet shelf; with it, one part looks right in a
 | **1. One noun** (1 to 2 weeks) | Projects are the home | Required `project`, project page with Pages / Components / Theme tabs, nav reduced to Catalog · Projects, one-field save, **code-left layout and New component (4.1)**, then remove the Add component dialog |
 | **2. Theme** (1 to 2 weeks) | One place to restyle | Tokens model, Tailwind mapping, canvas and previews read it, dark switch |
 | **3. Catalog engine** (2 weeks) | The catalog exists | Platform-owned projects, family page with variant matrix, theme + dark, code tabs, Add to project (fork with `origin`), search, `catalog/` seed script and the checks in 5.6 |
-| **4. Tier 1 content** (4 to 5 weeks, three batches) | Real parts | A: Button, Input, Textarea, Select, Checkbox/Radio/Switch, Form field, Badge. B: Avatar, Card, Alert, Toast, Modal, Dropdown, Tooltip/Popover. C: Tabs, Table, Navbar, Sidebar, Footer |
+| **4. Catalog content by extraction** (when the library has enough components) | Real parts, not hand-written | Decision: parts are **extracted from existing components**, not authored one by one. Pipeline: detect parts (buttons, fields, cards...), normalise colours and radii to theme tokens, cluster by class signature, rank by how often each look appears, review and accept into `catalog/`, run the 5.5 checks on every candidate. Button and Input stay as the reference for format and checks. Hand-author only what extraction cannot give. Waits until there are enough components to extract from |
 | **5. Agents** (alongside 3 and 4) | AI uses the catalog | MCP `list_catalog`, `get_component` on catalog parts, generation prefers catalog parts and the project's theme |
 | **6. Tier 2** (as needed) | Fast starts | Sections and templates, then the remaining families, only those requested |
 
@@ -205,7 +205,9 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | `POST /api/components` requires a project | **Done** |
 | Add component dialog archived to `archive/add-component/` (README explains how to restore; the tag `archive/add-component-dialog` holds it too); its openers and the draft/return plumbing removed | **Done** |
 | Nav: one button, **New project** (the Catalog link arrives with the Catalog in Phase 3) | **Done** |
-| Remove `isPublished`, the Library page, category and detail pages | **Waits for the Catalog** (Phase 3) |
+| Home page rewritten (what Windcraft is, a catalog preview); `/category/*` and `/component/*` redirect to the Catalog; category and detail views, the header's search / category filter and the sidebar's category block removed | **Done** |
+| `isPublished` removed everywhere (model, API, editor details form); the public list and detail endpoints and the public fork are gone; export now needs sign-in and ownership (before, a published component could be exported by anyone) | **Done** |
+| **Library page** | **Open**: it still carries jobs that need a home first: version history and restore, export, profile, delete, import HTML, the Connect card. Plan: per-item actions in the project page's details panel, Import on the project page, Connect stays at `/connect`; then `/library` redirects to Projects |
 
 ## 11. Phase 2 progress (theme)
 
@@ -229,7 +231,7 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | **Add to project** (`POST /api/catalog/:slug/add`) creates a component in the chosen project with `origin: { family, variant }`; Catalog link in the nav | **Done** (needs sign-in; not exercised in a browser) |
 | Second family: **Input** (text, password with show/hide, search, prefix and suffix; 3 sizes; default, hover, focus, error, success, disabled). The family page and the checks needed no change beyond generic labels, so the format holds | **Done** |
 | Deviation from 5.6: the catalog is read from the files at runtime, not seeded into platform-owned projects in the database | Fewer moving parts; same result for users |
-| Search, MCP `list_catalog`, the remaining Tier 1 families, removing `isPublished` / Library / category pages | **Next** |
+| Search, MCP `list_catalog`, removing `isPublished` / Library / category pages | **Next**. More families wait for extraction (Roadmap phase 4); Textarea, Select and Form field were started by hand and are **parked uncommitted** |
 
 ## 13. What I have not verified
 

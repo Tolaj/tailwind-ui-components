@@ -28,7 +28,7 @@ const load = (el) => new Promise((resolve, reject) => { el.onload = resolve; el.
  * @param {HTMLElement} root
  * @param {object} options
  * @param {import("./design/host.js").Host} options.host
- * @param {object} [options.data]   the design to open: { id, title, htmlCode, version, category, description, tags, isPublished, group,
+ * @param {object} [options.data]   the design to open: { id, title, htmlCode, version, category, description, tags, group,
  *     project: {id,name}, projects: [{id,name}], categories: [{ group, items: [{ slug, name }] }], plane: [the project's other designs], board }
  * @param {{ href: string, title?: string, label?: string } | null} [options.back]   the Back link's target; none hides it
  * @param {{ panels?: boolean, nav?: boolean, tools?: string[] | null, onDetails?: (fields: object) => void }} [options.ui]   what of the editor shows:
@@ -40,7 +40,7 @@ export async function mountEditor(root, { host, data = {}, back = null, tailwind
     if (mounted) throw new Error("The editor is already mounted on this page");
     mounted = true;
     setHost(host);
-    config.data = { id: null, title: "", version: 0, htmlCode: "", category: "", description: "", tags: [], isPublished: true, project: null, projects: [], categories: [], ...data };
+    config.data = { id: null, title: "", version: 0, htmlCode: "", category: "", description: "", tags: [], project: null, projects: [], categories: [], ...data };
     config.ui = { panels: true, nav: true, tools: null, ...ui };
     if (ui.onDetails) config.hooks.details = ui.onDetails;
     keepPageUnzoomed();

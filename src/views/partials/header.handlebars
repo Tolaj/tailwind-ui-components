@@ -29,72 +29,9 @@
 
             <!-- Catalog: the finished parts, open to everyone -->
             <a href="/catalog" class="ms-2 hidden rounded-md px-3 py-1.5 text-sm font-medium sm:block {{#if (eq activePage 'catalog')}}bg-gray-100 text-gray-900{{else}}text-gray-600 hover:bg-gray-100 hover:text-gray-900{{/if}}">Catalog</a>
-
-            {{#if (eq activePage "category")}}
-
-            <!-- Breadcrumb -->
-            <ol class="ms-3 py-[7px]  hidden md:flex items-center whitespace-nowrap">
-                <li class="flex items-center text-sm text-gray-800">
-                    <a href="/" class="hover:text-primary">Home</a>
-                    <svg class="shrink-0 mx-3 overflow-visible size-2.5 text-gray-400" width="16" height="16"
-                        viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                </li>
-                <li class="text-sm font-semibold text-gray-800 truncate" aria-current="page">
-                    {{categoryName}}
-                </li>
-            </ol>
-            {{/if}}
-
-            <!-- Search Bar + Stats only on Home -->
-            {{#if (eq activePage "home")}}
-            <!-- Search Bar -->
-            <div class="relative hidden md:block">
-                <input type="text" id="searchInput" placeholder="Search components..."
-                    class="w-64 px-4 py-1.5 text-sm border border-gray-400 rounded-lg focus:outline-none focus:border-primary"
-                    onkeyup="handleSearch(event)">
-                <svg class="absolute right-3 top-2 size-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none"
-                    viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                </svg>
-            </div>
-
-            <!-- Stats Badge -->
-            {{#if totalComponents}}
-            <span class="hidden lg:flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
-                {{totalComponents}} Components
-            </span>
-            {{/if}}
-            {{/if}}
         </div>
 
         <div class="flex items-center py-2 gap-3">
-            <!-- Category Filter Dropdown -->
-            <div class="relative hidden sm:block">
-                <select id="categoryFilter" onchange="handleCategoryFilter(event)"
-                    class="h-8 top-2 px-3 text-sm border border-gray-400 rounded-xl text-gray-800 focus:outline-none focus:border-primary appearance-none pr-8 bg-white">
-                    {{#if (eq activePage "home")}}
-                    <option value="all" selected>All Categories</option>
-                    {{else}}
-                    <option value="all">All Categories</option>
-                    {{/if}}
-
-                    {{#each categories}}
-                    <option value="{{this.slug}}" {{#if this.isActive}}selected{{/if}}>
-                        {{this.name}} ({{this.count}})
-                    </option>
-                    {{/each}}
-                </select>
-                <svg class="absolute right-2 top-2 size-4 text-gray-400 pointer-events-none"
-                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-            </div>
-
             {{#if user}}
             <!-- New project: name it, then open its canvas -->
             <button type="button" id="navNewProject"
