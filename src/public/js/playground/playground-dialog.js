@@ -62,12 +62,19 @@ function projectRows() {
     if (q && !list.some((p) => same(p.name, q))) rows.push({ name: q, label: `Create <b>“${esc(q)}”</b>`, hint: "new project" });
     return rows;
 }
+/** The list sits on the details overlay, under the field, so the form's own scrolling and edges never clip it. */
+function placeList(ul) {
+    const panel = $("detailsPanel"), box = $("project").getBoundingClientRect(), at = panel.getBoundingClientRect();
+    if (ul.parentElement !== panel) panel.append(ul);
+    Object.assign(ul.style, { left: `${box.left - at.left}px`, top: `${box.bottom - at.top + 4}px`, width: `${box.width}px` });
+}
 function renderProjects(open = true) {
     const ul = $("projectList"), rows = projectRows();
     activeRow = Math.min(activeRow, rows.length - 1);
     ul.innerHTML = rows.map((r, i) => `<li role="option" data-name="${esc(r.name)}" class="flex cursor-pointer items-center justify-between rounded px-2.5 py-1.5 ${i === activeRow ? "bg-neutral-100" : "hover:bg-neutral-100"}"><span class="truncate">${r.label}</span><span class="ml-3 shrink-0 text-xs text-neutral-400">${r.hint}</span></li>`).join("")
         || `<li class="px-2.5 py-1.5 text-neutral-400">Type a name to create a project</li>`;
     const show = open && (rows.length > 0 || !(projects || []).length);
+    if (show) placeList(ul);
     ul.classList.toggle("hidden", !show);
     $("project").setAttribute("aria-expanded", String(show));
 }
@@ -89,6 +96,7 @@ const pickProject = (name) => { $("project").value = name; activeRow = -1; rende
         pickProject(li.dataset.name);
     });
     input?.addEventListener("blur", () => renderProjects(false));
+    input?.closest(".overflow-y-auto")?.addEventListener("scroll", () => renderProjects(false), { passive: true });
 }
 /** Starts the field on the active project (else the latest). */
 async function fillProjects(current) {
