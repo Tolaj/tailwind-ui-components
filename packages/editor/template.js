@@ -193,7 +193,7 @@ export const editorHtml = `<div class="flex h-screen flex-col">
             </div>
         </section>
 
-                <aside id="panel" class="hidden w-[288px] shrink-0 flex-col border-l border-neutral-200 bg-white">
+                <aside id="panel" class="hidden w-[240px] shrink-0 flex-col border-l border-neutral-200 bg-white">
             <div id="panelHead" class="hidden items-center gap-1 border-b border-neutral-200 px-2 py-1.5">
                 <div id="panelTabs" class="flex gap-0.5">
                     <button type="button" data-ptab="props" class="ptab is-on">Properties</button>

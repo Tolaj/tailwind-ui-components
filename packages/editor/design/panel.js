@@ -4,14 +4,14 @@
 // sections...) comes from panel-state.js through context; what to show comes from inspectorView (panel-model.js); what the
 // components ask of the editor goes through `actions` (editor.js panelActions).
 //   here: the head (tabs), the page panel, the AI tab, the Code tab's element code
-//   design-tab.js · geom-section.js · prop-sections.js · extras-section.js: the Design tab
+//   design-tab.js · figma-sections.js · prop-sections.js · extras-section.js: the Design tab
 //   classes-section.js: the Code tab below the element's code; controls.js, group-controls.js: the blocks they are made of
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 import { UiContext } from "./panel-state.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
-import { GeomSection } from "./geom-section.js";
+import { PositionSection, LayoutSection } from "./figma-sections.js";
 import { PropSections } from "./prop-sections.js";
 import { ExtrasSection } from "./extras-section.js";
 import { ClassesSection } from "./classes-section.js";
@@ -167,6 +167,9 @@ function PagePanel({ page: pg, actions }) {
         </div></div>`;
 }
 
+// the sections Position and Layout (figma-sections.js) took over
+const FIGMA_DONE = ["css-layout", "css-size", "css-offsets"];
+
 const CLOSE = html`<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>`;
 const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
 
@@ -184,7 +187,9 @@ function Panel({ view, tab, actions }) {
     let body;
     if (view.design) {
         const { key, s } = view.design;
-        body = html`<${DesignTop} key=${key} s=${s} actions=${actions} /><${GeomSection} key=${key} s=${s} actions=${actions} /><${PropSections} key=${key} s=${s} actions=${actions} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
+        body = html`<${DesignTop} key=${key} s=${s} actions=${actions} />
+            ${s.tag !== "body" && html`<${PositionSection} key=${`p${key}`} s=${s} actions=${actions} /><${LayoutSection} key=${`l${key}`} s=${s} actions=${actions} />`}
+            <${PropSections} key=${key} s=${s} actions=${actions} skip=${s.tag === "body" ? [] : FIGMA_DONE} /><${ExtrasSection} key=${key} s=${s} actions=${actions} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;

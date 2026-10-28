@@ -72,7 +72,7 @@ const panelActions = {
     setBreakpoint: (bp) => { panelStore.set({ bp }); setDevice(BREAKPOINT_WIDTH[bp]); },
     setState: (st) => panelStore.set({ st }),
     setText: (text) => { if (S.selected) cmd({ cmd: "setText", path: S.selected.path, text }, "text"); },
-    // position and size (geom-section.js)
+    // position and layout (figma-sections.js)
     setGeom: (key, text) => {
         if (!S.selected) return;
         const n = Number(text);
@@ -81,6 +81,7 @@ const panelActions = {
         if (prop) setProp(prop, `${Math.round(prop === "width" || prop === "height" ? Math.max(1, n) : n)}px`);
         else cmd({ cmd: "setGeom", path: S.selected.path, [key]: n });
     },
+    setProps: (props, value, group, clear) => { if (S.selected) setProps(props, value, group, clear); },
     freePosition: (on) => { if (S.selected) cmd({ cmd: "freePosition", path: S.selected.path, on }); },
     align: (mode) => send({ cmd: "align", mode }),
     group: () => { if (S.selected) send({ cmd: "group" }); },
@@ -98,7 +99,7 @@ const panelActions = {
     },
     redraw: () => renderInspector(),
     // the property sections (prop-sections.js)
-    setProp: (prop, value) => { if (S.selected) setProp(prop, value); },
+    setProp: (prop, value, css) => { if (S.selected) setProp(prop, value, css); }, // css: what to write when it goes to CSS (fit -> fit-content)
     setPropLive: (prop, hex) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
     setPropDone: (prop, hex, input) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); pickerClosed(input); },
     resetProp: (prop) => { if (S.selected) setProp(prop, ""); },

@@ -292,4 +292,53 @@ textarea.fi.area { height: auto; padding: 6px; line-height: 1.4; resize: vertica
 .rst:hover { background: #fde8e8; color: #d92d20; }
 .cinp { width: 24px; height: 24px; flex: none; padding: 0; border: 1px solid #e0e0e0; border-radius: 4px; background: none; cursor: pointer; }
 .hidden { display: none; }
-select.fi { padding-right: 2px; }
+/* dropdowns: a clear chevron instead of the browser's tiny arrow */
+select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-right: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23737373' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 5px center; background-size: 12px; }
+/* a value the element's own styling does not give (a default, or inherited) is faint until it is set */
+.row.unset .fi, .row.unset .seg2, .row.unset .lbl { opacity: .5; }
+.row.unset:hover .fi, .row.unset .fi:focus { opacity: 1; }
+.bmi:not(.tw):not(.css) { opacity: .55; }
+.bmi:focus { opacity: 1 !important; }
+
+/* ── Position and Layout, laid out as Figma's (figma-sections.js) ── */
+.fsec { border-bottom: 1px solid #e5e5e5; padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.fsech { display: flex; align-items: center; justify-content: space-between; height: 20px; font-weight: 600; font-size: 11px; color: #111; }
+.fsx { display: flex; gap: 2px; }
+.fsub { margin: 2px 0 -2px; font-size: 10px; color: #8c8c8c; }
+.frow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.frow > .nf { flex: 1; }
+.frow.four { display: grid; grid-template-columns: 1fr 1fr 24px; }
+.frow.four > .ib { grid-column: 3; grid-row: 1; }
+.frow.two2 { display: grid; grid-template-columns: 1fr 1fr; }
+.nf { display: flex; align-items: center; height: 26px; min-width: 0; background: #f5f5f5; border: 1px solid transparent; border-radius: 5px; }
+.nf:hover { border-color: #e0e0e0; }
+.nf:focus-within { border-color: #111; background: #fff; }
+.nfl { flex: none; min-width: 20px; padding: 0 2px 0 7px; color: #8c8c8c; font-size: 10.5px; white-space: nowrap; }
+.nfi { flex: 1; min-width: 0; width: 100%; height: 100%; border: 0; background: transparent; padding: 0 4px 0 2px; font: inherit; font-size: 11px; color: #111; outline: none; }
+.nfu { padding-right: 6px; color: #8c8c8c; }
+.nfs { flex: none; height: 100%; border: 0; border-left: 1px solid #ebebeb; background-color: transparent; font-size: 10.5px; color: #555; padding: 0 16px 0 6px; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23737373' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 3px center; background-size: 11px; outline: none; }
+.nf.unset .nfi, .nf.unset .nfl { opacity: .5; }
+.nf.unset:hover .nfi, .nf.unset:focus-within .nfi, .nf.unset:focus-within .nfl { opacity: 1; }
+.nf.off { background: #fafafa; }
+.nf.off .nfi { color: #a3a3a3; }
+.ibrow { display: flex; gap: 6px; }
+.ibg { display: flex; background: #f5f5f5; border-radius: 5px; padding: 1px; flex: none; }
+.ibrow .ibg, .ibg.wide { flex: 1; }
+.ibg .ib { flex: 1; }
+.ib { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; border-radius: 4px; color: #333; }
+.ib:hover { background: #ebebeb; }
+.ib.on { background: #fff; color: #111; box-shadow: 0 0 0 1px #e0e0e0; }
+.ib.faint { color: #c4c4c4; cursor: default; }
+.ib.faint:hover { background: transparent; }
+.lgrid { display: grid; grid-template-columns: 76px 1fr; gap: 6px; }
+.lcol { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.abox { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); background: #f5f5f5; border-radius: 5px; height: 58px; padding: 3px; }
+.ad { display: flex; align-items: center; justify-content: center; border-radius: 3px; }
+.ad i { width: 4px; height: 4px; border-radius: 50%; background: #c4c4c4; }
+.ad:hover i { background: #737373; }
+.ad.on i { width: 10px; height: 4px; border-radius: 1.5px; background: #111; }
+.fcheck { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #333; margin-top: 2px; }
+.fcheck.unset { color: #8c8c8c; }
+.fbtns { display: flex; gap: 4px; flex-wrap: wrap; }
+.fbtns button { flex: 1; height: 24px; padding: 0 6px; border-radius: 4px; border: 1px solid #e5e5e5; font-size: 10.5px; background: #fff; white-space: nowrap; }
+.fbtns button:hover { background: #f5f5f5; }

@@ -6,7 +6,7 @@
 import { html } from "../vendor/preact-htm.js";
 import { CSS_SECTIONS, rgbToHex } from "./css-props.js";
 import { variantOf } from "@windcraft/core/prop-tailwind.js";
-import { srcOf, shownOf, ownsValue } from "./panel-model.js";
+import { srcOf, shownOf, ownsValue, styled } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, SelectInput, Segmented, Section, ColorInput } from "./controls.js";
 
@@ -40,7 +40,7 @@ function PropRow({ s, c, actions }) {
     } else {
         control = html`<${TextInput} list=${c.list} value=${shown} onCommit=${(v) => actions.setProp(c.p, v)} />`;
     }
-    return html`<div class="row" title=${c.p}><span class="lbl">${c.l}</span><div class="flex min-w-0 flex-1 items-center gap-1">${control}<${SourceTag} src=${src} />
+    return html`<div class=${`row ${styled(src) ? "" : "unset"}`} title=${c.p}><span class="lbl">${c.l}</span><div class="flex min-w-0 flex-1 items-center gap-1">${control}<${SourceTag} src=${src} />
         ${ownsValue(src) && html`<button type="button" class="rst" title=${src.source === "tailwind" ? `Remove ${src.token}` : "Remove the inline value"} onClick=${() => actions.resetProp(c.p)}>×</button>`}</div></div>`;
 }
 
@@ -63,9 +63,9 @@ const ArrangeRow = ({ s, actions }) => s.arrange ? html`<div class="arrange"><sp
 const BOX = ["margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left"];
 
 /** All the property sections, open or closed as the panel remembers (a free element opens Position offsets by itself). */
-export function PropSections({ s, actions }) {
+export function PropSections({ s, actions, skip = [] }) {
     const ui = useUi();
-    return CSS_SECTIONS.map(([id, title, controls]) => {
+    return CSS_SECTIONS.filter(([id]) => !skip.includes(id)).map(([id, title, controls]) => {
         const props = controls === "box" ? BOX : controls.map((c) => c.p);
         const open = ui.open.has(id) || (id === "css-offsets" && s.geom && s.geom.abs && !ui.closed.has(id));
         return html`<${Section} title=${title} open=${open} set=${props.some((p) => ownsValue(srcOf(s, p)))} onToggle=${() => actions.toggleSection(id, open)}>

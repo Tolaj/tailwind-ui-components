@@ -77,6 +77,7 @@ export const TOOLBAR_PROPS = [
 
 /** Every property the panel can show, sent to the in-frame agent so it can report computed values. */
 export const CSS_PROP_LIST = [...new Set([
+    "align-self", "flex-grow", "column-gap", "row-gap", "scale", // Position and Layout (figma-sections.js)
     ...CSS_SECTIONS.flatMap(([, , c]) => (c === "box" ? [] : c.map((x) => x.p))),
     ...BOX_PROPS,
     ...TOOLBAR_PROPS,

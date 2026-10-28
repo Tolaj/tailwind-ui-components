@@ -17,6 +17,7 @@ const WORDS = {
     "align-items": ["items", pick({ "flex-start": "items-start", start: "items-start", center: "items-center", "flex-end": "items-end", end: "items-end", baseline: "items-baseline", stretch: "items-stretch" })],
     "align-self": ["self", pick({ auto: "self-auto", "flex-start": "self-start", start: "self-start", center: "self-center", "flex-end": "self-end", end: "self-end", stretch: "self-stretch", baseline: "self-baseline" })],
     "text-align": ["textAlign", same("text-")],
+    "flex-grow": ["grow", pick({ 0: "grow-0", 1: "grow" })],
     "text-decoration-line": ["textDecoration", pick({ none: "no-underline", underline: "underline", "line-through": "line-through", overline: "overline" })],
     "text-transform": ["textTransform", pick({ none: "normal-case", uppercase: "uppercase", lowercase: "lowercase", capitalize: "capitalize" })],
     "font-style": ["fontStyle", pick({ italic: "italic", normal: "not-italic" })],
@@ -36,7 +37,7 @@ const WORDS = {
 // properties whose values are sizes: the group, and whether a negative value is allowed
 const LENGTHS = {
     width: "w", height: "h", "min-width": "minW", "max-width": "maxW", "min-height": "minH", "max-height": "maxH",
-    gap: "gap", top: "top", right: "right", bottom: "bottom", left: "left",
+    gap: "gap", "column-gap": "gapX", "row-gap": "gapY", top: "top", right: "right", bottom: "bottom", left: "left",
     "padding-top": "pt", "padding-right": "pr", "padding-bottom": "pb", "padding-left": "pl",
     "margin-top": "mt", "margin-right": "mr", "margin-bottom": "mb", "margin-left": "ml",
     "font-size": "fontSize", "line-height": "leading", "letter-spacing": "tracking", "border-radius": "radius", "z-index": "z",

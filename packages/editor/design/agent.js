@@ -466,6 +466,7 @@ export function agentMain() {
             computed: computedOf(el),
             sources: sourcesOf(el, cssProps),
             flexItem: flexItemOf(el),
+            parentLayout: el !== document.body && el.parentElement ? layoutOf(el.parentElement) : null,
             arrange: arrangeOf(el),
             tagOptions: tagOptions(el),
             added: made.has(el),

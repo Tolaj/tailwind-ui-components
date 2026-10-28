@@ -1,6 +1,6 @@
 // What the Properties panel draws from: the data tables behind its controls (suggestions, options, tags), small selectors
 // that read the selection and the panel's state (panel-state.js), and inspectorView, which says what the panel shows. The
-// components themselves are in panel.js, design-tab.js, geom-section.js, prop-sections.js, extras-section.js and classes-section.js.
+// components themselves are in panel.js, design-tab.js, figma-sections.js, prop-sections.js, extras-section.js and classes-section.js.
 import { HUES, SHADES, SPECIAL_COLORS, STEPS, SIZES, MAX_W, GROUPS, getGroup, parseToken } from "@windcraft/core/class-groups.js";
 import { twShown } from "@windcraft/core/prop-tailwind.js";
 import { panelStore } from "./panel-state.js";
@@ -100,6 +100,8 @@ export function modeFor(s, ui = panelStore.get()) {
 
 export const srcOf = (s, p) => ((s && s.sources) || {})[p] || { source: "default" };
 export const ownsValue = (src) => src.source === "tailwind" || src.source === "inline";
+/** Whether the element's own styling gives the value (a class, its style attribute, the design's CSS): drawn solid; else faint. */
+export const styled = (src) => ["tailwind", "inline", "design"].includes(src.source) || (src.source === "tie" && Boolean(src.token));
 /** What a row shows: the class's own value on a Tailwind row (64, 1/2, red-500), the computed value otherwise. */
 export const shownOf = (s, p, src) => (src.source === "tailwind" && twShown(p, src.token)) || (s.computed || {})[p] || "";
 
