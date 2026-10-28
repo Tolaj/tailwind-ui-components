@@ -303,6 +303,7 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .fsech { display: flex; align-items: center; justify-content: space-between; height: 20px; font-weight: 600; font-size: 11px; color: #111; }
 .fsx { display: flex; gap: 2px; }
 .fsub { margin: 2px 0 -2px; font-size: 10px; color: #8c8c8c; }
+.fsubn { color: #b4b4b4; }
 .frow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .frow > .nf { flex: 1; }
 .frow.four { display: grid; grid-template-columns: 1fr 1fr 24px; }

@@ -1,5 +1,5 @@
 // The Design tab's style sections after Position, Layout and the flex / grid item, named as a frontend developer knows them:
-// Typography, Background, Border, Effects, Transform, Motion, Interaction and Margin, then a box to add any class or CSS. Each
+// Typography, Background, Border, Effects, Transform, Motion and Interaction, then a box to add any class or CSS (Spacing is in figma-sections.js). Each
 // starts from what the element already has: a background, a border or an effect it has is a row; one it has not is not, and the
 // section's + adds it. Set values are solid and marked with where they come from (a class or CSS), with a × to take them off;
 // defaults are faint. Every edit goes through the same actions as the rest of the panel, so it is written where the value comes
@@ -273,12 +273,6 @@ export function InteractionSection({ s, actions }) {
     return html`<${FSection} title="Interaction" extra=${html`<${AddMenu} title="Add a setting" items=${left.map((c) => [c.p, c.l])} onPick=${(p) => setAdded([...added, p])} />`}>
         ${rows.map((c) => html`<${PropRow} s=${s} actions=${actions} c=${c} />`)}
     </${FSection}>`;
-}
-
-// ── Margin ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-export function MarginSection({ s, actions }) {
-    const f = (d, l) => html`<${PropField} s=${s} actions=${actions} p=${`margin-${d}`} label=${l} title=${`margin-${d} (auto works too)`} list="dl-m" />`;
-    return html`<${FSection} title="Margin"><div class="frow two2">${f("top", "T")}${f("right", "R")}${f("bottom", "B")}${f("left", "L")}</div></${FSection}>`;
 }
 
 // ── Anything else: a class, or a CSS declaration ─────────────────────────────────────────────────────────────────────────

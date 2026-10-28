@@ -5,8 +5,8 @@
 //   setProp · setProps · resetProp · setGeom · freePosition · align · arrange · group · ungroup · autoLayout · sizeItMyself
 import { html, useState } from "../vendor/preact-htm.js";
 import { srcOf, shownOf, ownsValue, styled, val, variant, PRESETS, OPTS } from "./panel-model.js";
-import { getGroup, GROUPS } from "@windcraft/core/class-groups.js";
-import { groupOf, twShown } from "@windcraft/core/prop-tailwind.js";
+import { getGroup, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
+import { groupOf } from "@windcraft/core/prop-tailwind.js";
 import { useUi } from "./panel-state.js";
 import { TextInput } from "./controls.js";
 
@@ -73,6 +73,27 @@ const SHORTER = { pl: ["px", "p"], pr: ["px", "p"], pt: ["py", "p"], pb: ["py", 
     radiusTL: ["radius"], radiusTR: ["radius"], radiusBR: ["radius"], radiusBL: ["radius"], borderT: ["borderWidth"], borderR: ["borderWidth"], borderB: ["borderWidth"], borderL: ["borderWidth"] };
 const GROUP_OF = { "column-gap": "gapX", "row-gap": "gapY", "border-top-left-radius": "radiusTL", "border-top-right-radius": "radiusTR", "border-bottom-right-radius": "radiusBR",
     "border-bottom-left-radius": "radiusBL", "border-top-width": "borderT", "border-right-width": "borderR", "border-bottom-width": "borderB", "border-left-width": "borderL" };
+/** The value a class gives `p`, also through a shorter class (mx-auto -> auto for margin-left, md:px-8 -> 8), or null. */
+function readToken(p, token) {
+    const g = GROUP_OF[p] || groupOf(p);
+    if (!g || !token) return null;
+    const base = parseToken(token).base;
+    for (const k of [g, ...(SHORTER[g] || [])]) {
+        const m = GROUPS[k] && base.match(GROUPS[k].re);
+        if (m) return String(GROUPS[k].read(m)).replace(/^\[(.*)\]$/, "$1").replace(/_/g, " ");
+    }
+    return null;
+}
+/** What a field shows for `p`: the class's own value (8, auto, 1/2, 2xl) where a class gives it, else the computed one (24px -> 24). */
+export function shownValue(s, p) {
+    const a = atVariant(s, p);
+    if (a) return readToken(p, a.token) ?? "";
+    const src = srcOf(s, p);
+    const t = src.source === "tailwind" ? readToken(p, src.token) : null;
+    if (t !== null) return t;
+    const c = shownOf(s, p, src);
+    return /^-?[\d.]+px$/.test(c) ? num(c) : c;
+}
 export const atVariant = (s, p) => {
     const v = variant(), g = v && (GROUP_OF[p] || groupOf(p));
     if (!g) return null;
@@ -290,9 +311,7 @@ function toggleRatio(s, actions) {
 
 /** A property as a Figma field: what the element sets, else its computed value, faint; marked with where it comes from, × to remove it. */
 export const PropField = ({ s, actions, p, label, title, list }) => {
-    const a = atVariant(s, p), shown = (a && twShown(p, a.token)) || shownOf(s, p, srcOf(s, p)), n = num(shown);
-    // a number shows as one (24px -> 24), a word or a Tailwind value as itself (auto, 2xl, 1/2)
-    const value = /^-?[\d.]+(px)?$/.test(shown) ? n : shown;
+    const value = shownValue(s, p); // a number as one (24px -> 24), a word or a Tailwind value as itself (auto, 2xl, 1/2)
     return html`<${NumField} label=${label} title=${`${title || p} · ${srcNote(s, p)}`} value=${value} list=${list}
         set=${has(s, p)} src=${srcKind(s, p)} onReset=${owns(s, p) ? () => actions.resetProp(p) : null} onCommit=${(t) => actions.setProp(p, t)} />`;
 };
@@ -328,14 +347,10 @@ export const TwSelect = ({ s, k, label, title, actions }) => {
 };
 
 export function LayoutSection({ s, actions }) {
-    const [sides, setSides] = useState(false);
     const [more, setMore] = useState(false);
     const ui = useUi();
     const kind = layoutKind(s), flex = kind === "row" || kind === "col", display = comp(s, "display");
     const k = (v, icon, title) => html`<${IconBtn} icon=${icon} title=${title} on=${kind === v && !/inline|none|contents/.test(display)} onClick=${() => setKind(s, actions, v)} />`;
-    const pad = (a, b) => { const x = comp(s, a), y = comp(s, b); return x === y ? num(x) : "Mixed"; };
-    const padSet = (a, b) => has(s, a) || has(s, b);
-    const padSrc = (a, b) => srcKind(s, a) || srcKind(s, b);
     const between = /space-/.test(comp(s, "justify-content"));
     const wrapOn = /^wrap/.test(comp(s, "flex-wrap")), reverse = /reverse/.test(comp(s, "flex-direction"));
     const twoGaps = kind === "grid" || wrapOn;
@@ -367,17 +382,6 @@ export function LayoutSection({ s, actions }) {
             <${PropField} s=${s} actions=${actions} p="row-gap" label="↕" title="Gap between rows" list="dl-gap" /></div>
             <div class="frow"><${PropSelect} s=${s} actions=${actions} p="justify-items" label="Justify" options=${[["stretch", "Stretch"], ["start", "Start"], ["center", "Center"], ["end", "End"]]} /><${PropSelect} s=${s} actions=${actions} p="align-items" label="Align" options=${ALIGN} /></div>`}
         ${spacing && html`<div class="frow two2"><${TwField} s=${s} k="spaceX" label="↔" title="Space between children across (space-x-*)" actions=${actions} /><${TwField} s=${s} k="spaceY" label="↕" title="Space between children down (space-y-*)" actions=${actions} /></div>`}
-        <${Sub}>Padding</${Sub}>
-        ${sides ? html`<div class="frow four">
-                <${PropField} s=${s} actions=${actions} p="padding-left" label="L" list="dl-p" /><${PropField} s=${s} actions=${actions} p="padding-top" label="T" list="dl-p" />
-                <${PropField} s=${s} actions=${actions} p="padding-right" label="R" list="dl-p" /><${PropField} s=${s} actions=${actions} p="padding-bottom" label="B" list="dl-p" />
-                <${IconBtn} icon=${I.sides} on title="One value per axis" onClick=${() => setSides(false)} /></div>`
-            : html`<div class="frow">
-                <${NumField} label="↔" title="Left and right padding" value=${pad("padding-left", "padding-right")} set=${padSet("padding-left", "padding-right")} src=${padSrc("padding-left", "padding-right")} list="dl-p"
-                    onCommit=${(t) => actions.setProps(["padding-left", "padding-right"], t, "px", ["pl", "pr"])} />
-                <${NumField} label="↕" title="Top and bottom padding" value=${pad("padding-top", "padding-bottom")} set=${padSet("padding-top", "padding-bottom")} src=${padSrc("padding-top", "padding-bottom")} list="dl-p"
-                    onCommit=${(t) => actions.setProps(["padding-top", "padding-bottom"], t, "py", ["pt", "pb"])} />
-                <${IconBtn} icon=${I.sides} title="Each side on its own" onClick=${() => setSides(true)} /></div>`}
         ${s.tag !== "body" && html`<${Sub}>Size</${Sub}>
         <${FlexNote} s=${s} actions=${actions} />
         <div class="frow"><${SizeField} s=${s} actions=${actions} axis="w" /><${SizeField} s=${s} actions=${actions} axis="h" />
@@ -405,5 +409,37 @@ export function ItemSection({ s, actions }) {
         <div class="frow"><${PropSelect} s=${s} actions=${actions} p="align-self" label="Self" title="Where it sits across the line, on its own (align-self)" options=${SELF} />
             <${TwField} s=${s} k="order" label="Order" title="Order among its siblings (order-*)" actions=${actions} /></div>
         ${!flex && html`<div class="frow two2"><${TwField} s=${s} k="colSpan" label="Cols" title="Columns it spans (col-span-*)" actions=${actions} /><${TwField} s=${s} k="rowSpan" label="Rows" title="Rows it spans (row-span-*)" actions=${actions} /></div>`}
+    </${FSection}>`;
+}
+
+// ── Spacing: padding inside the element, margin outside it (the box model), together as a developer tunes them ────────────
+const SPACE = { padding: { short: "p", x: "px", y: "py", sides: ["pt", "pr", "pb", "pl"], list: "dl-p" }, margin: { short: "m", x: "mx", y: "my", sides: ["mt", "mr", "mb", "ml"], list: "dl-m" } };
+/** One of padding / margin: across and down (as px / py, mx / my), or each side on its own; shown per side when they differ. */
+function SpaceRow({ s, actions, kind }) {
+    const [each, setEach] = useState(false);
+    const k = SPACE[kind], side = (d) => `${kind}-${d}`;
+    // these two-side fields take pixels (setProps), so a number shows in pixels; a word (auto) as the class has it
+    const one = (d) => { const w = shownValue(s, side(d)); return /^-?[\d.]+$/.test(w) ? num(comp(s, side(d))) : w; };
+    const pair = (a, b) => { const x = one(a), y = one(b); return x === y ? x : "Mixed"; };
+    const set = (a, b) => has(s, side(a)) || has(s, side(b));
+    const src = (a, b) => srcKind(s, side(a)) || srcKind(s, side(b));
+    const mixed = pair("left", "right") === "Mixed" || pair("top", "bottom") === "Mixed";
+    const label = kind === "padding" ? "Padding" : "Margin";
+    return html`<${Sub}>${label}${kind === "margin" ? html` <span class="fsubn">(auto centres)</span>` : ""}</${Sub}>
+        ${each || mixed ? html`<div class="frow four">
+                <${PropField} s=${s} actions=${actions} p=${side("left")} label="L" list=${k.list} /><${PropField} s=${s} actions=${actions} p=${side("top")} label="T" list=${k.list} />
+                <${PropField} s=${s} actions=${actions} p=${side("right")} label="R" list=${k.list} /><${PropField} s=${s} actions=${actions} p=${side("bottom")} label="B" list=${k.list} />
+                <${IconBtn} icon=${I.sides} on title=${mixed ? "The sides differ" : "One value across and one down"} onClick=${() => setEach(false)} /></div>`
+            : html`<div class="frow">
+                <${NumField} label="↔" title=${`${label} left and right`} value=${pair("left", "right")} set=${set("left", "right")} src=${src("left", "right")} list=${k.list}
+                    onCommit=${(t) => actions.setProps([side("left"), side("right")], t, k.x, [k.sides[3], k.sides[1]])} />
+                <${NumField} label="↕" title=${`${label} top and bottom`} value=${pair("top", "bottom")} set=${set("top", "bottom")} src=${src("top", "bottom")} list=${k.list}
+                    onCommit=${(t) => actions.setProps([side("top"), side("bottom")], t, k.y, [k.sides[0], k.sides[2]])} />
+                <${IconBtn} icon=${I.sides} title="Each side on its own" onClick=${() => setEach(true)} /></div>`}`;
+}
+export function SpacingSection({ s, actions }) {
+    return html`<${FSection} title="Spacing">
+        <${SpaceRow} s=${s} actions=${actions} kind="padding" />
+        ${s.tag !== "body" && html`<${SpaceRow} s=${s} actions=${actions} kind="margin" />`}
     </${FSection}>`;
 }

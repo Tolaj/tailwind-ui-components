@@ -11,8 +11,8 @@ import { UiContext } from "./panel-state.js";
 import { highlight, checkTags } from "./code-view.js";
 import { TextInput, Field } from "./controls.js";
 import { DesignTop } from "./design-tab.js";
-import { PositionSection, LayoutSection, ItemSection } from "./figma-sections.js";
-import { TypographySection, BackgroundSection, BorderSection, EffectsSection, TransformSection, MotionSection, InteractionSection, MarginSection, AddBox } from "./style-sections.js";
+import { PositionSection, LayoutSection, SpacingSection, ItemSection } from "./figma-sections.js";
+import { TypographySection, BackgroundSection, BorderSection, EffectsSection, TransformSection, MotionSection, InteractionSection, AddBox } from "./style-sections.js";
 import { ClassesSection } from "./classes-section.js";
 
 /** A labelled text field of the page panel: typed freely, committed on Enter or leaving (controls.js TextInput). */
@@ -174,7 +174,7 @@ function PagePanel({ page: pg, actions }) {
 const Styles = ({ k, s, actions, page }) => html`<${TypographySection} key=${`t${k}`} s=${s} actions=${actions} /><${BackgroundSection} key=${`b${k}`} s=${s} actions=${actions} />
     ${!page && html`<${BorderSection} key=${`r${k}`} s=${s} actions=${actions} /><${EffectsSection} key=${`e${k}`} s=${s} actions=${actions} />
         <${TransformSection} key=${`x${k}`} s=${s} actions=${actions} /><${MotionSection} key=${`n${k}`} s=${s} actions=${actions} /><${InteractionSection} key=${`i${k}`} s=${s} actions=${actions} />`}
-    <${MarginSection} key=${`m${k}`} s=${s} actions=${actions} /><${AddBox} key=${`c${k}`} actions=${actions} />`;
+    <${AddBox} key=${`c${k}`} actions=${actions} />`;
 
 const CLOSE = html`<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>`;
 const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
@@ -195,14 +195,14 @@ function Panel({ view, tab, actions }) {
         const { key, s } = view.design;
         body = html`<${DesignTop} key=${key} s=${s} actions=${actions} />
             ${s.tag !== "body" && html`<${PositionSection} key=${`p${key}`} s=${s} actions=${actions} />`}<${LayoutSection} key=${`l${key}`} s=${s} actions=${actions} />
-            <${ItemSection} key=${`f${key}`} s=${s} actions=${actions} /><${Styles} k=${key} s=${s} actions=${actions} page=${s.tag === "body"} />`;
+            <${SpacingSection} key=${`s${key}`} s=${s} actions=${actions} /><${ItemSection} key=${`f${key}`} s=${s} actions=${actions} /><${Styles} k=${key} s=${s} actions=${actions} page=${s.tag === "body"} />`;
     }
     else if (view.code) body = html`<${CodeTab} key=${view.code.key} path=${view.code.path} source=${view.code.source} indent=${view.code.indent} s=${view.code.s} actions=${actions} />`;
     else if (view.classes) body = html`<${ClassesSection} key=${view.classes.key} s=${view.classes.s} actions=${actions} />`;
     else if (view.ai) body = html`<${AiTab} key=${view.ai.key} path=${view.ai.path} outer=${view.ai.outer} actions=${actions} />`;
     else if (view.page) body = html`<${PagePanel} page=${view.page} actions=${actions} />${view.pageBody && html`
         <div class="pagehead"><b>Page styling</b><span>Applies to the whole page (its body), not an element. Click an element to style it.</span></div>
-        <${LayoutSection} key="page-l" s=${view.pageBody.s} actions=${view.pageBody.actions} /><${Styles} k="page" page s=${view.pageBody.s} actions=${view.pageBody.actions} />`}`;
+        <${LayoutSection} key="page-l" s=${view.pageBody.s} actions=${view.pageBody.actions} /><${SpacingSection} key="page-s" s=${view.pageBody.s} actions=${view.pageBody.actions} /><${Styles} k="page" page s=${view.pageBody.s} actions=${view.pageBody.actions} />`}`;
     return html`<${Head} page=${view.page} tab=${tab} actions=${actions} />${body}`;
 }
 
