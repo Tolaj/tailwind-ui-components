@@ -7,6 +7,7 @@ import { connectedApps, revokeClientForUser, issueTokenPair } from "../services/
 import FigmaToken from "../models/figmaToken.model.js";
 import OAuthClient from "../models/oauthClient.model.js";
 import OAuthToken from "../models/oauthToken.model.js";
+import { TOOLS } from "../mcp/tools.js";
 import { buildClaudeCodeKit, buildDesignPack, mcpJson, claudeMdSnippet, skillMd, TOKEN_ENV } from "../services/kit.service.js";
 
 const router = express.Router();
@@ -21,8 +22,8 @@ router.get("/", async (req, res) => {
     try {
         const userId = req.session.user.id;
         const [count, account, apps, figmaSignIns] = await Promise.all([
-            Component.countDocuments({ createdBy: userId }),
-            User.findById(userId).select("apiTokenPrefix").lean(),
+            Component.countDocuments({ createdBy: userId, useAsReference: { $ne: false }, kind: { $ne: "section" } }), // what the design pack holds
+            User.findById(userId).select("apiTokenPrefix apiTokenCreatedAt").lean(),
             connectedApps(userId),
             FigmaToken.find({ userId }).sort("-createdAt").select("createdAt").lean(),
         ]);
@@ -37,8 +38,10 @@ router.get("/", async (req, res) => {
             hasConnections: apps.length > 0 || figmaSignIns.length > 0,
             isLocal: /^https?:\/\/(localhost|127\.0\.0\.1)/.test(baseUrl(req)),
             tokenPrefix: account?.apiTokenPrefix || "",
+            tokenCreated: account?.apiTokenCreatedAt || null,
             mcpUrl: `${baseUrl(req)}/mcp`,
             tokenEnv: TOKEN_ENV,
+            toolNames: TOOLS.map((t) => t.name),
             mcpJson: mcpJson(baseUrl(req)),
             claudeMd: claudeMdSnippet(),
             skillMd: skillMd(),

@@ -1,168 +1,157 @@
 <main class="min-w-0 flex-1 p-6">
-    <div class="mx-auto max-w-4xl space-y-10 pb-24">
-        <header>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">Connect</h1>
-            <p class="max-w-2xl text-gray-600">Use your library as the UI source for Claude Code and Claude Design. Everything here is optional: the gallery and editor work on their own.</p>
-        </header>
+    <header class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">Connect</h1>
+        <p class="max-w-2xl text-gray-600">Let your tools read and write your Windcraft projects. Pick the tool you use, follow its short guide, and test it. Everything here is optional: the gallery and the editor work on their own.</p>
+    </header>
 
-        {{!-- Bridge --}}
-        <section class="rounded-xl border border-gray-900 bg-black p-5 text-white">
-            <h2 class="text-sm font-semibold">The bridge: Claude Design to Claude Code</h2>
-            <p class="mt-1 max-w-2xl text-sm text-gray-300">Your library sits in the middle, so what is designed is what gets built.</p>
-            <svg viewBox="0 0 760 120" class="mt-4 w-full" role="img" aria-label="Claude Design to Library to Claude Code, and back">
-                <defs><marker id="b1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#fff"/></marker></defs>
-                <rect x="10" y="30" width="190" height="60" rx="10" fill="none" stroke="#6b7280"/><text x="105" y="65" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">Claude Design</text>
-                <rect x="285" y="30" width="190" height="60" rx="10" fill="#fff"/><text x="380" y="65" text-anchor="middle" font-size="14" font-weight="600" fill="#000">Your Library</text>
-                <rect x="560" y="30" width="190" height="60" rx="10" fill="none" stroke="#6b7280"/><text x="655" y="65" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">Claude Code</text>
-                <path d="M200 52 H283" stroke="#fff" stroke-width="1.5" marker-end="url(#b1)"/><text x="241" y="44" text-anchor="middle" font-size="10" fill="#d1d5db">Import HTML</text>
-                <path d="M283 74 H202" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#b1)"/><text x="241" y="92" text-anchor="middle" font-size="10" fill="#9ca3af">Design pack</text>
-                <path d="M475 52 H558" stroke="#fff" stroke-width="1.5" marker-end="url(#b1)"/><text x="516" y="44" text-anchor="middle" font-size="10" fill="#d1d5db">MCP</text>
-                <path d="M558 74 H477" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#b1)"/><text x="516" y="92" text-anchor="middle" font-size="10" fill="#9ca3af">save_component</text>
-            </svg>
-            <ol class="mt-3 list-decimal space-y-1 pl-5 text-sm text-gray-300">
-                <li>Design with the <strong class="text-white">design pack</strong> attached, so Claude Design uses your components and tokens.</li>
-                <li>Bring the result back: Library, then <strong class="text-white">Import HTML</strong>. Each file becomes a tagged component with its own spec.</li>
-                <li>Claude Code finds those components over MCP and builds from them. Anything new it creates is saved back with <code class="font-mono">save_component</code>.</li>
-            </ol>
-        </section>
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
 
-        {{!-- claude.ai live connector --}}
-        <section class="rounded-xl border border-gray-200 bg-white p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="max-w-xl">
-                    <h2 class="text-sm font-semibold text-gray-900">Claude on the web (claude.ai, Claude Design)</h2>
-                    <p class="mt-1 text-sm text-gray-500">Connect once and Claude can read and add to your library directly, with no token to copy. You sign in here and approve access.</p>
+        {{!-- ── The guide for the chosen tool ───────────────────────────────────────────────────────────────── --}}
+        <div class="min-w-0">
+            <nav id="toolTabs" class="mb-5 flex flex-wrap gap-2" aria-label="Choose a tool" role="tablist">
+                <button type="button" role="tab" data-tool="claude-web" class="tool-tab rounded-lg border px-3.5 py-2 text-left text-sm">
+                    <span class="block font-semibold">Claude on the web</span><span class="block text-xs font-normal opacity-70">claude.ai · no token</span></button>
+                <button type="button" role="tab" data-tool="claude-code" class="tool-tab rounded-lg border px-3.5 py-2 text-left text-sm">
+                    <span class="block font-semibold">Claude Code</span><span class="block text-xs font-normal opacity-70">terminal · token</span></button>
+                <button type="button" role="tab" data-tool="other" class="tool-tab rounded-lg border px-3.5 py-2 text-left text-sm">
+                    <span class="block font-semibold">Cursor and others</span><span class="block text-xs font-normal opacity-70">any MCP client · token</span></button>
+                <button type="button" role="tab" data-tool="figma" class="tool-tab rounded-lg border px-3.5 py-2 text-left text-sm">
+                    <span class="block font-semibold">Figma plugin</span><span class="block text-xs font-normal opacity-70">send designs in</span></button>
+                <button type="button" role="tab" data-tool="design-pack" class="tool-tab rounded-lg border px-3.5 py-2 text-left text-sm">
+                    <span class="block font-semibold">Claude Design</span><span class="block text-xs font-normal opacity-70">download a pack</span></button>
+            </nav>
+
+            {{!-- Claude on the web --}}
+            <section data-panel="claude-web" class="rounded-xl border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold text-gray-900">Claude on the web</h2>
+                <p class="mt-1 text-sm text-gray-600">Connect once from claude.ai. You sign in to Windcraft and approve access, so there is no token to copy.</p>
+                {{#if isLocal}}
+                <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This server is on <strong>localhost</strong>, which claude.ai can't reach. Put it on a public HTTPS address and set <code class="font-mono">PUBLIC_URL</code> to it, then come back here.</p>
+                {{/if}}
+                <ol class="mt-5 space-y-5">
+                    <li class="flex gap-3"><span class="step">1</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Open the connector settings in Claude</p><p class="mt-0.5 text-sm text-gray-600">Settings, then Connectors, then <em>Add custom connector</em>. (Menu names can differ between versions.)</p></div></li>
+                    <li class="flex gap-3"><span class="step">2</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Paste this address</p>
+                        <div class="mt-2 flex items-stretch gap-2"><code id="mcpUrl" class="min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[13px] text-gray-900">{{mcpUrl}}</code><button type="button" data-copy-target="mcpUrl" class="h-auto rounded-md border border-gray-300 px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50">Copy</button></div></div></li>
+                    <li class="flex gap-3"><span class="step">3</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Press Connect and allow access</p><p class="mt-0.5 text-sm text-gray-600">You come to a Windcraft page asking you to <strong>Allow</strong>. Sign in if asked.</p></div></li>
+                    <li class="flex gap-3"><span class="step">4</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Try it</p><p class="mt-0.5 text-sm text-gray-600">In a chat, ask: <em>"Use my Windcraft projects to build a pricing page."</em></p></div></li>
+                </ol>
+                <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div><p class="text-sm font-medium text-gray-900">Test the connection</p><p class="text-xs text-gray-500">Runs the same steps Claude runs against your address and says what to fix.</p></div>
+                        <button type="button" id="checkBtn" class="h-9 rounded-md border border-gray-300 bg-white px-3.5 text-[13px] font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50">Run test</button>
+                    </div>
+                    <ul id="checkList" class="mt-3 hidden space-y-1.5 text-sm"></ul>
                 </div>
-                <span class="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-600">OAuth</span>
-            </div>
-            {{#if isLocal}}
-            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                <strong>This server is on localhost</strong>, which claude.ai can't reach. Deploy it on a public HTTPS address and set <code class="font-mono text-[13px]">PUBLIC_URL</code> to that address, then come back to this page.
-            </div>
-            {{/if}}
-            <ol class="mt-4 list-decimal space-y-1.5 pl-5 text-sm text-gray-700">
-                <li>In Claude, open <strong>Settings</strong>, then <strong>Connectors</strong>, and choose <strong>Add custom connector</strong> (menu names can differ between versions).</li>
-                <li>Paste this address:
-                    <div class="mt-1.5 flex items-stretch gap-2"><pre id="connectorUrl" class="flex-1 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-2.5 font-mono text-[12px]">{{mcpUrl}}</pre><button type="button" data-copy-target="connectorUrl" class="rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50">Copy</button></div></li>
-                <li>Press <strong>Connect</strong>. You'll come to a page on this site asking you to <strong>Allow</strong> access. Sign in if asked.</li>
-                <li>In a chat or design, ask: <em>"Use my component library to build a pricing page."</em></li>
-            </ol>
+            </section>
 
-            <div class="mt-5 rounded-lg border border-gray-200 p-3">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div><p class="text-sm font-medium text-gray-900">Test the connection</p><p class="text-xs text-gray-500">Runs the same steps Claude runs against your address and shows what to fix.</p></div>
-                    <button type="button" id="checkBtn" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50 disabled:opacity-50">Run test</button>
-                </div>
-                <ul id="checkList" class="mt-3 hidden space-y-1.5 text-sm"></ul>
-            </div>
+            {{!-- Claude Code --}}
+            <section data-panel="claude-code" class="hidden rounded-xl border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold text-gray-900">Claude Code</h2>
+                <p class="mt-1 text-sm text-gray-600">Claude Code reaches your projects over MCP. It signs in with an <a href="#token" class="font-medium underline">access token</a>.</p>
+                <ol class="mt-5 space-y-5">
+                    <li class="flex gap-3"><span class="step">1</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Create an access token</p><p class="mt-0.5 text-sm text-gray-600">Use the <a href="#token" class="font-medium underline">Access token</a> box on this page. It is shown once, so copy it into a safe place.</p></div></li>
+                    <li class="flex gap-3"><span class="step">2</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Put the token in an environment variable</p><p class="mt-0.5 text-sm text-gray-600">In your shell profile, so it never appears in a command or a file you share:</p>
+                        <div class="mt-2 flex items-stretch gap-2"><code id="envCmd" class="min-w-0 flex-1 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[13px] text-gray-900">export {{tokenEnv}}=&lt;your token&gt;</code><button type="button" data-copy-target="envCmd" class="h-auto rounded-md border border-gray-300 px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50">Copy</button></div></div></li>
+                    <li class="flex gap-3"><span class="step">3</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Add Windcraft to Claude Code</p>
+                        <div class="mt-2 flex items-stretch gap-2"><code id="addCmd" class="min-w-0 flex-1 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[13px] text-gray-900 whitespace-pre">claude mcp add --transport http tailwind-library {{mcpUrl}} --header "Authorization: Bearer ${{tokenEnv}}"</code><button type="button" data-copy-target="addCmd" class="h-auto rounded-md border border-gray-300 px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50">Copy</button></div></div></li>
+                    <li class="flex gap-3"><span class="step">4</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Try it</p><p class="mt-0.5 text-sm text-gray-600">Start Claude Code and ask: <em>"Build a landing page with my Windcraft components."</em></p></div></li>
+                </ol>
+                <details class="mt-6 rounded-lg border border-gray-200">
+                    <summary class="cursor-pointer select-none px-4 py-3 text-sm font-medium text-gray-900">Advanced: the project kit and config files</summary>
+                    <div class="space-y-4 border-t border-gray-200 p-4 text-sm text-gray-600">
+                        <p>The kit adds a project config, a short <code class="font-mono">CLAUDE.md</code> section and a skill, so Claude Code reaches for your designs every time.</p>
+                        <a href="/connect/claude-code-kit.zip" class="inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-3.5 text-[13px] font-medium text-gray-800 hover:bg-gray-50">Download kit (.zip)</a>
+                        <div><div class="mb-1 flex items-center justify-between"><span class="font-medium text-gray-900"><code class="font-mono">.mcp.json</code></span><button type="button" data-copy-target="mcpJson" class="text-xs font-medium text-gray-600 underline">Copy</button></div><pre id="mcpJson" class="overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[12px] leading-5 text-gray-900">{{mcpJson}}</pre></div>
+                        <div><div class="mb-1 flex items-center justify-between"><span class="font-medium text-gray-900"><code class="font-mono">CLAUDE.md</code> snippet</span><button type="button" data-copy-target="claudeMd" class="text-xs font-medium text-gray-600 underline">Copy</button></div><pre id="claudeMd" class="overflow-x-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[12px] leading-5 text-gray-900">{{claudeMd}}</pre></div>
+                    </div>
+                </details>
+            </section>
 
-            <h3 class="mt-5 text-sm font-semibold text-gray-900">Connected apps</h3>
-            {{#if hasConnections}}
-            <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
-                {{#each apps}}
-                <li class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                    <span><strong class="text-gray-900">{{this.name}}</strong> <span class="text-gray-500">connected {{formatDate this.since}}</span></span>
-                    <button type="button" data-revoke="{{this.clientId}}" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-red-700 hover:bg-red-50">Disconnect</button>
-                </li>
-                {{/each}}
-                {{#each figmaSignIns}}
-                <li class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                    <span><strong class="text-gray-900">Figma plugin</strong> <span class="text-gray-500">signed in {{formatDate this.since}}</span></span>
-                    <button type="button" data-revoke-figma="{{this.id}}" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-red-700 hover:bg-red-50">Sign out</button>
-                </li>
-                {{/each}}
-            </ul>
-            {{else}}
-            <p class="mt-2 text-sm text-gray-500">Nothing connected yet.</p>
-            {{/if}}
-        </section>
+            {{!-- Cursor and other MCP clients --}}
+            <section data-panel="other" class="hidden rounded-xl border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold text-gray-900">Cursor and other MCP clients</h2>
+                <p class="mt-1 text-sm text-gray-600">Any tool that speaks MCP over HTTP can use the same server. It signs in with an <a href="#token" class="font-medium underline">access token</a>.</p>
+                <dl class="mt-5 divide-y divide-gray-200 rounded-lg border border-gray-200 text-sm">
+                    <div class="grid gap-1 p-3 sm:grid-cols-[130px_1fr]"><dt class="font-medium text-gray-900">Server URL</dt><dd class="flex items-center gap-2"><code id="otherUrl" class="min-w-0 flex-1 truncate font-mono text-[13px]">{{mcpUrl}}</code><button type="button" data-copy-target="otherUrl" class="text-xs font-medium text-gray-600 underline">Copy</button></dd></div>
+                    <div class="grid gap-1 p-3 sm:grid-cols-[130px_1fr]"><dt class="font-medium text-gray-900">Transport</dt><dd>HTTP (streamable)</dd></div>
+                    <div class="grid gap-1 p-3 sm:grid-cols-[130px_1fr]"><dt class="font-medium text-gray-900">Header</dt><dd class="flex items-center gap-2"><code id="otherAuth" class="min-w-0 flex-1 truncate font-mono text-[13px]">Authorization: Bearer &lt;your token&gt;</code><button type="button" data-copy-target="otherAuth" class="text-xs font-medium text-gray-600 underline">Copy</button></dd></div>
+                </dl>
+                <p class="mt-4 text-sm text-gray-600">Keep the token in your client's secret or environment settings, not in a file that is shared.</p>
+                <div class="mt-5"><p class="text-sm font-medium text-gray-900">Tools the server offers</p>
+                    <p class="mt-1.5 flex flex-wrap gap-1.5">{{#each toolNames}}<code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[12px] text-gray-800">{{this}}</code>{{/each}}</p></div>
+            </section>
 
-        {{!-- Token --}}
-        <section class="rounded-xl border border-gray-200 bg-white p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="max-w-xl">
-                    <h2 class="text-sm font-semibold text-gray-900">1. Your API token</h2>
-                    <p class="mt-1 text-sm text-gray-500">Lets tools read and add to your library. It is shown once. Treat it like a password.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    {{#if tokenPrefix}}<span class="text-xs text-gray-500">Token <code class="font-mono">{{tokenPrefix}}…</code> active</span>{{/if}}
-                    <button type="button" id="genTokenBtn" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-gray-800 hover:bg-gray-50">{{#if tokenPrefix}}Regenerate token{{else}}Generate token{{/if}}</button>
-                </div>
-            </div>
-            <div id="tokenBox" class="mt-4 hidden">
-                <p class="mb-1.5 text-xs text-gray-500">Copy it now. Set it in your shell so Claude Code can read it:</p>
-                <div class="flex items-stretch gap-2">
-                    <pre id="tokenCmd" class="flex-1 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[12px] leading-5 text-gray-900"></pre>
-                    <button type="button" data-copy-target="tokenCmd" class="rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50">Copy</button>
-                </div>
-            </div>
-        </section>
+            {{!-- Figma plugin --}}
+            <section data-panel="figma" class="hidden rounded-xl border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold text-gray-900">Figma plugin</h2>
+                <p class="mt-1 text-sm text-gray-600">Send a Figma design in and get editable Tailwind code, saved into one of your projects. No token: the plugin signs in with your Windcraft account.</p>
+                <ol class="mt-5 space-y-5">
+                    <li class="flex gap-3"><span class="step">1</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Open the Windcraft plugin in Figma</p></div></li>
+                    <li class="flex gap-3"><span class="step">2</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Sign in with this account</p><p class="mt-0.5 text-sm text-gray-600">You are asked to approve it once. It then shows under <em>Connected</em> on this page.</p></div></li>
+                    <li class="flex gap-3"><span class="step">3</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Send a design</p><p class="mt-0.5 text-sm text-gray-600">Choose the project to save it in. The design opens in the editor as code you can change.</p></div></li>
+                </ol>
+            </section>
 
-        {{!-- Claude Code --}}
-        <section class="rounded-xl border border-gray-200 bg-white p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="max-w-xl">
-                    <h2 class="text-sm font-semibold text-gray-900">2. Claude Code</h2>
-                    <p class="mt-1 text-sm text-gray-500">Claude Code connects to your library over MCP. The kit adds a project config, a short <code class="font-mono">CLAUDE.md</code> section and a skill so it reaches for your components every time.</p>
-                </div>
-                <a href="/connect/claude-code-kit.zip" class="inline-flex h-9 items-center rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800">Download kit (.zip)</a>
-            </div>
+            {{!-- Claude Design (the design pack) --}}
+            <section data-panel="design-pack" class="hidden rounded-xl border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold text-gray-900">Claude Design</h2>
+                <p class="mt-1 text-sm text-gray-600">Claude Design works from files you attach, so this is a download, not a live connection. The pack holds your design guide, the designs you marked <em>Use as AI reference</em> with their specs, and a brief with the rules.</p>
+                <ol class="mt-5 space-y-5">
+                    <li class="flex gap-3"><span class="step">1</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Download the pack</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-3"><a href="/connect/design-pack.zip" class="inline-flex h-9 items-center rounded-md bg-black px-3.5 text-[13px] font-medium text-white hover:bg-neutral-800">Download pack (.zip)</a><span class="text-sm text-gray-500">{{count}} design{{#unless (eq count 1)}}s{{/unless}} in it. Download again any time to pick up changes.</span></div></div></li>
+                    <li class="flex gap-3"><span class="step">2</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Attach the files in Claude Design</p><p class="mt-0.5 text-sm text-gray-600">Unzip it, then attach <code class="font-mono">BRIEF.md</code>, <code class="font-mono">design-guide.md</code> and the designs you want it to use.</p></div></li>
+                    <li class="flex gap-3"><span class="step">3</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Say what to design</p><p class="mt-0.5 text-sm text-gray-600">Write it at the bottom of <code class="font-mono">BRIEF.md</code>.</p></div></li>
+                    <li class="flex gap-3"><span class="step">4</span><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">Bring the result back</p><p class="mt-0.5 text-sm text-gray-600">Paste anything new into <strong>New design</strong>, or import the HTML files on a project page. If Claude is connected on the web, it can save the design itself.</p></div></li>
+                </ol>
+            </section>
+        </div>
 
-            <ol class="mt-4 list-decimal space-y-1 pl-5 text-sm text-gray-700">
-                <li>Set the token in your shell (step 1).</li>
-                <li>Put <code class="font-mono">.mcp.json</code> in your project root and the skill in <code class="font-mono">.claude/skills/ui-library/</code>.</li>
-                <li>Add the snippet to your <code class="font-mono">CLAUDE.md</code>.</li>
-                <li>Start Claude Code and ask: <em>"Build a landing page using my component library."</em></li>
-            </ol>
-
-            <details class="mt-4 rounded-lg border border-gray-200">
-                <summary class="cursor-pointer px-4 py-2.5 text-sm font-medium text-gray-900">Or connect with one command</summary>
-                <div class="border-t border-gray-200 p-4">
-                    <pre id="oneLiner" class="overflow-x-auto rounded-md bg-gray-50 p-3 font-mono text-[12px] leading-5">claude mcp add --transport http tailwind-library {{mcpUrl}} --header "Authorization: Bearer $\{{tokenEnv}}"</pre>
-                    <button type="button" data-copy-target="oneLiner" class="mt-2 h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium hover:bg-gray-50">Copy</button>
+        {{!-- ── Access and status ───────────────────────────────────────────────────────────────────────────── --}}
+        <aside class="space-y-5">
+            <section id="token" class="rounded-xl border border-gray-200 bg-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div><h2 class="text-base font-semibold text-gray-900">Access token</h2>
+                        <p class="mt-0.5 text-xs text-gray-500">For Claude Code, Cursor and other MCP clients. Claude on the web and the Figma plugin sign in instead.</p></div>
+                    {{#if tokenPrefix}}<span class="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">Active</span>{{else}}<span class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">None</span>{{/if}}
                 </div>
-            </details>
-
-            <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                    <div class="mb-1.5 flex items-center justify-between"><p class="text-xs font-semibold text-gray-600">.mcp.json</p><button type="button" data-copy-target="mcpJsonBox" class="text-xs font-medium text-gray-600 underline">Copy</button></div>
-                    <pre id="mcpJsonBox" class="max-h-56 overflow-auto rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[11.5px] leading-5">{{mcpJson}}</pre>
+                {{#if tokenPrefix}}
+                <div class="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm"><code class="font-mono text-gray-900">{{tokenPrefix}}…</code>{{#if tokenCreated}}<span class="text-xs text-gray-500"> · created {{formatDate tokenCreated}}</span>{{/if}}</div>
+                {{/if}}
+                <div id="tokenBox" class="mt-3 hidden rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-xs font-medium text-amber-900">Copy your token now. It is shown only once.</p>
+                    <div class="mt-2 flex items-stretch gap-2"><code id="tokenValue" class="min-w-0 flex-1 overflow-x-auto rounded border border-amber-200 bg-white px-2 py-1.5 font-mono text-[12px] text-gray-900"></code><button type="button" data-copy-target="tokenValue" class="rounded border border-amber-300 bg-white px-2.5 text-xs font-medium text-amber-900 hover:bg-amber-100">Copy</button></div>
                 </div>
-                <div>
-                    <div class="mb-1.5 flex items-center justify-between"><p class="text-xs font-semibold text-gray-600">CLAUDE.md snippet</p><button type="button" data-copy-target="claudeMdBox" class="text-xs font-medium text-gray-600 underline">Copy</button></div>
-                    <pre id="claudeMdBox" class="max-h-56 overflow-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 p-3 font-mono text-[11.5px] leading-5">{{claudeMd}}</pre>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" id="genTokenBtn" class="h-8 rounded-md bg-black px-3 text-[13px] font-medium text-white hover:bg-neutral-800">{{#if tokenPrefix}}Regenerate{{else}}Create token{{/if}}</button>
+                    {{#if tokenPrefix}}<button type="button" id="revokeTokenBtn" class="h-8 rounded-md border border-gray-300 px-3 text-[13px] font-medium text-red-700 hover:bg-red-50">Revoke</button>{{/if}}
                 </div>
-            </div>
-        </section>
+                <p class="mt-3 text-xs text-gray-500">Treat it like a password: anyone who has it can read and add to your projects. Regenerating or revoking stops the old one at once.</p>
+            </section>
 
-        {{!-- Claude Design --}}
-        <section class="rounded-xl border border-gray-200 bg-white p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="max-w-xl">
-                    <h2 class="text-sm font-semibold text-gray-900">3. Claude Design</h2>
-                    <p class="mt-1 text-sm text-gray-500">Claude Design works from files you attach, so this is a download rather than a live connection. The pack holds your design guide, every component with its spec, and a brief with the rules.</p>
-                </div>
-                <a href="/connect/design-pack.zip" class="inline-flex h-9 items-center rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800">Download pack (.zip)</a>
-            </div>
-            <ol class="mt-4 list-decimal space-y-1 pl-5 text-sm text-gray-700">
-                <li>Download the pack and unzip it.</li>
-                <li>Attach <code class="font-mono">BRIEF.md</code>, <code class="font-mono">design-guide.md</code> and the components you want it to use.</li>
-                <li>Write what you want designed at the bottom of <code class="font-mono">BRIEF.md</code>.</li>
-                <li>Anything it invents that isn't in the pack can be pasted back in with <strong>New component</strong>.</li>
-            </ol>
-            <p class="mt-3 text-xs text-gray-500">The pack contains your {{count}} component{{#unless (eq count 1)}}s{{/unless}} that are marked <em>Use as AI reference</em>. Rebuild it any time to pick up changes.</p>
-        </section>
-
-        {{!-- Others --}}
-        <section class="rounded-xl border border-gray-200 bg-white p-5">
-            <h2 class="text-sm font-semibold text-gray-900">Other MCP clients</h2>
-            <p class="mt-1 text-sm text-gray-500">Cursor, Windsurf and other tools that speak MCP over HTTP can use the same server.</p>
-            <dl class="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[120px_1fr]">
-                <dt class="text-gray-500">Server URL</dt><dd><code class="font-mono text-[13px]">{{mcpUrl}}</code></dd>
-                <dt class="text-gray-500">Auth header</dt><dd><code class="font-mono text-[13px]">Authorization: Bearer YOUR_TOKEN</code></dd>
-                <dt class="text-gray-500">Tools</dt><dd><code class="font-mono text-[13px]">get_design_guide, search_components, get_component, get_design_spec, apply_design_patch, save_component, list_tags</code></dd>
-            </dl>
-        </section>
+            <section class="rounded-xl border border-gray-200 bg-white p-5">
+                <h2 class="text-base font-semibold text-gray-900">Connected</h2>
+                {{#if hasConnections}}
+                <ul class="mt-3 divide-y divide-gray-100">
+                    {{#each apps}}
+                    <li class="flex items-center justify-between gap-3 py-2.5 text-sm"><div class="min-w-0"><p class="truncate font-medium text-gray-900">{{this.name}}</p><p class="text-xs text-gray-500">Connected {{formatDate this.since}}</p></div>
+                        <button type="button" data-revoke="{{this.clientId}}" class="shrink-0 text-xs font-medium text-red-700 underline">Disconnect</button></li>
+                    {{/each}}
+                    {{#each figmaSignIns}}
+                    <li class="flex items-center justify-between gap-3 py-2.5 text-sm"><div class="min-w-0"><p class="font-medium text-gray-900">Figma plugin</p><p class="text-xs text-gray-500">Signed in {{formatDate this.since}}</p></div>
+                        <button type="button" data-revoke-figma="{{this.id}}" class="shrink-0 text-xs font-medium text-red-700 underline">Sign out</button></li>
+                    {{/each}}
+                </ul>
+                {{else}}
+                <p class="mt-2 text-sm text-gray-500">Nothing connected yet. Pick a tool on the left to start.</p>
+                {{/if}}
+            </section>
+        </aside>
     </div>
 </main>
-<script src="/public/js/connect.js"></script>
+<style>
+    .step { display: flex; height: 1.5rem; width: 1.5rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; background: #111827; color: #fff; font-size: 12px; font-weight: 600; margin-top: 1px; }
+    .tool-tab { background: #fff; border-color: #e5e7eb; color: #374151; transition: border-color .12s, background .12s; }
+    .tool-tab:hover { border-color: #9ca3af; }
+    .tool-tab.is-on { background: #111827; border-color: #111827; color: #fff; }
+</style>
+<script type="module" src="/public/js/connect.js"></script>

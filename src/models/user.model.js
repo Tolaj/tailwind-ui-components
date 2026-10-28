@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema(
         activeProject: { type: mongoose.Schema.Types.ObjectId, ref: "Project", default: null },
         apiTokenHash: { type: String, default: "", index: true },
         apiTokenPrefix: { type: String, default: "" },
+        apiTokenCreatedAt: { type: Date, default: null },
         llmSettings: {
             enabled: { type: Boolean, default: false },
             provider: { type: String, enum: ["anthropic", "local"], default: "anthropic" },

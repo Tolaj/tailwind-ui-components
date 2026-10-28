@@ -143,8 +143,19 @@ export const createApiToken = async (req, res) => {
         await User.findByIdAndUpdate(req.session.user.id, {
             apiTokenHash: crypto.createHash("sha256").update(token).digest("hex"),
             apiTokenPrefix: token.slice(0, 8),
+            apiTokenCreatedAt: new Date(),
         });
         res.status(200).json({ success: true, token });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/** Ends the person's access token at once: tools using it stop working. */
+export const revokeApiToken = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.session.user.id, { apiTokenHash: "", apiTokenPrefix: "", apiTokenCreatedAt: null });
+        res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
