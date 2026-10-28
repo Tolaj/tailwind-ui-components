@@ -1,6 +1,7 @@
 import { parseComponentSource, buildPreviewDocument } from "../../playground/component-source.js";
 import { host } from "../host.js";
 import { normalizeGroup } from "@windcraft/core/pages.js";
+import { GAP_X } from "@windcraft/core/board-layout.js";
 import { DEVICES } from "../float-toolbar.js";
 import { $, S, collapsed, data, esc, frame, model, send } from "./base.js";
 import { MIN_H, applyView, canvas, fitTo, heightOfDoc, layout, pageGroupOf, placePills, positions, view, widthOf } from "./plane.js";
@@ -512,13 +513,30 @@ canvas.addEventListener("pointermove", (e) => {
     });
     try { S.lastCustom = JSON.parse(localStorage.getItem("wc:customSize") || "null"); } catch { /* storage is optional */ }
 
+/**
+ * Where a new page goes: in the row of the page being edited, just right of the furthest frame in that row, so it lands on nothing.
+ * The spot is kept (a board position), so moving other pages later never moves it.
+ */
+function freeSpot() {
+    const pos = positions(), cur = pos[S.curKey] || { x: 0, y: 0 };
+    let right = null;
+    docs.forEach((d, k) => {
+        const p = pos[k];
+        if (!p) return;
+        const h = heightOfDoc(d);
+        if (p.y < cur.y + MIN_H && cur.y < p.y + h) right = Math.max(right ?? -Infinity, p.x + widthOf(d)); // a frame beside that row
+    });
+    return { x: Math.round(right === null ? 0 : right + GAP_X), y: Math.round(cur.y) };
+}
+
 $("newDesignBtn").addEventListener("click", async () => {
     $("designsMenu").classList.add("hidden");
     const project = await ensureProject();
     if (!project) return;
     const key = `draft-${++draftCount}`;
+    const spot = freeSpot();
     docs.set(key, {
-        key, kind: "page", parent: null, board: null, source: "", loaded: true, isNew: true, height: 0,
+        key, kind: "page", parent: null, board: spot, source: "", loaded: true, isNew: true, height: 0,
         parsed: parseComponentSource(""), markup: "", history: [], hIndex: -1, savedMarkup: "",
         meta: { id: null, title: "Untitled page", version: 0, category: data.category || DEFAULT_CATEGORY, description: "A page on the canvas.", tags: [], isPublished: false, project },
     });
