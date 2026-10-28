@@ -1,6 +1,10 @@
 # Windcraft: platform and catalog plan (v2)
 
-Status: decisions settled (section 7); nothing here is built yet. The aim of this plan is subtraction: every concept, page and field either earns
+Status: decisions settled (section 7), with one reversal: **the public gallery stays and is the catalog** (revised by the owner after
+the gallery was replaced and then restored; commit d387b44 reverts 501f1ce). So the home page, category and component pages, `isPublished`,
+the Library page and the public gallery API are all back, and the plan's sections about replacing them (sections 2 to 4 where they say
+"Remove" or "Replace by Catalog") no longer apply. The separate `/catalog` pages built in Phase 3 (hand-made Button and Input) are
+unchanged and need a decision (merge into the gallery, or remove). Work that was undone is kept in git stashes, not lost. The aim of this plan is subtraction: every concept, page and field either earns
 its place or goes. What remains is one noun, one catalog, and a few verbs.
 
 ## 1. The test every part must pass
