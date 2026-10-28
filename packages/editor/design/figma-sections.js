@@ -5,8 +5,8 @@
 //   setProp · setProps · resetProp · setGeom · freePosition · align · arrange · group · ungroup · autoLayout · sizeItMyself
 import { html, useState } from "../vendor/preact-htm.js";
 import { srcOf, shownOf, ownsValue, styled, val, variant, PRESETS, OPTS } from "./panel-model.js";
-import { getGroup, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
-import { groupOf } from "@windcraft/core/prop-tailwind.js";
+import { parseToken } from "@windcraft/core/class-groups.js";
+import { tokenFor } from "@windcraft/core/prop-tailwind.js";
 import { useUi } from "./panel-state.js";
 import { TextInput } from "./controls.js";
 
@@ -52,12 +52,14 @@ export const IconBtn = ({ icon, title, on, faint, onClick }) => html`<button typ
     disabled=${faint || undefined} onClick=${onClick}>${icon}</button>`;
 /**
  * A field with a letter (or icon) in front, as Figma draws X, Y, W, H: solid when the element's styling gives the value, faint
- * otherwise. `src` ("tw" or "css") marks where a set value comes from (a blue or amber edge); `onReset` adds a × that takes it off.
+ * otherwise. `src` ("tw" or "css") marks where a set value comes from (a blue or amber edge). Clearing the field takes the value
+ * off (`onReset`: how, for a field over several properties or classes); a style added as a row of its own (an effect, a
+ * transform...) is removed with the − beside it, as everywhere in the panel.
  * `list`: a datalist of suggestions (Tailwind's scale, fonts...).
  */
 export const NumField = ({ label, value, set, src, onReset, disabled, title, list, placeholder, onCommit, children }) => html`<label class=${`nf ${set ? "" : "unset"} ${disabled ? "off" : ""} ${src ? `src-${src}` : ""}`} title=${title}>
-    <span class="nfl">${label}</span><${TextInput} class="nfi" value=${value ?? ""} disabled=${disabled} list=${list} placeholder=${placeholder} onCommit=${onCommit} />${children}
-    ${onReset && html`<button type="button" class="nfx" title="Remove this value" onMouseDown=${(e) => e.preventDefault()} onClick=${(e) => { e.preventDefault(); onReset(); }}>×</button>`}</label>`;
+    <span class="nfl">${label}</span><${TextInput} class="nfi" value=${value ?? ""} disabled=${disabled} list=${list} placeholder=${placeholder}
+        onCommit=${(t) => (t.trim() === "" && onReset ? onReset() : onCommit && onCommit(t))} />${children}</label>`;
 /** Where a property's value comes from, for a field's edge mark and tooltip: "tw" (a class), "css" (a style), or "". */
 export const srcKind = (s, p) => { if (variant()) return atVariant(s, p) ? "tw" : ""; const k = srcOf(s, p).source; return k === "tailwind" ? "tw" : k === "inline" || k === "design" ? "css" : ""; };
 export const srcNote = (s, p) => {
@@ -71,22 +73,11 @@ export const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ?
 // With a breakpoint or state picked in the panel (md:, hover:) a field is about that variant: set when the element has a class
 // for it there, faint (showing the value it inherits) when not. Without one, about the value the element shows.
 /** The element's class for `p` at the picked breakpoint / state, or null (also when none is picked). */
-// the shorter classes that also set a property (md:px-8 sets padding-left, md:rounded-lg every corner), looked at after its own
-const SHORTER = { pl: ["px", "p"], pr: ["px", "p"], pt: ["py", "p"], pb: ["py", "p"], ml: ["mx", "m"], mr: ["mx", "m"], mt: ["my", "m"], mb: ["my", "m"],
-    top: ["inset"], right: ["inset"], bottom: ["inset"], left: ["inset"], gapX: ["gap"], gapY: ["gap"],
-    radiusTL: ["radius"], radiusTR: ["radius"], radiusBR: ["radius"], radiusBL: ["radius"], borderT: ["borderWidth"], borderR: ["borderWidth"], borderB: ["borderWidth"], borderL: ["borderWidth"] };
-const GROUP_OF = { "column-gap": "gapX", "row-gap": "gapY", "border-top-left-radius": "radiusTL", "border-top-right-radius": "radiusTR", "border-bottom-right-radius": "radiusBR",
-    "border-bottom-left-radius": "radiusBL", "border-top-width": "borderT", "border-right-width": "borderR", "border-bottom-width": "borderB", "border-left-width": "borderL" };
 /** The value a class gives `p`, also through a shorter class (mx-auto -> auto for margin-left, md:px-8 -> 8), or null. */
 function readToken(p, token) {
-    const g = GROUP_OF[p] || groupOf(p);
-    if (!g || !token) return null;
-    const base = parseToken(token).base;
-    for (const k of [g, ...(SHORTER[g] || [])]) {
-        const m = GROUPS[k] && base.match(GROUPS[k].re);
-        if (m) return String(GROUPS[k].read(m)).replace(/^\[(.*)\]$/, "$1").replace(/_/g, " ");
-    }
-    return null;
+    if (!token) return null;
+    const r = tokenFor(token, p, parseToken(token).variant);
+    return r ? String(r.value).replace(/^\[(.*)\]$/, "$1").replace(/_/g, " ") : null;
 }
 /** What a field shows for `p`: the class's own value (8, auto, 1/2, 2xl) where a class gives it, else the computed one (24px -> 24). */
 export function shownValue(s, p) {
@@ -98,13 +89,10 @@ export function shownValue(s, p) {
     const c = shownOf(s, p, src);
     return /^-?[\d.]+px$/.test(c) ? num(c) : c;
 }
-export const atVariant = (s, p) => {
-    const v = variant(), g = v && (GROUP_OF[p] || groupOf(p));
-    if (!g) return null;
-    for (const k of [g, ...(SHORTER[g] || [])]) { const r = GROUPS[k] && getGroup(s.classes, k, v); if (r) return r; }
-    return null;
-};
+export const atVariant = (s, p) => { const v = variant(); return v ? tokenFor(s.classes, p, v) : null; };
 export const owns = (s, p) => (variant() ? Boolean(atVariant(s, p)) : ownsValue(srcOf(s, p))); // set on this element itself: can be taken off
+/** Takes a style off: its class or inline value comes off; one the design's own CSS rule gives is overridden (text styles go back to inheriting, the rest to their initial value). */
+export const off = (s, actions, p, v = "initial") => (owns(s, p) ? actions.resetProp(p) : has(s, p) ? actions.setProp(p, v) : null);
 export const has = (s, p) => (variant() ? Boolean(atVariant(s, p)) : styled(srcOf(s, p))); // given by its own styling (also the design's CSS): drawn solid
 export const comp = (s, p) => (s.computed || {})[p] || "";
 
@@ -283,7 +271,7 @@ function SizeField({ s, actions, axis }) {
         return actions.setGeom(axis, t);
     };
     return html`<${NumField} label=${axis === "w" ? "W" : "H"} value=${num(axis === "w" ? s.geom.w : s.geom.h)} set=${has(s, p) || (mode === "fill" && has(s, "flex-grow")) || (axis === "h" && Boolean(ratioOf(s)))}
-        src=${srcKind(s, p)} title=${`${p}: ${mode} · ${srcNote(s, p)}`} onCommit=${commit}>
+        src=${srcKind(s, p)} title=${`${p}: ${mode} · ${srcNote(s, p)}`} onReset=${has(s, p) ? () => off(s, actions, p) : null} onCommit=${commit}>
         <select class="nfs" title="Fixed, Hug contents or Fill container" onChange=${(e) => setSizing(s, actions, axis, e.target.value)}>
             ${SIZING.map(([v, l]) => html`<option value=${v} selected=${mode === v}>${l}</option>`)}</select></${NumField}>`;
 }
@@ -317,15 +305,14 @@ function toggleRatio(s, actions) {
 export const PropField = ({ s, actions, p, label, title, list }) => {
     const value = shownValue(s, p); // a number as one (24px -> 24), a word or a Tailwind value as itself (auto, 2xl, 1/2)
     return html`<${NumField} label=${label} title=${`${title || p} · ${srcNote(s, p)}`} value=${value} list=${list}
-        set=${has(s, p)} src=${srcKind(s, p)} onReset=${owns(s, p) ? () => actions.resetProp(p) : null} onCommit=${(t) => actions.setProp(p, t)} />`;
+        set=${has(s, p)} src=${srcKind(s, p)} onReset=${has(s, p) ? () => off(s, actions, p) : null} onCommit=${(t) => actions.setProp(p, t)} />`;
 };
 /** A choice of CSS values as a Figma field: the current one picked, faint when only a default gives it, × to remove a set one. */
 export const PropSelect = ({ s, actions, p, label, title, options }) => {
     const v = comp(s, p), opts = options.some(([o]) => o === v) || !v ? options : [[v, v], ...options];
     return html`<label class=${`nf ${has(s, p) ? "" : "unset"} ${srcKind(s, p) ? `src-${srcKind(s, p)}` : ""}`} title=${`${title || p} · ${srcNote(s, p)}`}>
         ${label && html`<span class="nfl">${label}</span>`}<select class="nfs wide" onChange=${(e) => actions.setProp(p, e.target.value)}>
-            ${opts.map(([o, l]) => html`<option value=${o} selected=${o === v}>${l}</option>`)}</select>
-        ${owns(s, p) && html`<button type="button" class="nfx" title="Remove this value" onClick=${(e) => { e.preventDefault(); actions.resetProp(p); }}>×</button>`}</label>`;
+            ${opts.map(([o, l]) => html`<option value=${o} selected=${o === v}>${l}</option>`)}</select></label>`;
 };
 
 const MORE = [["min-width", "Min W", "dl-minW"], ["max-width", "Max W", "dl-maxW"], ["min-height", "Min H", "dl-minH"], ["max-height", "Max H", "dl-maxH"]];
@@ -346,8 +333,7 @@ export const TwSelect = ({ s, k, label, title, actions }) => {
     const v = val(s, k, useUi());
     return html`<label class=${`nf ${v ? "src-tw" : "unset"}`} title=${title || k}>${label && html`<span class="nfl">${label}</span>`}
         <select class="nfs wide" onChange=${(e) => actions.applyValue(k, e.target.value)}><option value="" selected=${!v}>–</option>
-            ${(OPTS[k] || []).map(([o, l]) => html`<option value=${o} selected=${o === v}>${l}</option>`)}</select>
-        ${v && html`<button type="button" class="nfx" title="Remove this class" onClick=${(e) => { e.preventDefault(); actions.applyValue(k, ""); }}>×</button>`}</label>`;
+            ${(OPTS[k] || []).map(([o, l]) => html`<option value=${o} selected=${o === v}>${l}</option>`)}</select></label>`;
 };
 
 export function LayoutSection({ s, actions }) {
@@ -371,7 +357,7 @@ export function LayoutSection({ s, actions }) {
             <div class="lcol">
                 ${twoGaps ? html`<div class="frow"><${PropField} s=${s} actions=${actions} p="column-gap" label="↔" title="Gap between columns" list="dl-gap" /><${PropField} s=${s} actions=${actions} p="row-gap" label="↕" title="Gap between rows" list="dl-gap" /></div>`
                     : html`<${NumField} label=${kind === "col" ? "↕" : "↔"} title="Gap between children" value=${between ? "Auto" : num(comp(s, kind === "col" ? "row-gap" : "column-gap"))} list="dl-gap"
-                        set=${has(s, "gap") || has(s, kind === "col" ? "row-gap" : "column-gap")} src=${srcKind(s, "gap")} onReset=${owns(s, "gap") ? () => actions.resetProp("gap") : null} onCommit=${(t) => actions.setProp("gap", t)} />`}
+                        set=${has(s, "gap") || has(s, kind === "col" ? "row-gap" : "column-gap")} src=${srcKind(s, "gap")} onReset=${has(s, "gap") ? () => off(s, actions, "gap") : null} onCommit=${(t) => actions.setProp("gap", t)} />`}
                 <div class="ibg">
                     <${IconBtn} icon=${I.between} on=${between} title=${between ? "Space between: on" : "Space between the children (justify-between)"} onClick=${() => actions.setProp("justify-content", between ? "flex-start" : "space-between")} />
                     <${IconBtn} icon=${I.wrap} on=${wrapOn} title=${wrapOn ? "Wrap: on" : "Wrap onto more lines"} onClick=${() => actions.setProp("flex-wrap", wrapOn ? "nowrap" : "wrap")} />
@@ -427,6 +413,7 @@ function SpaceRow({ s, actions, kind }) {
     const pair = (a, b) => { const x = one(a), y = one(b); return x === y ? x : "Mixed"; };
     const set = (a, b) => has(s, side(a)) || has(s, side(b));
     const src = (a, b) => srcKind(s, side(a)) || srcKind(s, side(b));
+    const reset = (a, b) => (has(s, side(a)) || has(s, side(b)) ? () => [side(a), side(b)].forEach((p) => off(s, actions, p)) : null);
     const mixed = pair("left", "right") === "Mixed" || pair("top", "bottom") === "Mixed";
     const label = kind === "padding" ? "Padding" : "Margin";
     return html`<${Sub}>${label}${kind === "margin" ? html` <span class="fsubn">(auto centres)</span>` : ""}</${Sub}>
@@ -435,9 +422,9 @@ function SpaceRow({ s, actions, kind }) {
                 <${PropField} s=${s} actions=${actions} p=${side("right")} label="R" list=${k.list} /><${PropField} s=${s} actions=${actions} p=${side("bottom")} label="B" list=${k.list} />
                 <${IconBtn} icon=${I.sides} on title=${mixed ? "The sides differ" : "One value across and one down"} onClick=${() => setEach(false)} /></div>`
             : html`<div class="frow">
-                <${NumField} label="↔" title=${`${label} left and right`} value=${pair("left", "right")} set=${set("left", "right")} src=${src("left", "right")} list=${k.list}
+                <${NumField} label="↔" title=${`${label} left and right`} value=${pair("left", "right")} set=${set("left", "right")} src=${src("left", "right")} list=${k.list} onReset=${reset("left", "right")}
                     onCommit=${(t) => actions.setProps([side("left"), side("right")], t, k.x, [k.sides[3], k.sides[1]])} />
-                <${NumField} label="↕" title=${`${label} top and bottom`} value=${pair("top", "bottom")} set=${set("top", "bottom")} src=${src("top", "bottom")} list=${k.list}
+                <${NumField} label="↕" title=${`${label} top and bottom`} value=${pair("top", "bottom")} set=${set("top", "bottom")} src=${src("top", "bottom")} list=${k.list} onReset=${reset("top", "bottom")}
                     onCommit=${(t) => actions.setProps([side("top"), side("bottom")], t, k.y, [k.sides[0], k.sides[2]])} />
                 <${IconBtn} icon=${I.sides} title="Each side on its own" onClick=${() => setEach(true)} /></div>`}`;
 }

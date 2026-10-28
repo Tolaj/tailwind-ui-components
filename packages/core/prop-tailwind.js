@@ -1,7 +1,7 @@
 // The Properties panel works in CSS properties (width, background-color...). When an edit goes to Tailwind, this turns the
 // property and the typed value into a class group of class-groups.js and the value to build it with. Anything without a
 // clean Tailwind form (a transform, a filter, a font stack) returns null, and the edit is written as CSS instead.
-import { GROUPS, parseToken, STEPS } from "./class-groups.js";
+import { GROUPS, parseToken, STEPS, getGroup } from "./class-groups.js";
 
 const same = (prefix) => (v) => `${prefix}${v}`;
 const pick = (map) => (v) => map[v] || null;
@@ -63,6 +63,21 @@ export function fromPx(key, n) {
 
 /** Whether a bare number is a step of the group's own scale (w-64, leading-6) rather than pixels (font size has no number scale). */
 export const hasScale = (key) => SCALED.has(key) || key === "leading" || key === "z" || key === "opacity";
+
+// the shorter classes that also set a property (px-8 sets padding-left, rounded-lg every corner), looked at after its own
+const SHORTER = { pl: ["px", "p"], pr: ["px", "p"], pt: ["py", "p"], pb: ["py", "p"], ml: ["mx", "m"], mr: ["mx", "m"], mt: ["my", "m"], mb: ["my", "m"],
+    top: ["inset"], right: ["inset"], bottom: ["inset"], left: ["inset"], gapX: ["gap"], gapY: ["gap"],
+    radiusTL: ["radius"], radiusTR: ["radius"], radiusBR: ["radius"], radiusBL: ["radius"], borderT: ["borderWidth"], borderR: ["borderWidth"], borderB: ["borderWidth"], borderL: ["borderWidth"] };
+// properties whose own group is a side or corner one (the general groupOf writes them with the all-sides class)
+const SIDE_GROUP = { "column-gap": "gapX", "row-gap": "gapY", "border-top-left-radius": "radiusTL", "border-top-right-radius": "radiusTR", "border-bottom-right-radius": "radiusBR",
+    "border-bottom-left-radius": "radiusBL", "border-top-width": "borderT", "border-right-width": "borderR", "border-bottom-width": "borderB", "border-left-width": "borderL" };
+/** The class in `classes` that gives `prop` at `variant` (md:, hover:), also through a shorter one (px-8 for padding-left), or null. */
+export function tokenFor(classes, prop, variant = "") {
+    const g = SIDE_GROUP[prop] || groupOf(prop);
+    if (!g) return null;
+    for (const k of [g, ...(SHORTER[g] || [])]) { const r = GROUPS[k] && getGroup(classes, k, variant); if (r) return { ...r, group: k }; }
+    return null;
+}
 
 /** The class group a property is written with in Tailwind, or null when it has none. */
 export function groupOf(prop) {

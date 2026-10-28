@@ -4,7 +4,7 @@
 //   select(path) · move(dir) · duplicate() · remove() · setTag(tag) · setBreakpoint(bp) · setState(st) · setText(text) · setAttr(name, value)
 import { html, useState } from "../vendor/preact-htm.js";
 import { BREAKPOINT_WIDTH, parseToken } from "@windcraft/core/class-groups.js";
-import { TAG_KINDS, variant, modeFor } from "./panel-model.js";
+import { TAG_KINDS, variant } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, TextArea, SelectInput, Field } from "./controls.js";
 import { I, IconBtn } from "./figma-sections.js";
@@ -34,7 +34,8 @@ const ElementBar = ({ s, actions }) => {
         </div></div>`;
 };
 
-const Legend = ({ s }) => html`<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s, useUi()) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
+/** A key to the edge on fields: blue for a Tailwind class, amber for CSS. */
+const Legend = () => html`<p class="legend"><span class="edge tw"></span>Tailwind <span class="edge css"></span>CSS</p>`;
 
 /**
  * Where edits go, as a frontend developer thinks of it: Screen (all sizes, or from a breakpoint up: md:) and State (default, or
@@ -114,6 +115,6 @@ const Content = ({ s, actions }) => {
 
 /** Everything above the Design tab's sections. */
 export function DesignTop({ s, actions }) {
-    return html`<${Crumbs} s=${s} actions=${actions} /><${ElementBar} s=${s} actions=${actions} />
-        <${Legend} s=${s} /><${VariantBar} s=${s} actions=${actions} /><${Content} s=${s} actions=${actions} />`;
+    return html`<${Crumbs} s=${s} actions=${actions} /><${ElementBar} s=${s} actions=${actions} /><${Legend} />
+        <${VariantBar} s=${s} actions=${actions} /><${Content} s=${s} actions=${actions} />`;
 }

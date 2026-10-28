@@ -10,7 +10,7 @@ import { srcOf, shownOf, val, variant } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, ColorInput } from "./controls.js";
 import { GroupColor } from "./group-controls.js";
-import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, comp, srcKind, srcNote, atVariant } from "./figma-sections.js";
+import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, off, comp, srcKind, srcNote, atVariant } from "./figma-sections.js";
 import { twShown } from "@windcraft/core/prop-tailwind.js";
 import { PropRow } from "./prop-sections.js";
 
@@ -41,13 +41,15 @@ function hexOf(name) {
     probe.className = `bg-${name.replace(/\/\d+$/, "")}`;
     return rgbToHex(getComputedStyle(probe).backgroundColor) || "#000000";
 }
+/** A × for a field made of several properties (every side, every corner): takes off each one the element sets, or null when none is. */
+const resetAll = (s, actions, props) => (props.some((p) => has(s, p)) ? () => props.forEach((p) => off(s, actions, p)) : null);
 const firstSrc = (s, props) => props.map((p) => srcKind(s, p)).find(Boolean) || "";
 /** A + that opens a short menu of what can be added (only what the element does not have yet). `items`: [value, label]. */
 const AddMenu = ({ title, items, onPick }) => (items.length ? html`<label class="ib addsel" title=${title}>${I.plus}<select onChange=${(e) => { const v = e.target.value; e.target.value = ""; if (v) onPick(v); }}>
     <option value="" selected>${title}</option>${items.map(([v, l]) => html`<option value=${v}>${l}</option>`)}</select></label>` : null);
 /** − takes a style off the element (its tooltip says which); a row that has no value yet gets × to cancel instead. */
 const Remove = ({ title, onClick }) => html`<${IconBtn} icon=${I.minus} title=${title} onClick=${onClick} />`;
-const Cancel = ({ onClick }) => html`<${IconBtn} icon=${I.close} title="Cancel" onClick=${onClick} />`;
+const Cancel = ({ onClick }) => html`<${IconBtn} icon=${I.minus} title="Remove" onClick=${onClick} />`;
 
 /** A colour as a row: a swatch, its value (a Tailwind name where a class gives it, else hex), its opacity when not full. */
 function ColorRow({ s, actions, p, all, group, onRemove, removeTitle, title, label }) {
@@ -94,9 +96,9 @@ export function TypographySection({ s, actions }) {
     const al = (v, icon, title) => html`<${IconBtn} icon=${icon} title=${title} on=${align === v || (v === "left" && align === "start")} onClick=${() => actions.setProp("text-align", v)} />`;
     const extra = MORE_TYPE.filter((c) => more || has(s, c.p));
     const clamp = val(s, "lineClamp", ui), trunc = val(s, "textOverflow", ui);
-    const own = TYPE.filter((p) => owns(s, p));
+    const own = TYPE.filter((p) => has(s, p));
     const removeAll = () => {
-        own.forEach((p) => actions.resetProp(p));
+        own.forEach((p) => off(s, actions, p, "inherit"));
         if (clamp) actions.applyValue("lineClamp", "");
         if (trunc) actions.applyValue("textOverflow", "");
         setOpen(false); setMore(false);
@@ -104,7 +106,7 @@ export function TypographySection({ s, actions }) {
     return html`<${FSection} title="Typography" extra=${html`${(own.length > 0 || clamp || trunc || (open && !s.ownText)) && html`<${Remove} title=${own.length || clamp || trunc ? "Remove this element's text styles (it goes back to what it inherits)" : "Close"} onClick=${removeAll} />`}
         <${IconBtn} icon=${I.dots} on=${more} title=${more ? "Fewer text settings" : "Decoration, case, italic, wrapping, line clamp, truncate"} onClick=${() => setMore(!more)} />`}>
         <div class="frow"><${NumField} label="Font" title=${`font-family: ${fam} · ${srcNote(s, "font-family")} (type any font, or sans / serif / mono)`} value=${famShown} list="dl-fonts"
-            set=${has(s, "font-family")} src=${srcKind(s, "font-family")} onReset=${owns(s, "font-family") ? () => actions.resetProp("font-family") : null} onCommit=${setFont} /></div>
+            set=${has(s, "font-family")} src=${srcKind(s, "font-family")} onReset=${has(s, "font-family") ? () => off(s, actions, "font-family", "inherit") : null} onCommit=${setFont} /></div>
         <div class="frow">
             <${PropSelect} s=${s} actions=${actions} p="font-weight" title="Weight" options=${WEIGHTS} />
             <${PropField} s=${s} actions=${actions} p="font-size" label="Size" title="Font size (px, or text-sm, 2xl...)" list="dl-fontSize" />
@@ -116,8 +118,10 @@ export function TypographySection({ s, actions }) {
         <div class="frow"><div class="ibg wide">${al("left", I.textL, "Align left")}${al("center", I.textC, "Align centre")}${al("right", I.textR, "Align right")}${al("justify", I.textJ, "Justify")}</div></div>
         <${ColorRow} s=${s} actions=${actions} p="color" title="Text colour" />
         ${extra.map((c) => html`<${PropRow} s=${s} actions=${actions} c=${c} />`)}
-        ${(more || clamp || trunc) && html`<div class="frow"><${TwField} s=${s} k="lineClamp" label="Clamp" title="Show at most this many lines (line-clamp-*)" actions=${actions} />
-            <${TwSelect} s=${s} k="textOverflow" label="Cut" title="Cut long text off with … (truncate)" actions=${actions} /></div>`}
+        ${(more || clamp) && html`<div class="frow"><${TwField} s=${s} k="lineClamp" label="Clamp" title="Show at most this many lines (line-clamp-*)" actions=${actions} />
+            ${clamp && html`<${Remove} title="Remove the line clamp" onClick=${() => actions.applyValue("lineClamp", "")} />`}</div>`}
+        ${(more || trunc) && html`<div class="frow"><${TwSelect} s=${s} k="textOverflow" label="Overflow" title="Cut long text off with … (truncate)" actions=${actions} />
+            ${trunc && html`<${Remove} title="Remove the text overflow" onClick=${() => actions.applyValue("textOverflow", "")} />`}</div>`}
     </${FSection}>`;
 }
 
@@ -183,22 +187,22 @@ export function BorderSection({ s, actions }) {
     return html`<${FSection} title="Border" extra=${html`<${AddMenu} title="Add a border, outline or ring" items=${items} onPick=${add} />`}>
         <div class="frow">
             <${NumField} label="Radius" title=${`border-radius · ${srcNote(s, "border-top-left-radius")}`} value=${same(s, corners)} set=${anyHas(s, corners)} src=${firstSrc(s, corners)} list="dl-radius"
-                onReset=${corners.some((p) => owns(s, p)) ? removeRadius : null} onCommit=${(t) => actions.setProps(corners, t, "radius", CORNERS.map(([, k]) => k))} />
+                onReset=${corners.some((p) => has(s, p)) ? removeRadius : null} onCommit=${(t) => actions.setProps(corners, t, "radius", CORNERS.map(([, k]) => k))} />
             <${IconBtn} icon=${I.corners} on=${each || mixedR} title="Each corner on its own" onClick=${() => setEach(!each)} />
         </div>
         ${(each || mixedR) && html`<div class="frow two2">${CORNERS.map(([c, k, l]) => html`<${NumField} label=${l} title=${`${c} radius`} value=${num(comp(s, `border-${c}-radius`))}
-            set=${has(s, `border-${c}-radius`)} src=${srcKind(s, `border-${c}-radius`)} onCommit=${(t) => actions.setProps([`border-${c}-radius`], t, k)} />`)}</div>`}
+            set=${has(s, `border-${c}-radius`)} src=${srcKind(s, `border-${c}-radius`)} onReset=${resetAll(s, actions, [`border-${c}-radius`])} onCommit=${(t) => actions.setProps([`border-${c}-radius`], t, k)} />`)}</div>`}
         ${on && html`<${Sub}>Border</${Sub}>
             <${ColorRow} s=${s} actions=${actions} p="border-top-color" all=${SIDES.map((d) => `border-${d}-color`)} group="borderColor" title="Border colour (every side)" removeTitle="Remove the border" onRemove=${removeBorder} />
             <div class="frow">
-                <${NumField} label="Width" title="Border width" value=${same(s, widths)} set=${anyHas(s, widths)} src=${firstSrc(s, widths)} list="dl-borderWidth"
+                <${NumField} label="Width" title="Border width" value=${same(s, widths)} set=${anyHas(s, widths)} src=${firstSrc(s, widths)} list="dl-borderWidth" onReset=${resetAll(s, actions, widths)}
                     onCommit=${(t) => actions.setProps(widths, t, "borderWidth", ["borderT", "borderR", "borderB", "borderL"])} />
                 <label class=${`nf ${anyHas(s, styles) ? "" : "unset"}`} title="Line style"><select class="nfs wide" onChange=${(e) => actions.setProps(styles, e.target.value, "borderStyle")}>
                     ${["solid", "dashed", "dotted", "double"].map((v) => html`<option value=${v} selected=${style === v}>${v[0].toUpperCase() + v.slice(1)}</option>`)}</select></label>
                 <${IconBtn} icon=${I.sides} on=${sides || mixedW} title="Each side on its own" onClick=${() => setSides(!sides)} />
             </div>
             ${(sides || mixedW) && html`<div class="frow two2">${SIDES.map((d, i) => html`<${NumField} label=${["T", "R", "B", "L"][i]} title=${`border-${d}-width`} value=${num(comp(s, `border-${d}-width`))}
-                set=${has(s, `border-${d}-width`)} src=${srcKind(s, `border-${d}-width`)} onCommit=${(t) => actions.setProps([`border-${d}-width`], t, ["borderT", "borderR", "borderB", "borderL"][i])} />`)}</div>`}`}
+                set=${has(s, `border-${d}-width`)} src=${srcKind(s, `border-${d}-width`)} onReset=${resetAll(s, actions, [`border-${d}-width`])} onCommit=${(t) => actions.setProps([`border-${d}-width`], t, ["borderT", "borderR", "borderB", "borderL"][i])} />`)}</div>`}`}
         ${outline && html`<${Sub}>Outline</${Sub}><div class="frow"><${PropField} s=${s} actions=${actions} p="outline" label="Outline" title="outline (width style colour)" />
             <${Remove} title="Remove the outline" onClick=${() => (owns(s, "outline") ? actions.resetProp("outline") : actions.setProp("outline", "none"))} /></div>
             <div class="frow"><${PropField} s=${s} actions=${actions} p="outline-offset" label="Offset" title="Gap between the element and its outline" /></div>`}
@@ -241,14 +245,14 @@ export function EffectsSection({ s, actions }) {
     return html`<${FSection} title="Effects" extra=${html`<${AddMenu} title="Add an effect" items=${items} onPick=${add} />`}>
         <div class="frow">
             <${NumField} label="Opacity" title=${`opacity · ${srcNote(s, "opacity")}`} value=${op === "" ? "100" : String(Math.round(parseFloat(op) * 100))} set=${has(s, "opacity")} src=${srcKind(s, "opacity")}
-                onReset=${owns(s, "opacity") ? () => actions.resetProp("opacity") : null}
+                onReset=${has(s, "opacity") ? () => off(s, actions, "opacity") : null}
                 onCommit=${(t) => { const n = parseFloat(t); if (Number.isFinite(n)) actions.setProp("opacity", String(Math.max(0, Math.min(100, n)) / 100)); }}><span class="nfu">%</span></${NumField}>
             <${PropSelect} s=${s} actions=${actions} p="mix-blend-mode" title="Blend mode" options=${BLEND} />
         </div>
         ${shadow && html`<div class="frow"><label class=${`nf ${has(s, "box-shadow") ? "" : "unset"} ${srcKind(s, "box-shadow") ? `src-${srcKind(s, "box-shadow")}` : ""}`} title=${`box-shadow · ${srcNote(s, "box-shadow")}`}>
                 <span class="nfl">Shadow</span><select class="nfs wide" onChange=${(e) => setShadow(e.target.value)}>${SHADOW_NAMES.map(([v, l]) => html`<option value=${v} selected=${v === preset}>${l}</option>`)}</select></label>
             <${Remove} title="Remove the shadow" onClick=${() => { setCustom(false); return owns(s, "box-shadow") ? actions.resetProp("box-shadow") : actions.setProp("box-shadow", "none"); }} /></div>
-            ${preset === "custom" && html`<div class="frow"><${NumField} label="CSS" title="box-shadow: x y blur spread colour" value=${sh} set src=${srcKind(s, "box-shadow")} onCommit=${(t) => actions.setProp("box-shadow", t)} /></div>`}`}
+            ${preset === "custom" && html`<div class="frow"><${NumField} label="CSS" title="box-shadow: x y blur spread colour" value=${sh} set src=${srcKind(s, "box-shadow")} onReset=${resetAll(s, actions, ["box-shadow"])} onCommit=${(t) => actions.setProp("box-shadow", t)} /></div>`}`}
         ${tw("blur") && html`<div class="frow"><${TwSelect} s=${s} k="blur" label="Blur" title="Blur the element (blur-*)" actions=${actions} /><${Remove} title="Remove the blur" onClick=${() => drop("blur")} /></div>`}
         ${tw("backdropBlur") && html`<div class="frow"><${TwSelect} s=${s} k="backdropBlur" label="Backdrop" title="Blur what is behind it (backdrop-blur-*)" actions=${actions} /><${Remove} title="Remove the background blur" onClick=${() => drop("backdropBlur")} /></div>`}
         ${tw("brightness") && html`<div class="frow"><${TwField} s=${s} k="brightness" label="Bright" title="Brightness % (brightness-*)" actions=${actions} /><${Remove} title="Remove the brightness" onClick=${() => drop("brightness")} /></div>`}
@@ -263,9 +267,11 @@ function GroupsSection({ s, actions, title, groups, addTitle }) {
     const [added, setAdded] = useState(/** @type {string[]} */ ([]));
     const shown = groups.filter(([k]) => val(s, k, ui) || added.includes(k));
     const items = groups.filter(([k]) => !shown.some(([x]) => x === k)).map(([k, l]) => [k, l]);
+    const drop = (k) => setAdded(added.filter((x) => x !== k));
     return html`<${FSection} title=${title} extra=${html`<${AddMenu} title=${addTitle} items=${items} onPick=${(k) => setAdded([...added, k])} />`}>
-        ${shown.length > 0 && html`<div class="frow two2">${shown.map(([k, l, kind]) => (kind === "select"
-            ? html`<${TwSelect} s=${s} k=${k} label=${l} actions=${actions} />` : html`<${TwField} s=${s} k=${k} label=${l} actions=${actions} />`))}</div>`}
+        ${shown.map(([k, l, kind]) => html`<div class="frow">${kind === "select"
+            ? html`<${TwSelect} s=${s} k=${k} label=${l} actions=${actions} />` : html`<${TwField} s=${s} k=${k} label=${l} actions=${actions} />`}
+            ${val(s, k, ui) ? html`<${Remove} title=${`Remove ${l.toLowerCase()}`} onClick=${() => { drop(k); actions.applyValue(k, ""); }} />` : html`<${Cancel} onClick=${() => drop(k)} />`}</div>`)}
     </${FSection}>`;
 }
 export const TransformSection = ({ s, actions }) => html`<${GroupsSection} s=${s} actions=${actions} title="Transform" addTitle="Add a transform"
@@ -283,11 +289,10 @@ const INTERACTION = [
 ];
 export function InteractionSection({ s, actions }) {
     const [added, setAdded] = useState(/** @type {string[]} */ ([]));
-    const media = ["img", "video", "picture", "iframe", "svg"].includes(s.tag);
-    const rows = INTERACTION.filter((c) => has(s, c.p) || added.includes(c.p) || (c.p === "object-fit" && media));
+    const rows = INTERACTION.filter((c) => (has(s, c.p) && shownOf(s, c.p, srcOf(s, c.p)) !== "initial") || added.includes(c.p));
     const left = INTERACTION.filter((c) => !rows.includes(c));
     return html`<${FSection} title="Interaction" extra=${html`<${AddMenu} title="Add a setting" items=${left.map((c) => [c.p, c.l])} onPick=${(p) => setAdded([...added, p])} />`}>
-        ${rows.map((c) => html`<${PropRow} s=${s} actions=${actions} c=${c} />`)}
+        ${rows.map((c) => html`<${PropRow} s=${s} actions=${actions} c=${c} onCancel=${added.includes(c.p) ? () => setAdded(added.filter((p) => p !== c.p)) : null} />`)}
     </${FSection}>`;
 }
 

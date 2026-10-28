@@ -246,7 +246,8 @@ export function agentMain() {
             const ownDesign = designRules.filter((r) => declares(r, p));
             const twWins = base[p] !== noTw[p], designWins = base[p] !== noDesign[p];
             let s;
-            if (twWins && twTok.length) s = { source: "tailwind", token: twTok[twTok.length - 1] };
+            if (/^(initial|inherit|unset|revert)$/.test(inline)) s = { source: "off" }; // switched off over a rule of the design's CSS (the panel's −): reads as not set
+            else if (twWins && twTok.length) s = { source: "tailwind", token: twTok[twTok.length - 1] };
             else if (twWins && ownTw.length) {
                 const sel = best(ownTw).selectorText;
                 const names = classNamesIn(sel);
@@ -449,6 +450,12 @@ export function agentMain() {
 
     const describe = (el) => {
         if (!el) return null;
+        // the editor's own cursor rule (everything follows the tool) is not the design's: off while the element is read, so its
+        // cursor-pointer shows as pointer in the panel
+        cursorStyle.disabled = true;
+        try { return describeNow(el); } finally { cursorStyle.disabled = false; }
+    };
+    const describeNow = (el) => {
         const attrs = {};
         Array.prototype.forEach.call(el.attributes, (a) => { if (a.name !== "class" && a.name !== "style" && a.name !== "contenteditable") attrs[a.name] = a.value; });
         const crumbs = [];

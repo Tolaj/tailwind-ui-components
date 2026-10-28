@@ -3,7 +3,7 @@ import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "@windcraft/core/class-groups
 import { renderPanel } from "../panel.js";
 import { inspectorView, variant, val, srcOf, modeFor } from "../panel-model.js";
 import { checkTags } from "../code-view.js";
-import { groupOf, variantOf, twShown, hasScale, twValue, fromPx } from "@windcraft/core/prop-tailwind.js";
+import { groupOf, variantOf, twShown, hasScale, twValue, fromPx, tokenFor } from "@windcraft/core/prop-tailwind.js";
 import { normalizeValue } from "../css-props.js";
 import { host } from "../host.js";
 import { $, S, data, model, send } from "./base.js";
@@ -220,7 +220,9 @@ export function setProp(prop, raw, cssOverride, key) {
     const vp = picked() || winning;
     const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, key, ...m }, key);
     if (v === "") {
-        if (group && (onTw || picked())) { const next = setGroup(s.classes, group, "", vp); if (next !== null) { s.classes = next; return send({ route: "tw", classes: next }); } }
+        // the exact class that gives the value comes off (px-4 for padding-left), at the picked breakpoint / state if one is picked
+        const tok = picked() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
+        if (tok && tok.token) { const next = s.classes.split(/\s+/).filter((t) => t && t !== tok.token).join(" "); s.classes = next; return send({ route: "tw", classes: next }); }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
     }

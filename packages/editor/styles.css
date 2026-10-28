@@ -304,14 +304,6 @@ textarea.fi.area { height: auto; padding: 6px; line-height: 1.4; resize: vertica
 .primary:hover { background: #0a84e0; }
 .fi.is-set { border-left: 2px solid #111; }
 /* where a property's value comes from: a Tailwind class, CSS (style attribute or the design's stylesheet), or a class on a parent */
-.stag { flex: none; font: 600 9px/1 system-ui, sans-serif; letter-spacing: .02em; padding: 3px 4px; border-radius: 3px; white-space: nowrap; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
-.stag.tw { background: #e0f2fe; color: #0369a1; }
-.stag.css { background: #fef3c7; color: #92400e; }
-.stag.up { background: #f3f4f6; color: #6b7280; font-weight: 500; }
-.legend { margin: 6px 10px 2px; font-size: 10.5px; line-height: 1.6; color: #8c8c8c; }
-.legend .stag { display: inline-block; vertical-align: 1px; }
-.rst { width: 18px; height: 18px; flex: none; border-radius: 4px; color: #8c8c8c; line-height: 1; }
-.rst:hover { background: #fde8e8; color: #d92d20; }
 .cinp { width: 24px; height: 24px; flex: none; padding: 0; border: 1px solid #e0e0e0; border-radius: 4px; background: none; cursor: pointer; }
 .hidden { display: none; }
 /* dropdowns: a clear chevron instead of the browser's tiny arrow */
@@ -376,17 +368,19 @@ select.fi, .vbar select { -webkit-appearance: none; appearance: none; padding-ri
 .pagehead { display: flex; flex-direction: column; gap: 2px; margin: 8px 10px 0; padding: 7px 9px; border-radius: 6px; background: #eef4ff; color: #1e3a8a; font-size: 10.5px; line-height: 1.4; }
 .pagehead b { font-size: 11px; }
 .fsec .row { gap: 6px; }
-/* where a set value comes from: a blue edge for a Tailwind class, amber for CSS; a × on hover takes it off */
+/* where a set value comes from: a blue edge for a Tailwind class, amber for CSS */
 .nf { position: relative; }
 /* a field with suggestions (Tailwind colours, sizes...) shows them as you type, without Chrome's ▼ that looks like a dropdown */
 #panel input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 .nf.src-tw { box-shadow: inset 2px 0 0 #38bdf8; }
 .nf.src-css { box-shadow: inset 2px 0 0 #f59e0b; }
-.nfx { display: none; flex: none; width: 16px; height: 16px; margin-right: 3px; border-radius: 3px; color: #8c8c8c; font-size: 12px; line-height: 16px; text-align: center; }
-.nf:hover .nfx { display: block; }
-.nfx:hover { background: #e5e5e5; color: #111; }
 .nf.disp { flex: none; width: 74px; }
 .ib.txt { font-size: 10.5px; padding: 0 6px; color: #555; }
 .ib.txt.on { color: #111; }
 .fsec .crow .lbl { width: 40px; }
 .fsec .row .lbl { width: 56px; }
+
+.legend { margin: 6px 10px 2px; font-size: 10.5px; line-height: 1.6; color: #8c8c8c; }
+.legend .edge { display: inline-block; width: 10px; height: 12px; margin: 0 3px -2px 0; border-radius: 2px; background: #f5f5f5; }
+.legend .edge.tw { box-shadow: inset 2px 0 0 #38bdf8; }
+.legend .edge.css { margin-left: 8px; box-shadow: inset 2px 0 0 #f59e0b; }
