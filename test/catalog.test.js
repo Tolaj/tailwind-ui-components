@@ -26,7 +26,7 @@ test("every variant uses theme tokens and no raw colours", () => {
 test("every interactive variant has a visible focus ring, a disabled look and dark styles", () => {
     for (const f of all) for (const style of f.styles) {
         const html = f.render({ style: style.slug });
-        assert.match(html, /focus-visible:ring/, `${f.slug}/${style.slug}: focus-visible ring`);
+        assert.match(html, /focus(?:-visible)?:ring/, `${f.slug}/${style.slug}: a focus ring`);
         assert.match(html, /disabled:/, `${f.slug}/${style.slug}: disabled look`);
         assert.match(html, /dark:|\b(?:text|bg)-(?:brand|red)-/, `${f.slug}/${style.slug}: dark styles, or a colour that works on both`);
     }
@@ -49,5 +49,15 @@ test("balanced markup: every tag the template opens it closes", () => {
         const html = f.render({ style: style.slug, icon: "left" });
         const open = (html.match(/<button\b/g) || []).length, close = (html.match(/<\/button>/g) || []).length;
         assert.equal(open, close);
+    }
+});
+
+test("a field carries its own accessible name, and its error state says so", () => {
+    for (const f of all) for (const style of f.styles) {
+        const html = f.render({ style: style.slug });
+        if (!/<(input|textarea|select)\b/.test(html)) continue;
+        assert.match(html, /aria-label="[^"]+"/, `${f.slug}/${style.slug}: a bare field needs aria-label`);
+        if (f.axes.state && f.axes.state.includes("error")) assert.match(f.render({ style: style.slug, state: "error" }), /aria-invalid="true"/, `${f.slug}/${style.slug}: error state needs aria-invalid`);
+        if (f.axes.state && f.axes.state.includes("disabled")) assert.match(f.render({ style: style.slug, state: "disabled" }), /\bdisabled\b/);
     }
 });

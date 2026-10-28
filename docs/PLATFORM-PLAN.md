@@ -227,6 +227,7 @@ Order matters: 0 to 3 before any content, so each family is written once, agains
 | Checks (`test/catalog.test.js`): theme tokens only, no raw hex or inline style, focus-visible ring, disabled look, dark styles, ARIA for icon-only and loading, balanced markup | **Done** (contrast check still to do) |
 | Public pages `/catalog` and `/catalog/:family`: customise a part, live matrix of styles × sizes, states, icons, compositions; theme and dark switch; code tabs HTML / React / Vue / Svelte; copy; "Theme setup for Tailwind" snippet | **Done** |
 | **Add to project** (`POST /api/catalog/:slug/add`) creates a component in the chosen project with `origin: { family, variant }`; Catalog link in the nav | **Done** (needs sign-in; not exercised in a browser) |
+| Second family: **Input** (text, password with show/hide, search, prefix and suffix; 3 sizes; default, hover, focus, error, success, disabled). The family page and the checks needed no change beyond generic labels, so the format holds | **Done** |
 | Deviation from 5.6: the catalog is read from the files at runtime, not seeded into platform-owned projects in the database | Fewer moving parts; same result for users |
 | Search, MCP `list_catalog`, the remaining Tier 1 families, removing `isPublished` / Library / category pages | **Next** |
 

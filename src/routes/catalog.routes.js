@@ -15,7 +15,7 @@ catalogPages.get("/", async (req, res) => {
 catalogPages.get("/:slug", async (req, res) => {
     const f = await family(req.params.slug);
     if (!f) return res.status(404).render("error", { layout: "main", title: "Not found", message: "That part isn't in the catalog.", user: req.session.user });
-    const meta = { slug: f.slug, name: f.name, description: f.description, tags: f.tags, styles: f.styles, axes: f.axes, compositions: (f.compositions || []).map((c) => ({ slug: c.slug, name: c.name, description: c.description, html: c.html })) };
+    const meta = { slug: f.slug, name: f.name, description: f.description, tags: f.tags, styleLabel: f.styleLabel || "Style", previewClass: f.previewClass || "", styles: f.styles, axes: f.axes, compositions: (f.compositions || []).map((c) => ({ slug: c.slug, name: c.name, description: c.description, html: c.html })) };
     res.render("main/catalog-family", { layout: "main", title: `${f.name} | Catalog`, activePage: "catalog", user: req.session.user, name: f.name, description: f.description, metaJson: JSON.stringify(meta).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, "") });
 });
 

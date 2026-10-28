@@ -58,7 +58,7 @@ if ($("catalogMeta")) {
     // pickers for the customised part
     const picker = (axis, label, values) => `<label class="block"><span class="mb-1 block text-xs font-medium text-gray-500">${label}</span><select data-pick="${axis}" class="h-8 rounded-md border border-gray-300 px-2 text-sm">${values.map(([v, t]) => `<option value="${v}" ${pick[axis] === v ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
     const drawPickers = () => {
-        $("pickers").innerHTML = picker("style", "Style", meta.styles.map((s) => [s.slug, s.name]))
+        $("pickers").innerHTML = picker("style", meta.styleLabel, meta.styles.map((s) => [s.slug, s.name]))
             + (meta.axes.size ? picker("size", "Size", meta.axes.size.map((s) => [s, s])) : "")
             + (meta.axes.icon ? picker("icon", "Icon", meta.axes.icon.map((s) => [s, s])) : "");
     };
@@ -70,7 +70,7 @@ if ($("catalogMeta")) {
         $("codeTabs").innerHTML = FORMATS.map(([f, t]) => `<button type="button" role="tab" data-fmt="${f}" class="rounded-t-md px-3 py-1.5 text-xs font-semibold ${fmt === f ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:text-gray-900"}">${t}</button>`).join("");
         $("codeBox").textContent = code();
         $("setupBox").textContent = setupText();
-        show($("mainPreview"), `<div class="flex min-h-[6rem] items-center justify-center">${mainHtml()}</div>`, theme, dark);
+        show($("mainPreview"), `<div class="flex min-h-[6rem] items-center justify-center">${meta.previewClass ? `<div class="${meta.previewClass}">${mainHtml()}</div>` : mainHtml()}</div>`, theme, dark);
     }
     $("codeTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-fmt]"); if (b) { fmt = b.dataset.fmt; drawMain(); } });
     $("copyBtn").addEventListener("click", async () => { await navigator.clipboard.writeText(code()); $("copyBtn").textContent = "Copied"; setTimeout(() => { $("copyBtn").textContent = "Copy"; }, 1200); });
@@ -97,16 +97,22 @@ if ($("catalogMeta")) {
         });
     };
 
-    // every variant, live
-    const cell = (html) => `<div class="flex items-center justify-start">${html}</div>`;
+    // every variant, live (each in its own preview width when the family sets one, as inputs do)
+    const wrap = (html) => (meta.previewClass ? `<div class="${meta.previewClass}">${html}</div>` : html);
+    const rowOf = (title, items) => `<div class="mb-2 text-xs font-medium text-gray-400">${esc(title)}</div><div class="mb-5 flex flex-wrap items-center gap-3">${items.map(wrap).join("")}</div>`;
     function drawSections() {
-        const S = meta.styles, sz = meta.axes.size || [""];
-        const rows = S.map((s) => `<div class="mb-2 text-xs font-medium text-gray-400">${esc(s.name)}</div><div class="mb-5 flex flex-wrap items-center gap-3">${sz.map((z) => fam.render({ style: s.slug, size: z || undefined })).join("")}</div>`).join("");
-        const states = (meta.axes.state || []).length ? S.map((s) => `<div class="mb-2 text-xs font-medium text-gray-400">${esc(s.name)}</div><div class="mb-5 flex flex-wrap items-center gap-3">${meta.axes.state.map((st) => fam.render({ style: s.slug, state: st })).join("")}</div>`).join("") : "";
-        const icons = (meta.axes.icon || []).length ? S.filter((s) => s.slug !== "link").map((s) => `<div class="mb-2 text-xs font-medium text-gray-400">${esc(s.name)}</div><div class="mb-5 flex flex-wrap items-center gap-3">${meta.axes.icon.map((ic) => fam.render({ style: s.slug, icon: ic })).join("")}</div>`).join("") : "";
+        const S = meta.styles, sz = meta.axes.size || [""], L = meta.styleLabel;
+        const rows = S.map((s) => rowOf(s.name, sz.map((z) => fam.render({ style: s.slug, size: z || undefined })))).join("");
+        const states = (meta.axes.state || []).length ? S.map((s) => rowOf(s.name, meta.axes.state.map((st) => fam.render({ style: s.slug, state: st })))).join("") : "";
+        const icons = (meta.axes.icon || []).length ? S.filter((s) => s.slug !== "link").map((s) => rowOf(s.name, meta.axes.icon.map((ic) => fam.render({ style: s.slug, icon: ic })))).join("") : "";
         const comps = (meta.compositions || []).map((c) => `<h3 class="mb-1 text-sm font-semibold text-gray-900">${esc(c.name)}</h3><p class="mb-3 text-xs text-gray-500">${esc(c.description)}</p><div class="mb-5">${c.html}</div>`).join("");
-        const sections = [["Styles and sizes", `${S.length} styles in ${sz.length} sizes`, rows], ["States", "Hover, focus, active, disabled and loading", states], ["With an icon", "On either side, or alone", icons], ["Made of buttons", "", comps]].filter((x) => x[2]);
-        $("sections").innerHTML = sections.map(([t, d, b], i) => `<section><h2 class="text-xl font-semibold text-gray-900">${t}</h2>${d ? `<p class="mb-3 text-sm text-gray-500">${d}</p>` : ""}<iframe data-sec="${i}" title="${t}" class="w-full rounded-xl border border-gray-200" style="height:200px"></iframe></section>`).join("");
+        const sections = [
+            [`${L}s and sizes`, `${S.length} ${L.toLowerCase()}s${meta.axes.size ? ` in ${sz.length} sizes` : ""}`, rows],
+            ["States", (meta.axes.state || []).join(", "), states],
+            ["With an icon", "On either side, or alone", icons],
+            ["Related", "Made from this part", comps],
+        ].filter((x) => x[2]);
+        $("sections").innerHTML = sections.map(([t, d, b], i) => `<section><h2 class="text-xl font-semibold text-gray-900">${t}</h2>${d ? `<p class="mb-3 text-sm text-gray-500">${esc(d)}</p>` : ""}<iframe data-sec="${i}" title="${t}" class="w-full rounded-xl border border-gray-200" style="height:200px"></iframe></section>`).join("");
         $("sections").querySelectorAll("[data-sec]").forEach((f) => show(f, sections[Number(f.dataset.sec)][2], theme, dark, true, 20));
     }
     function draw() { drawMain(); drawSections(); }
