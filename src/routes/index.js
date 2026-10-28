@@ -8,14 +8,12 @@ import mcpRoutes from "./mcp.routes.js";
 import figmaRoutes from "./figma.routes.js";
 import fontsRoutes from "./fonts.routes.js";
 import figmaPages from "./figma-pages.routes.js";
-import libraryRoutes from "./library.routes.js";
 import infoRoutes from "./info.routes.js";
 import connectRoutes from "./connect.routes.js";
 import oauthRoutes from "./oauth.routes.js";
 import designRoutes from "./design.routes.js";
 import { projectPages, projectApi, sharePages } from "./project.routes.js";
 import { adminPages, adminApi } from "./admin.routes.js";
-import { catalogPages, catalogApi } from "./catalog.routes.js";
 
 import {
     redirectIfAuthenticated,
@@ -46,8 +44,9 @@ const constructorMethod = (app) => {
     app.use("/api/figma", figmaRoutes);
     app.use("/fonts", fontsRoutes);
     app.use("/figma", figmaPages);
-    app.get("/my-components", (req, res) => res.redirect("/library"));
-    app.use("/library", ensureAuth, libraryRoutes);
+    // the Library is gone: a design lives in its project
+    app.get(["/library", "/my-components"], (req, res) => res.redirect("/projects"));
+    app.get("/library/design-guide.md", (req, res) => res.redirect("/projects/design-guide.md" + (req.query.download ? "?download=1" : "")));
     app.use("/connect", ensureAuth, connectRoutes);
     app.use("/design", ensureAuth, designRoutes);
     app.use("/projects", ensureAuth, projectPages);
@@ -55,8 +54,7 @@ const constructorMethod = (app) => {
     app.use("/admin", ensureAuth, ensureAdmin, adminPages);
     app.use("/api/admin", ensureAuthAPI, ensureAdmin, adminApi);
     app.use("/p", sharePages); // a project's share link: open to anyone who has it
-    app.use("/catalog", catalogPages);
-    app.use("/api/catalog", catalogApi);
+    app.get(["/catalog", "/catalog/{*rest}"], (req, res) => res.redirect(301, "/")); // the gallery is the catalog
 
 
     app.use("/", infoRoutes);

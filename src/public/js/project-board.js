@@ -1,4 +1,5 @@
 import { parseComponentSource, buildPreviewDocument, setPreviewTheme } from "@windcraft/editor/playground/component-source.js";
+import { openItemDialog, moveItem, setReference, deleteItem } from "./item-tools.js";
 import { GRAYS, RADII, SYSTEM_FONT, normalizeTheme, brandScale, grayScale } from "@windcraft/core/theme.js";
 import { computeLayout as layoutItems, PAGE_H, SEC_H } from "@windcraft/core/board-layout.js";
 
@@ -356,7 +357,14 @@ function renderDetails() {
         <a href="/design/${it.id}" class="mt-2 flex h-8 items-center justify-center rounded-md bg-[#0d99ff] text-xs font-semibold text-white hover:bg-[#0a84e0]">Open in editor</a>
         ${it.kind === "section" ? "" : `<label class="mt-3 flex cursor-pointer items-center gap-2 text-neutral-700" title="Public designs appear in the gallery, where anyone can look at them, copy the code and like them"><input id="publicBox" type="checkbox" ${it.isPublished ? "checked" : ""} class="h-3.5 w-3.5 accent-black"> Public in the gallery</label>
         <p id="publicNote" class="mt-1 text-neutral-500">${it.isPublished ? `Shown in the gallery under <a class="underline" href="/category/${esc(it.category)}" target="_blank" rel="noopener">its category</a>.` : "Private: only you can see it."}</p>`}
-        <button type="button" id="removeBtn" class="mt-2 h-8 w-full rounded-md border border-neutral-200 text-xs text-neutral-700 hover:bg-neutral-50">Remove from project</button>`;
+        <div class="mt-2 flex gap-2">
+            <button type="button" id="exportBtn" class="h-8 flex-1 rounded-md border border-neutral-200 text-xs hover:bg-neutral-50" title="HTML, React, Vue, Svelte, design spec">Export</button>
+            <button type="button" id="historyBtn" class="h-8 flex-1 rounded-md border border-neutral-200 text-xs hover:bg-neutral-50" title="Earlier versions, and restoring one">History</button>
+        </div>
+        <label class="mt-3 block text-neutral-500">Move to project</label>
+        <select id="moveSel" class="fi"><option value="">Choose a project…</option>${(data.projects || []).filter((p) => p.id !== project.id).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>
+        <label class="mt-3 flex cursor-pointer items-center gap-2 text-neutral-600" title="When on, AI generation can use this as a style reference"><input id="refBox" type="checkbox" ${it.useAsReference !== false ? "checked" : ""} class="h-3.5 w-3.5 accent-black"> Use as AI reference</label>
+        <button type="button" id="deleteBtn" class="mt-3 h-8 w-full rounded-md border border-neutral-200 text-xs text-red-700 hover:bg-red-50">Delete</button>`;
 }
 
 function select(id) {
@@ -366,29 +374,44 @@ function select(id) {
     renderDetails();
 }
 
+/** An item left the project (deleted or moved): its sections go from the board with it. */
+function dropItem(it) {
+    const ids = new Set([it.id, ...sectionsOf(it.id).map((x) => x.id)]);
+    items = items.filter((i) => !ids.has(i.id));
+    selectedId = null;
+    renderHeader(); buildFrames(); renderOutline(); renderDetails();
+}
+
 document.addEventListener("change", async (e) => {
-    if (e.target.id !== "publicBox" || !selectedId) return;
-    const it = byId(selectedId), on = e.target.checked;
-    const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPublished: on }) });
-    const json = await res.json().catch(() => ({}));
-    if (!json.success) { e.target.checked = !on; return alert(json.message || "Could not change it"); }
-    it.isPublished = on;
-    renderDetails();
+    if (e.target.id === "publicBox" && selectedId) {
+        const it = byId(selectedId), on = e.target.checked;
+        const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPublished: on }) });
+        const json = await res.json().catch(() => ({}));
+        if (!json.success) { e.target.checked = !on; return alert(json.message || "Could not change it"); }
+        it.isPublished = on;
+        renderDetails();
+    }
+    if (e.target.id === "moveSel" && selectedId && e.target.value) {
+        const it = byId(selectedId);
+        try { await moveItem(it, e.target.value); } catch (err) { e.target.value = ""; return alert(err.message); }
+        dropItem(it);
+    }
+    if (e.target.id === "refBox" && selectedId) {
+        const it = byId(selectedId);
+        try { await setReference(it, e.target.checked); it.useAsReference = e.target.checked; } catch (err) { e.target.checked = !e.target.checked; alert(err.message); }
+    }
 });
 
 document.addEventListener("click", async (e) => {
     const pick = e.target.closest("[data-pick]");
     if (pick) { select(pick.dataset.pick); focusItem(pick.dataset.pick); return; }
     if (e.target.id === "focusBtn" && selectedId) return focusItem(selectedId);
-    if (e.target.id === "removeBtn" && selectedId) {
+    if (e.target.id === "exportBtn" && selectedId) return openItemDialog(byId(selectedId), "react");
+    if (e.target.id === "historyBtn" && selectedId) return openItemDialog(byId(selectedId), "history");
+    if (e.target.id === "deleteBtn" && selectedId) {
         const it = byId(selectedId);
-        if (!confirm(`Remove "${it.title}" from this project? It stays in your library.`)) return;
-        const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project: "" }) });
-        if (!(await res.json()).success) return alert("Could not remove it");
-        const ids = new Set([it.id, ...sectionsOf(it.id).map((s) => s.id)]);
-        items = items.filter((i) => !ids.has(i.id));
-        selectedId = null;
-        renderHeader(); buildFrames(); renderOutline(); renderDetails();
+        try { if (!(await deleteItem(it))) return; } catch (err) { return alert(err.message); }
+        dropItem(it);
     }
     if (e.target.id === "saveDesc") {
         const description = $("descInput").value;
@@ -411,7 +434,8 @@ $("renameBtn").addEventListener("click", async () => {
     if ((await res.json()).success) { project.name = name.trim(); renderHeader(); renderDetails(); }
 });
 $("deleteProjBtn").addEventListener("click", async () => {
-    if (!confirm(`Delete the project "${project.name}"? Its pages and sections stay in your library.`)) return;
+    const n = items.filter((i) => i.kind !== "section").length;
+    if (!confirm(`Delete the project "${project.name}" and everything in it (${n} page${n === 1 ? "" : "s"} and component${n === 1 ? "" : "s"}, with their sections and history)? This can't be undone.`)) return;
     const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
     if ((await res.json()).success) location.href = "/projects";
 });

@@ -4,7 +4,10 @@
             <h1 class="text-3xl font-semibold tracking-[-0.035em] text-gray-900">Projects</h1>
             <p class="mt-1 text-sm text-gray-500">Group the pages and sections of a website or app, like a Figma file. Claude can file designs straight into a project.</p>
         </div>
+        <div class="flex items-center gap-2">
+        <a href="/projects/design-guide.md?download=1" class="inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50" title="A markdown guide generated from your designs, for a CLAUDE.md or an agent">Design guide</a>
         <button type="button" id="newProjectBtn" onclick="newProject(this)" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New project</button>
+        </div>
     </div>
 
     {{#if projects.length}}

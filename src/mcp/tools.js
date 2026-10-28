@@ -241,6 +241,7 @@ export async function callTool(userId, name, args = {}) {
         case "save_component": {
             if (!args.title || !args.description || !args.htmlCode) return fail("title, description and htmlCode are required");
             const proj = await projectFor(userId, args.project);
+            if (!proj) return fail("Choose a project: every design belongs to one. Pass project (a name creates it), or set an active project.");
             const c = await Component.create({
                 project: proj ? proj._id : null,
                 kind: proj ? "page" : "component",
@@ -261,6 +262,7 @@ export async function callTool(userId, name, args = {}) {
             if (!args.html || !args.title) return fail("title and html are required");
             try {
                 const proj = await projectFor(userId, args.project);
+                if (!proj) return fail("Choose a project: every design belongs to one. Pass project (a name creates it), or set an active project.");
                 const result = await importDesign(userId, {
                     title: args.title, html: args.html, description: args.description,
                     tags: args.tags, split: args.split === true, project: proj ? proj._id : null,

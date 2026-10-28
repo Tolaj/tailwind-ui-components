@@ -7,33 +7,27 @@
 <main class="min-w-0 flex-1 p-6">
     <div class="mx-auto flex max-w-6xl gap-10">
 
-        {{!-- Table of contents --}}
         <nav id="toc" class="sticky top-24 hidden h-fit w-52 shrink-0 text-sm lg:block" aria-label="On this page">
             <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">On this page</p>
             <ul class="space-y-1.5 border-l border-gray-200">
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#what">What is this?</a></li>
-                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#big-picture">The big picture</a></li>
+                        href="#what">What is Windcraft?</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#start">Quick start</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#gallery">Gallery</a></li>
+                        href="#gallery">The gallery</a></li>
+                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
+                        href="#projects">Projects</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#editor">The editor</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#library">Library</a></li>
+                        href="#theme">A project's look</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#versions">Versions and history</a></li>
-                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900" href="#projects">Projects</a></li>
+                        href="#share">Publishing and sharing</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#export">Export</a></li>
-                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#ai">AI generation</a></li>
+                        href="#export">Export and history</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#agents">Coding agents (MCP)</a></li>
-                <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                        href="#visibility">Public or private</a></li>
                 <li><a class="toc-link -ml-px block border-l border-transparent pl-3 text-gray-600 hover:border-gray-900 hover:text-gray-900"
                         href="#glossary">Glossary</a></li>
             </ul>
@@ -43,738 +37,76 @@
 
             <header>
                 <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Documentation</p>
-                <h1 class="mt-2 text-4xl font-semibold tracking-[-0.04em] text-gray-900">How everything works</h1>
-                <p class="mt-3 max-w-2xl text-gray-600">Every feature, explained step by step. No experience needed. If
-                    a word looks unfamiliar, check the <a href="#glossary"
-                        class="font-medium text-gray-900 underline">glossary</a> at the bottom.</p>
+                <h1 class="mt-2 text-4xl font-semibold tracking-[-0.04em] text-gray-900">How Windcraft works</h1>
+                <p class="mt-3 max-w-2xl text-gray-600">The gallery, projects, the editor and agents, step by step. If a word looks unfamiliar, check the <a href="#glossary" class="font-medium text-gray-900 underline">glossary</a> at the bottom.</p>
             </header>
 
-            {{!-- 1 --}}
             <section id="what" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">What is this?</h2>
-                <p class="mt-3">Think of a <strong>component</strong> as a ready-made piece of a website: a button, a
-                    pricing table, a menu, a footer. This app lets you:</p>
-                <ul class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <li class="rounded-xl border border-gray-200 bg-white p-4">
-                        <svg class="mb-2 h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                        </svg>
-                        <p class="font-medium text-gray-900">Keep your own components</p>
-                        <p class="text-sm text-gray-600">Save them once in your <strong>Library</strong> and find them
-                            again in seconds.</p>
-                    </li>
-                    <li class="rounded-xl border border-gray-200 bg-white p-4">
-                        <svg class="mb-2 h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-                        </svg>
-                        <p class="font-medium text-gray-900">Make new ones with AI</p>
-                        <p class="text-sm text-gray-600">The AI looks at what you already saved, so new components match
-                            your style.</p>
-                    </li>
-                    <li class="rounded-xl border border-gray-200 bg-white p-4">
-                        <svg class="mb-2 h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-                        </svg>
-                        <p class="font-medium text-gray-900">Use them anywhere</p>
-                        <p class="text-sm text-gray-600">Copy as HTML, React, Vue or Svelte with one click.</p>
-                    </li>
-                    <li class="rounded-xl border border-gray-200 bg-white p-4">
-                        <svg class="mb-2 h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                        </svg>
-                        <p class="font-medium text-gray-900">Connect your coding tools</p>
-                        <p class="text-sm text-gray-600">Claude Code or Cursor can read your library directly.</p>
-                    </li>
-                </ul>
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">What is Windcraft?</h2>
+                <p class="mt-3">Windcraft has two doors. The <strong class="text-gray-900">gallery</strong> is where you come to look at designs and choose one. The <strong class="text-gray-900">editor</strong> is where you make a design, with its code beside it. Every design lives in a <strong class="text-gray-900">project</strong>.</p>
+                <p class="mt-3">It is for developers who want code to copy, designers who want to work visually, teams who want one look across a product, and anyone building with an AI coding tool. It is free.</p>
             </section>
 
-            {{!-- 2 --}}
-            <section id="big-picture" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The big picture</h2>
-                <p class="mt-3">There are two places and two helpers. Learn this one picture and the rest is easy.</p>
-
-                <svg viewBox="0 0 760 300" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="Gallery feeds your Library, which feeds AI generation and coding agents">
-                    <defs>
-                        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-                            orient="auto-start-reverse">
-                            <path d="M0 0 10 5 0 10z" fill="#111" />
-                        </marker>
-                    </defs>
-                    <rect x="20" y="105" width="170" height="90" rx="12" fill="#fff" stroke="#d1d5db" />
-                    <text x="105" y="143" text-anchor="middle" font-size="15" font-weight="600"
-                        fill="#111">Gallery</text>
-                    <text x="105" y="165" text-anchor="middle" font-size="12" fill="#6b7280">public, for everyone</text>
-
-                    <rect x="295" y="105" width="170" height="90" rx="12" fill="#000" />
-                    <text x="380" y="143" text-anchor="middle" font-size="15" font-weight="600" fill="#fff">Your
-                        Library</text>
-                    <text x="380" y="165" text-anchor="middle" font-size="12" fill="#d1d5db">private, yours only</text>
-
-                    <rect x="570" y="40" width="170" height="80" rx="12" fill="#fff" stroke="#d1d5db" />
-                    <text x="655" y="75" text-anchor="middle" font-size="14" font-weight="600" fill="#111">AI
-                        generation</text>
-                    <text x="655" y="96" text-anchor="middle" font-size="12" fill="#6b7280">in the editor</text>
-
-                    <rect x="570" y="180" width="170" height="80" rx="12" fill="#fff" stroke="#d1d5db" />
-                    <text x="655" y="215" text-anchor="middle" font-size="14" font-weight="600" fill="#111">Coding
-                        agents</text>
-                    <text x="655" y="236" text-anchor="middle" font-size="12" fill="#6b7280">Claude Code, Cursor</text>
-
-                    <path d="M190 135 H293" stroke="#111" stroke-width="1.5" marker-end="url(#a1)" />
-                    <text x="241" y="126" text-anchor="middle" font-size="11" fill="#374151">Save to library</text>
-                    <path d="M293 170 H190" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4"
-                        marker-end="url(#a1)" />
-                    <text x="241" y="188" text-anchor="middle" font-size="11" fill="#6b7280">Publish</text>
-
-                    <path d="M465 135 L568 85" stroke="#111" stroke-width="1.5" marker-end="url(#a1)" />
-                    <text x="525" y="97" text-anchor="middle" font-size="11" fill="#374151">reads</text>
-                    <path d="M465 165 L568 215" stroke="#111" stroke-width="1.5" marker-end="url(#a1)" />
-                    <text x="495" y="210" text-anchor="middle" font-size="11" fill="#374151">reads and saves</text>
-                </svg>
-
-                <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
-                    <p><strong class="text-gray-900">The one rule:</strong> AI and your coding agents only read what is
-                        in <em>your Library</em>. They never read the gallery directly. To let them use a gallery
-                        component, click <strong>Save to library</strong> first.</p>
-                </div>
-            </section>
-
-            {{!-- 3 --}}
             <section id="start" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Quick start (5 minutes)</h2>
-                <ol class="mt-5 space-y-4">
-                    <li class="flex gap-4"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">1</span>
-                        <div>
-                            <p class="font-medium text-gray-900">Create an account</p>
-                            <p class="text-sm">Click <em>Sign in</em> at the top, then <em>Sign up</em>. Use any email
-                                and a password of at least 6 characters.</p>
-                        </div>
-                    </li>
-                    <li class="flex gap-4"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">2</span>
-                        <div>
-                            <p class="font-medium text-gray-900">Fill your library with starters</p>
-                            <p class="text-sm">Open the <a href="/" class="font-medium underline">Gallery</a>, open any
-                                component you like, and press <strong>Save to library</strong>. Save 5 or so. These
-                                become the "taste" of your AI.</p>
-                        </div>
-                    </li>
-                    <li class="flex gap-4"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">3</span>
-                        <div>
-                            <p class="font-medium text-gray-900">Turn on AI (optional)</p>
-                            <p class="text-sm">Click your round avatar (top right), choose <em>AI Settings</em>, switch
-                                AI on, and paste your Anthropic API key (or point to a local model).</p>
-                        </div>
-                    </li>
-                    <li class="flex gap-4"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">4</span>
-                        <div>
-                            <p class="font-medium text-gray-900">Make your first component</p>
-                            <p class="text-sm">Open <a href="/library" class="font-medium underline">Library</a>, press
-                                <strong>New component</strong>, describe what you want in the Page panel and press <strong>Generate</strong> (or paste code, draw, or add blocks), edit it on the canvas, then press <strong>Save</strong> and fill in the name.
-                            </p>
-                        </div>
-                    </li>
-                    <li class="flex gap-4"><span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">5</span>
-                        <div>
-                            <p class="font-medium text-gray-900">Use it</p>
-                            <p class="text-sm">On the card, press <strong>Export</strong> and copy the code in the
-                                format you need.</p>
-                        </div>
-                    </li>
-                </ol>
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Quick start</h2>
+                <ol class="mt-3 list-decimal space-y-1.5 pl-5"><li>Open the <a href="/" class="font-medium underline">gallery</a>, pick a category, and look at a design. Press <em>Code</em> to see it, and the copy button to take it. No account needed.</li><li>Like a design you like. If you are not signed in, you will be asked to sign in first and the like is counted when you return.</li><li>Press <strong class="text-gray-900">Open in editor</strong> to make your own copy, or <strong class="text-gray-900">Save</strong> to keep it. Both ask which project it goes in.</li><li>Or press <strong class="text-gray-900">New project</strong> in the top bar. The editor opens on a blank page with the code on the left.</li><li>Set the project's look (colours, font, corners) on its page, then turn <strong class="text-gray-900">Public</strong> on for any design you want to share in the gallery.</li></ol>
             </section>
 
-            {{!-- 4 --}}
             <section id="gallery" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Gallery</h2>
-                <p class="mt-3">The Gallery is a public shelf. Anyone can browse it, and anything published by users
-                    lives here, sorted by category (Hero, Pricing, Footers and so on).</p>
-                <div class="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2.5">You want to</th>
-                                <th class="px-4 py-2.5">Do this</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr>
-                                <td class="px-4 py-3">Find something</td>
-                                <td class="px-4 py-3">Use the search box at the top, or pick a category card.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3">See the code</td>
-                                <td class="px-4 py-3">Open a component and switch <em>Preview</em> to <em>Code</em>.
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3">Check mobile</td>
-                                <td class="px-4 py-3">Press the phone icon on the component.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3">Check dark mode</td>
-                                <td class="px-4 py-3">Press the sun icon.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3">Keep a copy that AI can use</td>
-                                <td class="px-4 py-3">Press <strong>Save to library</strong>. It makes a private copy;
-                                    the original is untouched.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The gallery</h2>
+                <p class="mt-3">The gallery is organised by category, and the most liked designs come first.</p>
+                <ul class="mt-3 list-disc space-y-1.5 pl-5"><li><strong class="text-gray-900">Preview and Code</strong>: switch between how a design looks and its code. Pick a phone size, light or dark, or full screen.</li><li><strong class="text-gray-900">Copy</strong>: copy the code. You need no account for this.</li><li><strong class="text-gray-900">Like</strong>: the heart. Signed out, it sends you to sign in and then counts.</li><li><strong class="text-gray-900">Save</strong>: put a private copy into one of your projects.</li><li><strong class="text-gray-900">Open in editor</strong>: make your own copy in a project and open it.</li><li><strong class="text-gray-900">Report</strong>: the flag. It tells the site owners about a design that is broken, copied or inappropriate. The design stays visible until they decide.</li></ul>
             </section>
 
-            {{!-- 5 --}}
-            <section id="editor" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The editor</h2>
-                <p class="mt-3">One editor for creating and changing components. There are two ways to work. <strong>Add Component</strong> (top bar) or <strong>New component</strong> (Library) opens a quick dialog: write or paste code on the left, see the result on the right, press <strong>Continue</strong> to name it and publish. For visual editing press <strong>Full editor</strong> in that dialog (or the expand icon above the preview): your code comes with you into the design canvas. To change an existing component, press <strong>Edit</strong> on its card in your <a href="/library" class="font-medium underline">Library</a>; that opens the canvas directly. The canvas works like Figma: click things, change them, see the result instantly. Its <strong>Back</strong> link returns to where you came from.</p>
-
-                <svg viewBox="0 0 760 130" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img" aria-label="Start, edit, save">
-                    <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#111"/></marker></defs>
-                    <rect x="20" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="95" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">1. Start</text><text x="95" y="82" text-anchor="middle" font-size="11" fill="#6b7280">AI, paste, or a block</text>
-                    <rect x="210" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="285" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">2. Edit</text><text x="285" y="82" text-anchor="middle" font-size="11" fill="#6b7280">click and change</text>
-                    <rect x="400" y="30" width="150" height="70" rx="10" fill="#fff" stroke="#d1d5db"/><text x="475" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#111">3. Name it</text><text x="475" y="82" text-anchor="middle" font-size="11" fill="#6b7280">title, tags, visibility</text>
-                    <rect x="590" y="30" width="150" height="70" rx="10" fill="#000"/><text x="665" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Save</text><text x="665" y="82" text-anchor="middle" font-size="11" fill="#d1d5db">into your Library</text>
-                    <path d="M170 65 H208" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/><path d="M360 65 H398" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/><path d="M550 65 H588" stroke="#111" stroke-width="1.5" marker-end="url(#a2)"/>
-                </svg>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Starting a new component</h3>
-                <p class="mt-2 text-sm">A new page starts blank. Begin any of these ways:</p>
-                <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Generate with AI.</strong> In the <strong>Page</strong> panel (shown while the page is empty), describe it ("a pricing section with three tiers"). The AI looks at your library so the result matches your style. Needs AI turned on (avatar menu, <em>AI Settings</em>).</li>
-                    <li><strong>Paste HTML or code.</strong> Open the <strong>Code</strong> panel (the <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;/&gt;</code> button). Paste HTML with Tailwind, CSS (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;style&gt;</code>), JavaScript (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">&lt;script&gt;</code>), or a whole page. The canvas updates as you type.</li>
-                    <li><strong>Draw or add blocks.</strong> Draw with the frame, shape and text tools, or use <strong>+ Add</strong> to build: sections, columns, headings, text, buttons, images, cards and inputs.</li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Editing</h3>
-                <div class="mt-3 grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Floating toolbar</p><p class="mt-1 text-sm">Select something and a small toolbar appears next to it. On text: font, size, color, <strong>B</strong> <em>I</em> <u>U</u>, link and alignment (while you type it formats just the selected words). On anything else: fill, text color and corner radius. The <strong>&#8942;</strong> menu has duplicate, reorder, free position, group and delete.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Canvas</p><p class="mt-1 text-sm">Click anything to select it, double-click text to type on it. Two floating bars hold everything else: <strong>designs and tools</strong> on the left, <strong>undo, code, preview, panel and zoom</strong> on the right.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Panel (closed by default)</p><p class="mt-1 text-sm">Open it with the panel button for every property. <strong>Properties</strong> has three tabs: <strong>Design</strong>: layout, flex and grid, size, a spacing box, position, typography, fill and gradients, borders and radius, shadows, filters, transforms and transitions. <strong>Classes and CSS</strong>: every class as a chip, custom CSS and attributes. <strong>AI</strong>: change the selected element by asking.</p></div>
-                </div>
-                <ul class="mt-5 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Tailwind or CSS, automatically.</strong> At the top of the Design tab, <em>Auto</em> picks the right panel for each element. Elements styled with Tailwind classes get the Tailwind controls. Elements styled by the design's own CSS (a stylesheet, Bootstrap, a Claude Design export) get a <strong>CSS</strong> panel that shows their real current values and saves your changes as inline styles, which override the stylesheet without touching it. Switch by hand with <em>Tailwind</em> or <em>CSS</em> any time. A blue bar marks values you set, and the x button removes one so the element falls back to the stylesheet. For hover or breakpoint styles use Tailwind mode, or edit the stylesheet in the <strong>Code</strong> panel.</li>
-                    <li><strong>Breakpoints and states.</strong> At the top of the Design tab, pick <em>md and up</em>, <em>hover</em>, <em>dark</em> and so on. Every control then edits that variant (for example <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">md:hover:bg-blue-700</code>). Choosing a breakpoint also resizes the canvas to match.</li>
-                    <li><strong>Any value.</strong> Fields suggest Tailwind values but accept anything: type <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">50%</code>, <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">24px</code> or <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">#ff0000</code> and it becomes an arbitrary class like <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">w-[50%]</code>. Color boxes have a full palette, a custom picker and opacity. Anything Tailwind lacks can be added as custom CSS.</li>
-                    <li><strong>Ask AI</strong> (AI tab): describe a change to just the selected element, for example "make this a dark card".</li>
-                    <li><strong>Up, Down, Duplicate, Delete</strong> work on the selected element. Shortcuts: <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+Z</kbd> undo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+Z</kbd> redo, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+D</kbd> duplicate, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Delete</kbd>, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+S</kbd> save.</li>
-                    <li><strong>Code</strong> shows the full source and stays in sync both ways: it updates while you type on the canvas and scrolls to whatever you just changed. <strong>Edit / Preview:</strong> Preview runs the component with its JavaScript so you can try menus and buttons.</li>
-                    <li>Your component's own CSS and scripts are kept exactly as they were. Only the markup you edit changes.</li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Handles</h3>
-                <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Corners:</strong> drag a corner square to resize. Move the pointer just <em>outside</em> a corner and the cursor becomes a curved arrow: drag to rotate (<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift</kbd> snaps to 15 degrees). The selection box turns with the element.</li>
-                    <li><strong>Edges:</strong> drag anywhere along an edge to change just the width or height. Every element has all four corners and edges, including ones that sit in the normal page flow (the opposite side stays where it is). <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift</kbd> keeps the proportions and <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Alt</kbd> resizes from the center.</li>
-                    <li><strong>No top bar.</strong> The editor has no header, so the whole window is canvas. <strong>Back</strong> (the ‹ button) is the first button on the left tools. <strong>Save</strong> is the last button on the right tools: it reads "Save" (blue) when there are changes, then "Saving…", then "Saved", and shows "Retry" if it fails; hover it for the full message. A design's name, category, tags and visibility are under <strong>Design details…</strong> in the designs menu, which also has the link to its project.</li>
-                    <li><strong>Properties panel.</strong> There is no Tailwind / CSS switch any more. Each property shows where its value comes from: <strong>TW</strong> for a Tailwind class (with its breakpoint, like <em>TW md</em>), <strong>CSS</strong> for the element's style attribute or the design's own stylesheet, or the parent class that sets it. Change a value and it is written there: a Tailwind class is replaced, CSS is updated. Anything not set yet becomes a Tailwind class, unless the element is styled only by its design's CSS. You can type a Tailwind value (<code>64</code>, <code>1/2</code>, <code>red-500</code>) or a CSS one (<code>500px</code>, <code>#ff0000</code>). If a new class can't take effect (a stronger rule wins), the editor writes the value as CSS instead, so what you set is what you see. The × removes the class or inline value. Gradients, rings, spacing between children and other Tailwind-only settings are under <em>Tailwind extras</em>. The floating bar and the W, H, X and Y fields follow the same rules, and sizes that match Tailwind's scale become its classes (16px becomes <code>p-4</code>). Dragging, resizing and drawing on the canvas follow them too: when you let go, the new position and size become Tailwind classes (keeping a breakpoint like <code>md:</code> if the old value had one), while anything that came from CSS stays CSS. Sizes, positions and spacing follow the frame size you are editing at: at Desktop they get <code>xl:</code>, at Tablet <code>md:</code>, at Mobile the plain class, so you design each screen size by switching the frame (a value with no class yet gets the plain class, so it shows on every screen). Colours, fonts and borders are not split by screen size. Pick a breakpoint in the panel to override this. A box that its flex row stretches (like <code>flex-1</code>) can't take a width: the panel says so and offers <em>Size it myself</em>, which turns that off.</li>
-                    <li><strong>Code.</strong> The properties panel has three tabs: <strong>Design</strong>, <strong>Code</strong> and <strong>AI</strong>. <strong>Code</strong> shows the selected element's own HTML: edit it and press Ctrl/Cmd+Enter (or click away) to apply, Esc to undo your typing. Below it are its classes, inline CSS and attributes. The code panel at the bottom shows the whole design in colour with line numbers; drag its top edge to make it taller, use <strong>Format</strong> to tidy the indentation and <strong>Copy</strong> to copy it. If a tag is left open or closed twice, it tells you the line and doesn't apply the code until it's fixed.</li>
-                    <li><strong>Selection in the code.</strong> With the code panel open, the element you select is highlighted in the HTML (its opening tag a little darker) and the code scrolls to it. Edit an element and the highlight and scroll follow the change.</li>
-                    <li><strong>Page properties.</strong> Select a page (click its name above the frame, or its outline) without selecting anything inside it, and the Properties panel shows the page itself: its name, version and project, size (Desktop, Tablet, Mobile or any width, with an empty height following the content), its position on the canvas, plus <em>Zoom to fit</em> and <em>Details…</em>.</li>
-                    <li><strong>Colour picker.</strong> Clicking any colour swatch (the floating bar or the panel) opens a picker beside the selected element, so you can watch the colour change as you drag. Type a hex value and press Enter, or use the eyedropper to take a colour from the screen. Click anywhere else or press Esc to close it; each pick is one undo step. From the Properties panel it opens just beside the panel.</li>
-                    <li><strong>Zoom.</strong> Only the canvas zooms: Ctrl/Cmd + scroll or a pinch over it, or Ctrl/Cmd + <kbd>=</kbd> / <kbd>-</kbd> (Ctrl/Cmd + <kbd>0</kbd> for 100%). Panels and toolbars stay the same size; the browser's own page zoom is turned off in the editor.</li>
-                    <li><strong>Change an element's tag.</strong> The <strong>Tag</strong> menu at the top of the Properties panel turns an element into another one (a <code>div</code> into a <code>section</code>, a <code>p</code> into an <code>h2</code>, a link into a button). It only lists tags that stay valid where the element sits and for what it holds, so it doesn't show for images, inputs or list items, and text tags only appear for elements that hold text.</li>
-                    <li><strong>Placing and arranging.</strong> Alt-drag any element to take it out of the page flow and place it freely, exactly where you drop it. Select a box whose children are stacked and the panel offers <em>Row</em>, <em>Column</em> and <em>Grid</em>, keeping their spacing. Select several freely placed elements and press <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift</kbd>+<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">A</kbd> (or <em>Auto layout</em> in the panel) to line them up in a row or column with even spacing.</li>
-                    <li><strong>Smart guides.</strong> When you move or resize a free element it snaps to the edges and centres of every box around it, not only its siblings. A red line appears only between the boxes that lined up, with an x on each. Place it between two boxes and it snaps to equal spacing and shows the gap in red. Hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Alt</kbd> while dragging to turn snapping off and see the distance to the nearest box on every side.</li>
-                    <li><strong>Moving elements around.</strong> Drag an element that sits in the page flow and drop it anywhere: next to another element, or into a different container. The editor reads the layout under the pointer (flex row, flex column, grid or normal flow), outlines the container it will land in with a short note (for example <em>Insert in div · flex row</em>), and shows a line where it will go. Near the edge of a container the drop goes before or after that container instead of inside it. Elements with a free position still move anywhere with snapping.</li>
-                    <li><strong>Border, radius and spacing from the bar.</strong> The bar over a selected element has three buttons: <strong>Border</strong> (none, solid, dashed or dotted, a color and a width), <strong>Radius</strong> and <strong>Spacing</strong> (padding and margin). Each opens a small panel with one field for all sides; the square icon beside it switches to one field per side (T, R, B, L, or TL, TR, BL, BR for corners). Values are written as inline CSS, so they win over any class.</li>
-                    <li><strong>Pages and Layers on the left.</strong> The sidebar button at the start of the left tools opens the left panel. Its header holds Back, the project name (click to open the project board) and the panel toggle; below are <strong>Pages</strong> (every page in the project, with <strong>+</strong> to add one; click to switch, double-click to rename, and the current page's row has a pencil for name, category, tags and visibility) and <strong>Layers</strong> (the element tree of the current page). The current page and the Layers title stay pinned while the panel scrolls. The right panel is only for properties.</li>
-                    <li><strong>Layers start with the frames.</strong> With nothing selected the <strong>Layers</strong> tab lists just the frames; select a frame (click its name, or its row) and its element tree opens under it.</li>
-                    <li><strong>Layers follow your selection:</strong> click something on the canvas and the <strong>Layers</strong> tab opens its parents and scrolls to its row.</li>
-                    <li><strong>Never clipped:</strong> the selection box and handles are drawn above the frame, so they stay fully visible when an element touches the frame's edge, and an element that hangs outside the frame shows its full outline.</li>
-                    <li><strong>Corner dots:</strong> the small round dot just inside each corner sets the corner radius. Drag one toward the middle and all four corners round together (the number is also in the floating toolbar). It is saved as a Tailwind class, or an inline style on non-Tailwind designs.</li>
-                    <li><strong>A whole frame:</strong> click a frame's name to select it. Its handles resize the frame and the design inside reflows to fit. The bar below it has <em>Desktop</em>, <em>Tablet</em> and <em>Mobile</em> presets, (each sets the width and lets the height follow the content), plus a <em>Custom</em> button once you set any other size (it remembers your last manual size, so you can switch back to it) and exact <em>W</em> and <em>H</em> (leave H empty to grow with the content). The size is saved with the design.</li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">One infinite plane, many designs</h3>
-                <p class="mt-2 text-sm">The canvas is an endless plane, like Claude Design or Figma. Every design in the same <a href="#projects" class="font-medium underline">project</a> sits on it side by side, so you can see the whole product at once and jump between screens without going back to the Library.</p>
-                <ul class="mt-4 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>One live frame.</strong> The design with the blue name is the one you are editing. The others are live previews. <strong>Click a preview</strong> (or pick it from the <strong>designs menu</strong> at the top left) to switch to it. Each design keeps its own undo history, so switching never loses an edit.</li>
-                    <li><strong>Pan and zoom.</strong> Scroll to pan, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd</kbd> + scroll or a trackpad pinch to zoom around the pointer, hold the <strong>middle mouse button</strong> and drag, use the <strong>Hand</strong> tool, or hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Space</kbd> to pan. The zoom menu has <em>Fit all</em> (<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+1</kbd>) and <em>Fit this design</em> (<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+2</kbd>). Zoom runs from 2% to 25600%. The background dots always keep the same size, and from 400% a pixel grid appears (one line per design pixel) so you can place things exactly.</li>
-                    <li><strong>Select several designs.</strong> With the arrow, drag on empty canvas to draw a selection box; the frame it touches gets selected. Click empty canvas to deselect everything.</li>
-                    <li><strong>Rename.</strong> Double-click a frame's name to edit it. Enter or clicking away saves, Esc cancels. It works on any frame on the plane, not just the one you are editing.</li>
-                    <li><strong>Arrange.</strong> Drag a frame by its name to move it. Positions are saved, and the project board shows the same layout.</li>
-                    <li><strong>Add a design.</strong> <strong>+ New design</strong> in that menu adds an empty frame to the plane (it asks you to name a project first if this design isn't in one). It is saved into the project as its own page.</li>
-                    <li><strong>Save</strong> writes every design you changed, each as a new version. A blue dot next to a name means it has unsaved changes.</li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Free design tools</h3>
-                <p class="mt-2 text-sm">The floating palette at the top of the canvas works like Figma. Pick a tool (or press its key) and drag on the canvas to draw. Everything you draw is real HTML, positioned with <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">position: absolute</code>, so the <strong>Code</strong> panel always shows exactly what you have designed.</p>
-                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th class="px-4 py-2.5">Tool</th><th class="px-4 py-2.5">Key</th><th class="px-4 py-2.5">What it does</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Move</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">V</kbd></td><td class="px-4 py-2.5">Select, drag, resize, rotate. Drag on empty space to select several things.</td></tr>
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Hand</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">H</kbd> or hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Space</kbd></td><td class="px-4 py-2.5">Pan around the canvas.</td></tr>
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Frame</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">F</kbd></td><td class="px-4 py-2.5">A container box. Draw things inside it and they belong to it.</td></tr>
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Rectangle, Oval, Arrow, Line</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">R</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">O</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift+L</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">L</kbd></td><td class="px-4 py-2.5">One shape button in the tools: click it to draw the shape you used last, or open its chevron to pick another. Drag to draw; an arrow or line runs from where you start to where you let go. Change color, corners and shadow in the inspector.</td></tr>
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Text</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">T</kbd></td><td class="px-4 py-2.5">Click and type. Double-click any text later to edit it.</td></tr>
-                            <tr><td class="px-4 py-2.5 font-medium text-gray-900">Image, Button</td><td class="px-4 py-2.5"><kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">I</kbd> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">B</kbd></td><td class="px-4 py-2.5">Draw a placeholder image or a button with the keys (their buttons are in the <strong>+</strong> insert menu instead of the tools). You can also drop an image file straight onto the canvas.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <ul class="mt-4 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Move and resize:</strong> drag a shape, or its handles. Smart red guides snap to other shapes and to the edges and center of what contains it (hold <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Alt</kbd> to turn snapping off). <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Shift</kbd> keeps the proportions or the straight line. The round handle above a shape rotates it (Shift snaps to 15 degrees).</li>
-                    <li><strong>Arrow keys</strong> nudge by 1 px, with Shift by 10 px. Exact X, Y, width, height and rotation are in <strong>Position and size</strong> in the inspector.</li>
-                    <li><strong>Several things at once:</strong> Shift-click or drag a box around them. Then <strong>Align</strong> (left, center, right, top, middle, bottom), <strong>space them evenly</strong>, or <strong>Group</strong> them (<kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+G</kbd>; Ungroup is <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+Shift+G</kbd>).</li>
-                    <li><strong>Free position</strong> turns any existing element (a heading from AI, for example) into one you can drag anywhere. Without it, elements stay in the page's normal flow and dragging reorders them.</li>
-                    <li><strong>Shortcuts:</strong> <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Ctrl/Cmd+D</kbd> duplicates, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Delete</kbd> removes, <kbd class="rounded border border-gray-300 bg-gray-50 px-1.5 text-xs">Esc</kbd> goes back to Move.</li>
-                </ul>
-
-                <h3 class="mt-8 text-lg font-semibold text-gray-900">Saving</h3>
-                <p class="mt-2 text-sm">For a new component, <strong>Save</strong> asks for the details: <strong>Title</strong> and <strong>Description</strong> (what a person or an AI reads to decide if it fits), <strong>Category</strong>, <strong>Tags</strong> (comma separated, used for search and by AI) and <strong>Visibility</strong> (<em>Public</em> shows it in the gallery too, <em>Private</em> keeps it in your library; see <a href="#visibility" class="font-medium underline">Public or private</a>). After that, <strong>Save</strong> makes a new version each time. Click the title at the top to change the details later.</p>
-            </section>
-
-            {{!-- 6 --}}
-            <section id="library" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Library</h2>
-                <p class="mt-3">Your private workspace, at <a href="/library" class="font-medium underline">Library</a>
-                    in the sidebar. Every component you made or saved lives here as a card.</p>
-
-                <svg viewBox="0 0 760 250" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="Anatomy of a library card">
-                    <rect x="20" y="20" width="300" height="210" rx="12" fill="#fff" stroke="#d1d5db" />
-                    <rect x="20" y="20" width="300" height="90" rx="12" fill="#f3f4f6" />
-                    <text x="170" y="70" text-anchor="middle" font-size="12" fill="#6b7280">live preview</text>
-                    <text x="36" y="136" font-size="13" font-weight="600" fill="#111">Pricing Card</text>
-                    <rect x="274" y="122" width="34" height="18" rx="4" fill="#f3f4f6" /><text x="291" y="135"
-                        text-anchor="middle" font-size="11" fill="#4b5563">v3</text>
-                    <rect x="36" y="150" width="52" height="18" rx="9" fill="#f3f4f6" stroke="#e5e7eb" /><text x="62"
-                        y="163" text-anchor="middle" font-size="10" fill="#4b5563">Private</text>
-                    <rect x="94" y="150" width="76" height="18" rx="9" fill="#eff6ff" stroke="#bfdbfe" /><text x="132"
-                        y="163" text-anchor="middle" font-size="10" fill="#1d4ed8">From gallery</text>
-                    <rect x="176" y="150" width="40" height="18" rx="9" fill="#f3f4f6" /><text x="196" y="163"
-                        text-anchor="middle" font-size="10" fill="#4b5563">saas</text>
-                    <rect x="36" y="176" width="12" height="12" rx="2" fill="#000" /><text x="54" y="186" font-size="11"
-                        fill="#4b5563">Use as AI reference</text>
-                    <g font-size="11" fill="#111">
-                        <rect x="36" y="198" width="52" height="22" rx="5" fill="#fff" stroke="#d1d5db" /><text x="62"
-                            y="213" text-anchor="middle">Export</text>
-                        <rect x="94" y="198" width="56" height="22" rx="5" fill="#fff" stroke="#d1d5db" /><text x="122"
-                            y="213" text-anchor="middle">History</text>
-                        <rect x="156" y="198" width="40" height="22" rx="5" fill="#fff" stroke="#d1d5db" /><text x="176"
-                            y="213" text-anchor="middle">Edit</text>
-                        <rect x="202" y="198" width="52" height="22" rx="5" fill="#fff" stroke="#d1d5db" /><text x="228"
-                            y="213" text-anchor="middle" fill="#b91c1c">Delete</text>
-                    </g>
-
-                    <g stroke="#9ca3af" stroke-width="1">
-                        <path d="M320 65 H400" />
-                        <path d="M320 130 H400" />
-                        <path d="M320 159 H400" />
-                        <path d="M320 182 H400" />
-                        <path d="M320 209 H400" />
-                    </g>
-                    <g font-size="13" fill="#374151">
-                        <text x="410" y="69">
-                            <tspan font-weight="600" fill="#111">Preview.</tspan> The component, running live.
-                        </text>
-                        <text x="410" y="134">
-                            <tspan font-weight="600" fill="#111">Version.</tspan> v3 means it was saved 3 times.
-                        </text>
-                        <text x="410" y="163">
-                            <tspan font-weight="600" fill="#111">Badges.</tspan> Private or Public, From gallery, tags.
-                        </text>
-                        <text x="410" y="186">
-                            <tspan font-weight="600" fill="#111">AI reference.</tspan> Untick to hide from the AI.
-                        </text>
-                        <text x="410" y="213">
-                            <tspan font-weight="600" fill="#111">Buttons.</tspan> Export, History, Edit, Delete.
-                        </text>
-                    </g>
-                </svg>
-
-                <ul class="mt-5 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Search</strong> looks at title, description, category and tags.</li>
-                    <li><strong>Tag chips</strong> filter the cards. The number beside a tag is how many components have
-                        it. <em>All</em> clears the filter.</li>
-                    <li><strong>Edit</strong> opens the editor with everything filled in. If you changed the code,
-                        saving creates a new version.</li>
-                    <li><strong>Delete</strong> removes it for good (it asks first). Public copies others saved to their
-                        own libraries are not affected.</li>
-                </ul>
-            </section>
-
-            
-
-            {{!-- Projects --}}
             <section id="projects" class="scroll-mt-24">
                 <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Projects</h2>
-                <p class="mt-3">A <strong>project</strong> groups everything for one website or app, like a Figma file. It holds <strong>pages</strong> (full screens) and each page's <strong>sections</strong> (header, hero, pricing, footer). Open <a href="/projects" class="font-medium underline">Projects</a> in the sidebar.</p>
-                <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">One plane</p><p class="mt-1 text-sm">Every page and section is a live frame on a single infinite canvas, like Figma. Scroll or drag the background to pan, Ctrl/Cmd + scroll to zoom, <strong>Fit</strong> to see everything. Drag a frame to arrange it (positions are saved), double-click to open it in the editor, <strong>Tidy up</strong> to reset the layout.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">Add to a project</p><p class="mt-1 text-sm"><strong>+ New page</strong> on the board, the Project box in the save dialog, or the Project dropdown on any Library card.</p></div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4"><p class="font-medium text-gray-900">From Claude</p><p class="mt-1 text-sm">Ask: "Design a landing page and a pricing page and save them in a project called Acme website." Claude creates the project and files both pages.</p></div>
-                </div>
-                <p class="mt-4 text-sm"><strong>Active project and brief.</strong> Press <strong>Set as active</strong> on a project's board to tell Claude "this is what I'm working on". When Claude connects it is told the active project, its <strong>brief</strong> (brand, tone, colors, navigation, rules, written in the panel on the right) and the pages already designed, so new pages match the old ones. Saves go to the active project by default, and you can say "switch to the Mobile app project" or "remember that every page has a top bar" and Claude updates it for you.</p>
-                <p class="mt-4 text-sm">Deleting a project never deletes its pages: they go back to your Library. Claude can also list projects and read a project's structure (<code class="rounded bg-gray-100 px-1 font-mono text-[13px]">list_projects</code>, <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">get_project</code>), so a later chat can continue where you left off.</p>
+                <p class="mt-3">A project is where everything starts: a design cannot exist outside one. It is a folder for your pages and components, with one shared look, a share link, and a place to export from.</p>
+                <ul class="mt-3 list-disc space-y-1.5 pl-5"><li><strong class="text-gray-900">New project</strong> (top bar) creates it at once and opens the editor on a blank page. Rename it on its page.</li><li>The project page shows a board of every page and component. Drag frames to arrange them. Two tabs list them as <strong class="text-gray-900">Pages</strong> and <strong class="text-gray-900">Components</strong>.</li><li>Select an item to <strong class="text-gray-900">export</strong> it, see its <strong class="text-gray-900">history</strong> and restore a version, <strong class="text-gray-900">move</strong> it to another project, say whether AI may use it as a <strong class="text-gray-900">reference</strong>, or <strong class="text-gray-900">delete</strong> it.</li><li><strong class="text-gray-900">Import</strong> adds designs from HTML files, a zip, or pasted HTML. Long pages can be split into sections.</li><li>Deleting a project deletes everything in it.</li></ul>
             </section>
 
-            {{!-- 7 --}}
-            <section id="versions" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Versions and history</h2>
-                <p class="mt-3">Every time you change a component's code and save, the old code is kept. Nothing is
-                    lost, so you can experiment freely.</p>
-                <svg viewBox="0 0 760 150" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="Version timeline v1 to v3 with restore">
-                    <defs>
-                        <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-                            orient="auto-start-reverse">
-                            <path d="M0 0 10 5 0 10z" fill="#111" />
-                        </marker>
-                    </defs>
-                    <path d="M60 75 H700" stroke="#d1d5db" stroke-width="2" />
-                    <g font-size="12" text-anchor="middle">
-                        <circle cx="120" cy="75" r="16" fill="#fff" stroke="#9ca3af" stroke-width="2" /><text x="120"
-                            y="79" fill="#111" font-weight="600">v1</text><text x="120" y="112" fill="#6b7280">first
-                            save</text>
-                        <circle cx="330" cy="75" r="16" fill="#fff" stroke="#9ca3af" stroke-width="2" /><text x="330"
-                            y="79" fill="#111" font-weight="600">v2</text><text x="330" y="112" fill="#6b7280">you
-                            edited it</text>
-                        <circle cx="540" cy="75" r="16" fill="#000" /><text x="540" y="79" fill="#fff"
-                            font-weight="600">v3</text><text x="540" y="112" fill="#111"
-                            font-weight="600">current</text>
-                    </g>
-                    <path d="M520 55 C 460 5, 190 5, 140 55" fill="none" stroke="#111" stroke-width="1.5"
-                        stroke-dasharray="4 4" marker-end="url(#a3)" />
-                    <text x="330" y="13" text-anchor="middle" font-size="12" fill="#374151">Restore v1 (saved as a new
-                        v4, so v3 is kept too)</text>
-                </svg>
-                <p class="mt-4 text-sm">To go back: press <strong>History</strong> on a card, pick a version and press
-                    <strong>Restore</strong>.
-                </p>
+            <section id="editor" class="scroll-mt-24">
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">The editor</h2>
+                <p class="mt-3">The editor shows the design and its code side by side. Edit either: change the code and the design follows, drag or restyle on the canvas and the code follows.</p>
+                <ul class="mt-3 list-disc space-y-1.5 pl-5"><li><strong class="text-gray-900">Tools</strong>: select, hand, interact (try the page as it will run), frame, shapes, text, and an add menu.</li><li><strong class="text-gray-900">Code panel</strong>: syntax colours, auto-closing tags, find and replace, Tailwind class suggestions, and <strong class="text-gray-900">Format</strong> to tidy it. Dock it to the left or below the design.</li><li><strong class="text-gray-900">Properties</strong>: edit an element's spacing, size, type, colour, border and effects. Each value is written to where it comes from (a Tailwind class or CSS).</li><li><strong class="text-gray-900">Save</strong> asks only for a name the first time.</li></ul>
             </section>
 
-            {{!-- 8 --}}
+            <section id="theme" class="scroll-mt-24">
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">A project's look</h2>
+                <p class="mt-3">On the project page, the <strong class="text-gray-900">Theme</strong> tab holds four choices that the editor, every preview and your exports use:</p>
+                <ul class="mt-3 list-disc space-y-1.5 pl-5"><li><strong class="text-gray-900">Brand colour</strong>: one colour. Its eleven shades become <code>brand-50</code> to <code>brand-950</code>, and the colour itself is <code>brand-600</code>.</li><li><strong class="text-gray-900">Gray</strong>: which of Tailwind's five grays <code>gray-*</code> means here.</li><li><strong class="text-gray-900">Font</strong>: a Google Fonts family, or the system font.</li><li><strong class="text-gray-900">Corners</strong>: how round <code>rounded-*</code> is.</li></ul>
+                <p class="mt-3">Change it once and every page and component in the project follows.</p>
+            </section>
+
+            <section id="share" class="scroll-mt-24">
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Publishing and sharing</h2>
+                <h3 class="mt-6 text-lg font-semibold text-gray-900">Public</h3>
+                <p class="mt-3">Designs are private. Turn <strong class="text-gray-900">Public</strong> on for a design on its project page and it appears in the gallery, under its category, where anyone can look, copy, like and report it.</p>
+                <h3 class="mt-6 text-lg font-semibold text-gray-900">Share link</h3>
+                <p class="mt-3">The <strong class="text-gray-900">Share</strong> button on a project page makes a link. Anyone who opens it can look at the whole project in its theme and copy the code, with no account. Nothing in it can be changed. <strong class="text-gray-900">Stop sharing</strong> ends the link.</p>
+            </section>
+
             <section id="export" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Export</h2>
-                <p class="mt-3">Press <strong>Export</strong> on a card, pick a tab, and press <strong>Copy</strong>.
-                    The app translates your component for you.</p>
-                <div class="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2.5">Tab</th>
-                                <th class="px-4 py-2.5">Use it when</th>
-                                <th class="px-4 py-2.5">What changes</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">HTML</td>
-                                <td class="px-4 py-3">Plain websites</td>
-                                <td class="px-4 py-3">Nothing. It is exactly what you saved.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">React</td>
-                                <td class="px-4 py-3">React or Next.js apps</td>
-                                <td class="px-4 py-3"><code class="font-mono text-[13px]">class</code> becomes <code
-                                        class="font-mono text-[13px]">className</code>, styles become objects, scripts
-                                    become <code class="font-mono text-[13px]">useEffect</code>.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Vue</td>
-                                <td class="px-4 py-3">Vue 3 apps</td>
-                                <td class="px-4 py-3">A single-file component with template, script and scoped style.
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Svelte</td>
-                                <td class="px-4 py-3">Svelte apps</td>
-                                <td class="px-4 py-3">Markup plus <code class="font-mono text-[13px]">onMount</code>
-                                    script and style.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="mt-3 text-sm text-gray-600">Tip: inline click handlers like <code
-                        class="font-mono text-[13px]">onclick="..."</code> are left out of the React export, because
-                    React wires events differently. Add them back as props.</p>
+                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Export and history</h2>
+                <p class="mt-3">Any design can be copied or exported as HTML, React, Vue or Svelte, and as a design spec or a profile. The page code stays plain HTML with Tailwind, so you are never locked in.</p>
+                <p class="mt-3">To keep the project's look in exported code, take the theme setup too: it is a small Tailwind config for the brand colour, gray, font and corners.</p>
+                <p class="mt-3">Every change keeps the earlier version. Open an item's <em>History</em> to see them and restore one.</p>
             </section>
 
-            {{!-- 9 --}}
-            <section id="ai" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">AI generation</h2>
-                <p class="mt-3">In the editor, type what you want in the box under the code (for example "a dark pricing
-                    section with three plans") and press the arrow. The code streams in and the preview updates as it
-                    goes. To change an existing component, type the change instead ("make the button rounder").</p>
-
-                <h3 class="mt-6 text-lg font-semibold text-gray-900">Why it matches your style</h3>
-                <svg viewBox="0 0 760 210" class="mt-4 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="AI reads your prompt and the best matching library components, then writes a new component">
-                    <defs>
-                        <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-                            orient="auto-start-reverse">
-                            <path d="M0 0 10 5 0 10z" fill="#111" />
-                        </marker>
-                    </defs>
-                    <rect x="20" y="25" width="190" height="60" rx="10" fill="#fff" stroke="#d1d5db" /><text x="115"
-                        y="52" text-anchor="middle" font-size="13" font-weight="600" fill="#111">Your
-                        request</text><text x="115" y="70" text-anchor="middle" font-size="11" fill="#6b7280">"dark
-                        pricing section"</text>
-                    <rect x="20" y="115" width="190" height="75" rx="10" fill="#000" /><text x="115" y="142"
-                        text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Your Library</text><text
-                        x="115" y="160" text-anchor="middle" font-size="11" fill="#d1d5db">best 3 matches are
-                        picked</text><text x="115" y="176" text-anchor="middle" font-size="11" fill="#d1d5db">(AI
-                        reference ticked only)</text>
-                    <rect x="300" y="75" width="160" height="70" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />
-                    <text x="380" y="106" text-anchor="middle" font-size="14" font-weight="600" fill="#111">AI
-                        model</text><text x="380" y="126" text-anchor="middle" font-size="11" fill="#6b7280">Claude or
-                        local</text>
-                    <rect x="550" y="75" width="190" height="70" rx="10" fill="#fff" stroke="#d1d5db" /><text x="645"
-                        y="106" text-anchor="middle" font-size="13" font-weight="600" fill="#111">New
-                        component</text><text x="645" y="126" text-anchor="middle" font-size="11" fill="#6b7280">in your
-                        colors and spacing</text>
-                    <path d="M210 55 L298 100" stroke="#111" stroke-width="1.5" marker-end="url(#a4)" />
-                    <path d="M210 152 L298 120" stroke="#111" stroke-width="1.5" marker-end="url(#a4)" />
-                    <path d="M460 110 H548" stroke="#111" stroke-width="1.5" marker-end="url(#a4)" />
-                </svg>
-                <ul class="mt-5 list-disc space-y-1.5 pl-5 text-sm">
-                    <li>When it uses your library, the chat says <em>"Using your library: Hero dark, Pricing card"</em>
-                        so you can see what shaped the result.</li>
-                    <li>The more (and better) components you keep, the better it matches. An empty library means the AI
-                        has nothing to copy the style from. Save a few from the gallery to start.</li>
-                    <li>A messy or outdated component hurting the results? Untick <strong>Use as AI reference</strong>
-                        on its card.</li>
-                    <li>AI needs setup once: avatar, then <em>AI Settings</em>. Choose <strong>Anthropic</strong> (paste
-                        your API key) or <strong>Local LLM</strong> (paste your server address). Your key is only used
-                        to make your own requests.</li>
-                </ul>
-            </section>
-
-            {{!-- 10 --}}
             <section id="agents" class="scroll-mt-24">
                 <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Coding agents (MCP)</h2>
-                <p class="mt-3"><strong>MCP</strong> is a standard way for AI coding tools to plug into other apps.
-                    Connect it once and Claude Code or Cursor can look inside your Library while they write code,
-                    instead of guessing or relying on code you pasted into a chat.</p>
-
-                <svg viewBox="0 0 760 190" class="mt-6 w-full rounded-xl border border-gray-200 bg-white" role="img"
-                    aria-label="Coding agent talks to your library through MCP">
-                    <defs>
-                        <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-                            orient="auto-start-reverse">
-                            <path d="M0 0 10 5 0 10z" fill="#111" />
-                        </marker>
-                    </defs>
-                    <rect x="20" y="60" width="190" height="70" rx="10" fill="#fff" stroke="#d1d5db" /><text x="115"
-                        y="90" text-anchor="middle" font-size="13" font-weight="600" fill="#111">Claude Code /
-                        Cursor</text><text x="115" y="110" text-anchor="middle" font-size="11" fill="#6b7280">where you
-                        write code</text>
-                    <rect x="290" y="60" width="180" height="70" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />
-                    <text x="380" y="90" text-anchor="middle" font-size="13" font-weight="600" fill="#111">MCP
-                        connection</text><text x="380" y="110" text-anchor="middle" font-size="11" fill="#6b7280">locked
-                        with your token</text>
-                    <rect x="550" y="60" width="190" height="70" rx="10" fill="#000" /><text x="645" y="90"
-                        text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Your Library</text><text
-                        x="645" y="110" text-anchor="middle" font-size="11" fill="#d1d5db">only yours</text>
-                    <path d="M210 82 H288" stroke="#111" stroke-width="1.5" marker-end="url(#a5)" />
-                    <path d="M288 108 H212" stroke="#111" stroke-width="1.5" marker-end="url(#a5)" />
-                    <path d="M470 82 H548" stroke="#111" stroke-width="1.5" marker-end="url(#a5)" />
-                    <path d="M548 108 H472" stroke="#111" stroke-width="1.5" marker-end="url(#a5)" />
-                    <text x="380" y="170" text-anchor="middle" font-size="12" fill="#6b7280">Both directions: the agent
-                        can read from and save to your library.</text>
-                </svg>
-
+                <p class="mt-3">MCP lets Claude Code, Cursor and similar tools read and write your projects, instead of guessing.</p>
                 <h3 class="mt-6 text-lg font-semibold text-gray-900">Set it up (once)</h3>
-                <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm">
-                    <li>Open <a href="/library" class="font-medium underline">Library</a> and find the <em>Connect your
-                            coding agent</em> box.</li>
-                    <li>Press <strong>Generate token</strong>. A command appears. <strong>Copy it now</strong>: the
-                        token is shown only once (generating a new one cancels the old).</li>
-                    <li>Paste the command into your terminal. For Claude Code it looks like this:</li>
-                </ol>
-                <pre
-                    class="mt-3 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-4 font-mono text-[12px] leading-5 text-gray-900">claude mcp add --transport http tailwind-library https://YOUR-SITE/mcp --header "Authorization: Bearer YOUR_TOKEN"</pre>
-                <p class="mt-3 text-sm">Then just talk normally, for example: <em>"Build a landing page. Check my
-                        component library first and reuse my hero and pricing components."</em></p>
-
-                <h3 class="mt-6 text-lg font-semibold text-gray-900">The Connect page and Claude Design</h3>
-                <p class="mt-2 text-sm">Open <a href="/connect" class="font-medium underline">Connect</a> in the sidebar. It gives you a <strong>Claude Code kit</strong> (project config, a short <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">CLAUDE.md</code> section and a skill) and a <strong>design pack</strong> for Claude Design: your design guide, every component with its spec, and a brief to attach.</p>
-                <p class="mt-2 text-sm"><strong>Claude on the web:</strong> on the Connect page, copy the connector address into Claude (<em>Settings, Connectors, Add custom connector</em>). You approve access once on a page of this site, and there is no token to copy. You can disconnect any app from the same page. This needs the site to be reachable on the internet over HTTPS.</p>
-                <p class="mt-2 text-sm"><strong>The bridge:</strong> design with the pack attached, then bring the result back. If Claude is connected to your library it can save the design itself with <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">save_design</code> (one component per screen). Otherwise use <strong>Import designs</strong> in Library: drop HTML files or a <strong>.zip</strong>, or paste HTML. With <em>Split pages into sections</em> on, each page is saved whole and also as one component per section (header, hero, pricing, footer). Everything is private and tagged, with its own spec, and Claude Code can build from it over MCP.</p>
-
-                <h3 class="mt-6 text-lg font-semibold text-gray-900">How the agent knows what to use</h3>
-                <p class="mt-2 text-sm">Agents shouldn't read everything. So the app prepares two summaries for them, automatically:</p>
-                <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm">
-                    <li><strong>Profile card</strong> (one per component): the colors, text sizes, radius and spacing it uses, how it is built, whether it works on mobile and in dark mode, and whether it needs JavaScript. If AI is on, it also gets a one-line <em>summary</em> and <em>use when / avoid when</em>. It updates whenever the code changes. Open it with <strong>Export</strong> then the <strong>Spec</strong> tab.</li>
-                    <li><strong>Design guide</strong> (one per library): your most-used colors, fonts and spacing, plus a short index of every component. Open it with the <strong>Design guide</strong> button in Library. You can download it or paste it into a <code class="rounded bg-gray-100 px-1 font-mono text-[13px]">CLAUDE.md</code>.</li>
-                </ul>
-                <p class="mt-3 text-sm">The agent reads the guide first, searches, reads the short cards of a few matches, and only then fetches the full code for the one or two it will use.</p>
-
+                <ol class="mt-3 list-decimal space-y-1.5 pl-5"><li>Open <a href="/connect" class="font-medium underline">Connect</a> in the sidebar.</li><li>Press <em>Generate token</em> and copy the command now. The token is shown once.</li><li>Paste the command into your terminal. For Claude Code it looks like this:</li></ol>
+                <pre class="mt-3 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-4 font-mono text-[12px] leading-5 text-gray-900">claude mcp add --transport http tailwind-library https://YOUR-SITE/mcp --header "Authorization: Bearer YOUR_TOKEN"</pre>
                 <h3 class="mt-6 text-lg font-semibold text-gray-900">What the agent can do</h3>
-                <div class="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2.5">Tool</th>
-                                <th class="px-4 py-2.5">In plain words</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">search_components</td>
-                                <td class="px-4 py-3">"Find my pricing components." Searches by keyword or tag.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">get_component</td>
-                                <td class="px-4 py-3">"Give me that one as React." Returns the code in HTML, React, Vue
-                                    or Svelte.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">get_design_spec</td>
-                                <td class="px-4 py-3">"Look at my pricing card." Returns the design as a labelled tree: every element has an id (n1, n2…), a role (title, button, card…), its text, and its Tailwind classes read as properties per screen size and state. Also in the library under <strong>Export → Design spec</strong>.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">apply_design_patch</td>
-                                <td class="px-4 py-3">"Make its button blue." Claude sends small changes on those ids (set a colour, change text, move or remove an element, or edit a CSS rule when the design uses its own CSS) instead of rewriting the code. Windcraft checks them all, changes only what they name, and saves a new version. If the design changed since Claude read it, nothing is applied and Claude reads it again.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">save_component</td>
-                                <td class="px-4 py-3">"Save this new component." Added to your library as private.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">save_pages</td>
-                                <td class="px-4 py-3">"Save these three pages." Saves several pages in one go, each as its own separate component inside one project (Overview, Customers, Transactions). Pages appear in the project in the order Claude lists them, and can be given a <strong>group</strong> ("Public site", "Customer area"): the project board lays each group out as its own row and the page lists show the group's name. What the pages share (fonts, the Tailwind script and its config) is sent once and added to every page's head, so each page still opens on its own; the project remembers it for later saves. You can also change a page's group in the editor, in the page panel.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">save_design</td>
-                                <td class="px-4 py-3">"Save this finished page." Saves it as one private component. Add "and split it into sections" for a long marketing page and each stacked section (header, hero, pricing, footer) is saved too. Dashboards and app screens are never split. Saving a page that already exists (same name in the same project) adds a new version of it instead of a copy, and updates its sections. If you changed the page in the editor since Claude last read it, the save is refused, so your edits are never overwritten without you knowing.</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-mono text-[13px] text-gray-900">list_tags</td>
-                                <td class="px-4 py-3">"What tags do I use?" Returns every tag and how many components
-                                    have it.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><strong
-                        class="text-gray-900">Treat the token like a password.</strong> Anyone who has it can read and
-                    add to your library. If it leaks, generate a new one.</div>
+                <div class="mt-3 divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm"><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">get_design_guide</code><span>A summary of your designs: colours, fonts, spacing and an index. Agents read it first.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">search_components</code><span>Find designs by keyword or tag.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">get_component</code><span>Get one design as HTML, React, Vue or Svelte.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">get_design_spec</code><span>Look at a design as a labelled tree of elements.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">apply_design_patch</code><span>Make small changes to a design by element id.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">save_component, save_design, save_pages</code><span>Save a component, a finished page, or several pages. Every save goes into a project: name one, or set an active project.</span></div><div class="grid gap-1 p-3 sm:grid-cols-[200px_1fr]"><code class="font-mono text-gray-900">list_tags</code><span>List your tags.</span></div></div>
+                <p class="mt-3"><strong class="text-gray-900">Treat the token like a password.</strong> Anyone who has it can read and add to your projects. If it leaks, generate a new one.</p>
             </section>
 
-            {{!-- 11 --}}
-            <section id="visibility" class="scroll-mt-24">
-                <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Public or private</h2>
-                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2.5"></th>
-                                <th class="px-4 py-2.5">Public</th>
-                                <th class="px-4 py-2.5">Private</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">In your Library</td>
-                                <td class="px-4 py-3">Yes</td>
-                                <td class="px-4 py-3">Yes</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">In the Gallery for everyone</td>
-                                <td class="px-4 py-3">Yes</td>
-                                <td class="px-4 py-3">No</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Others can save a copy</td>
-                                <td class="px-4 py-3">Yes</td>
-                                <td class="px-4 py-3">No</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Used by your AI and agents</td>
-                                <td class="px-4 py-3">Yes</td>
-                                <td class="px-4 py-3">Yes</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Saved by Save to library</td>
-                                <td class="px-4 py-3">n/a</td>
-                                <td class="px-4 py-3">Always private</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-gray-900">Saved by a coding agent</td>
-                                <td class="px-4 py-3">n/a</td>
-                                <td class="px-4 py-3">Always private</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="mt-3 text-sm">Change it any time: open the component with <strong>Edit</strong>, click its title at the top, and pick a
-                    different visibility.</p>
-            </section>
-
-            {{!-- 12 --}}
             <section id="glossary" class="scroll-mt-24">
                 <h2 class="text-2xl font-semibold tracking-tight text-gray-900">Glossary</h2>
-                <dl class="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white text-sm">
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Component</dt>
-                        <dd>A reusable piece of a page, like a button, card or menu.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Tailwind</dt>
-                        <dd>A way of styling with short class names like <code class="font-mono text-[13px]">p-4</code>
-                            (padding) or <code class="font-mono text-[13px]">bg-black</code> (black background).</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">HTML / CSS / JS</dt>
-                        <dd>Structure, looks and behavior of a web page, in that order.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Library</dt>
-                        <dd>Your private collection. What your AI and agents read.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Gallery</dt>
-                        <dd>The public shelf of published components.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Fork / Save to library</dt>
-                        <dd>Making your own private copy of someone's component. The original stays as it was.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Version</dt>
-                        <dd>A snapshot of a component's code. Each save adds one.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Tag</dt>
-                        <dd>A short label used for searching and filtering.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Reference</dt>
-                        <dd>A library component the AI looks at to copy your style.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">MCP</dt>
-                        <dd>The connection standard that lets coding tools use your library.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">Token</dt>
-                        <dd>A secret code that proves a tool is allowed to use your library.</dd>
-                    </div>
-                    <div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]">
-                        <dt class="font-medium text-gray-900">API key</dt>
-                        <dd>A secret from your AI provider (such as Anthropic) that lets the app make AI requests on
-                            your behalf.</dd>
-                    </div>
-                </dl>
-                <p class="mt-6 text-sm">Still stuck? See <a href="/support" class="font-medium underline">Support</a>.
-                </p>
+                <dl class="mt-4 divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm"><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Gallery</dt><dd>Public designs, by category, most liked first.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Project</dt><dd>Where designs live: a folder with a shared look, a share link and exports.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Page and component</dt><dd>A page is a whole screen; a component is a smaller part. Both live in a project.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Theme</dt><dd>A project's brand colour, gray, font and corners.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Public</dt><dd>A design turned on for the gallery. Private by default.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Share link</dt><dd>A view-only link to a whole project.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">MCP</dt><dd>The standard that lets coding tools use your projects.</dd></div><div class="grid gap-1 p-4 sm:grid-cols-[160px_1fr]"><dt class="font-medium text-gray-900">Token</dt><dd>A secret that proves a tool may use your projects.</dd></div></dl>
+                <p class="mt-6 text-sm">Still stuck? See <a href="/support" class="font-medium underline">Support</a>.</p>
             </section>
 
         </article>

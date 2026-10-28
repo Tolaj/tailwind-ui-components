@@ -3,7 +3,9 @@ import express from "express";
 import mongoose from "mongoose";
 import Project from "../models/project.model.js";
 import Component from "../models/component.model.js";
+import FigmaSource from "../models/figmaSource.model.js";
 import { listProjects, getActiveProject, setActiveProject } from "../services/project.service.js";
+import { buildDesignGuide } from "../services/guide.service.js";
 import { normalizeTheme } from "@windcraft/core/theme.js";
 
 // ── Pages ────────────────────────────────────────────────────────────────────
@@ -18,6 +20,19 @@ projectPages.get("/", async (req, res) => {
     }
 });
 
+// A markdown guide generated from the user's designs (agents read the same with the get_design_guide tool)
+projectPages.get("/design-guide.md", async (req, res) => {
+    try {
+        const { markdown } = await buildDesignGuide(req.session.user.id);
+        res.type("text/markdown; charset=utf-8");
+        if (req.query.download) res.attachment("design-guide.md");
+        res.send(markdown);
+    } catch (error) {
+        console.error("Design guide error:", error);
+        res.status(500).type("text/plain").send("Could not build the design guide");
+    }
+});
+
 projectPages.get("/:id", async (req, res) => {
     try {
         if (!mongoose.isValidObjectId(req.params.id)) throw new Error("bad id");
@@ -25,18 +40,19 @@ projectPages.get("/:id", async (req, res) => {
         if (!project) throw new Error("missing");
         const active = await getActiveProject(req.session.user.id);
         const items = await Component.find({ createdBy: req.session.user.id, project: project._id })
-            .select("title description kind parent order group tags version htmlCode board updatedAt")
+            .select("title description kind parent order group tags version htmlCode board useAsReference updatedAt")
             .sort("order createdAt")
             .lean();
         const data = {
             project: { id: String(project._id), name: project.name, shareToken: project.shareToken || "", theme: normalizeTheme(project.theme), description: project.description, brief: project.brief || "", active: Boolean(active && String(active._id) === String(project._id)) },
+            projects: (await Project.find({ owner: req.session.user.id }).select("name").sort("name").lean()).map((x) => ({ id: String(x._id), name: x.name })), // for "Move to project"
             items: items.map((c) => ({
-                id: String(c._id), title: c.title, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
+                id: String(c._id), title: c.title, useAsReference: c.useAsReference !== false, group: c.group || "", description: c.description, kind: c.kind, parent: c.parent ? String(c.parent) : null,
                 version: c.version || 1, tags: c.tags || [], htmlCode: c.htmlCode, frameW: c.frameW || null, board: c.board && Number.isFinite(c.board.x) ? { x: c.board.x, y: c.board.y, ...(Number.isFinite(c.board.w) ? { w: c.board.w } : {}), ...(Number.isFinite(c.board.h) ? { h: c.board.h } : {}) } : null, updatedAt: c.updatedAt,
             })),
         };
         res.render("main/project", {
-            layout: "canvas", title: project.name, projectName: project.name,
+            layout: "canvas", projectId: String(project._id), title: project.name, projectName: project.name,
             dataJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, ""),
         });
     } catch {
@@ -125,13 +141,15 @@ projectApi.post("/:id/layout", async (req, res) => {
     res.json({ success: true });
 });
 
-// Deleting a project keeps its components: they go back to the library with no project.
+// Deleting a project deletes everything in it (every design belongs to a project, so none is left without one).
 projectApi.delete("/:id", async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
     const p = await Project.findOneAndDelete({ _id: req.params.id, owner: req.session.user.id });
     if (!p) return res.status(404).json({ success: false, message: "Not found" });
-    await Component.updateMany({ createdBy: req.session.user.id, project: p._id }, { project: null, kind: "component", parent: null });
-    res.json({ success: true });
+    const ids = (await Component.find({ createdBy: req.session.user.id, project: p._id }).select("_id").lean()).map((c) => c._id);
+    await FigmaSource.deleteMany({ component: { $in: ids } }); // the Figma data kept with those pages goes with them
+    await Component.deleteMany({ _id: { $in: ids } });
+    res.json({ success: true, deleted: ids.length });
 });
 
 // ── The share link: look at a project and copy its code, with no account ────────────────────────────────────────

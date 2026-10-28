@@ -141,11 +141,10 @@ export const updateComponent = async (req, res) => {
         }
 
         if (projectRef !== undefined) {
+            // a design can move to another project, never out of projects; its kind (page, component) stays
             const target = await resolveProject(req.session.user.id, projectRef);
-            if (projectRef && !target) return res.status(404).json({ success: false, message: 'Project not found' });
-            component.project = target ? target._id : null;
-            component.kind = target ? (component.kind === 'component' ? 'page' : component.kind) : 'component';
-            if (!target) component.parent = null;
+            if (!target) return res.status(400).json({ success: false, message: 'A design belongs to a project: choose one' });
+            component.project = target._id;
             await Component.updateMany({ parent: component._id }, { project: component.project });
         }
 

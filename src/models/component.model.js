@@ -74,8 +74,6 @@ const componentSchema = new mongoose.Schema(
             ref: "Component",
             default: null
         },
-        // where this part came from when it was added from the catalog: { family, variant }
-        origin: { type: mongoose.Schema.Types.Mixed, default: null },
         useAsReference: {
             type: Boolean,
             default: true

@@ -48,17 +48,17 @@ It is free.
 | Design page: **Save** into a chosen project | **Done**: a project chooser (the last one used, or your active one, is preselected; or name a new project); a copy already saved in that project is reused, not duplicated |
 | Design page: **Open in editor** | **Done**: same chooser, then opens your copy in the editor. Signed out, both buttons go to sign in and then carry on |
 | **Likes**: button, count, most liked first, sign-in-then-like | **Done**: `likes` and `likedBy` are back; `POST /api/components/:id/like` (signed in; one like per person; counts once even if sent twice); the Like button shows on the design card; category pages sort by likes, then newest; signed out, it goes to sign in and the like is counted when the person returns; `/component/:id` now opens only published designs (or your own) |
-| **Report** button and a way for the owner to review and remove | **New** |
-| **Public** switch on a design in a project | **Change**: a publish flag exists in the data and in the editor's Details form; it needs to become a switch on the project page and in the editor |
-| **New project** opens the editor on a blank page with code left | **Change**: today it creates the project and opens the project page |
-| Project **share link** (look and copy code) | **New** |
+| **Report** button and a way for the owner to review and remove | **Done**: a flag on every design (reason, optional note, one per person, sign in first); it tells the owner and the design stays visible; the owner's **Reports** screen (`/admin/reports`, shown to the emails in the `ADMIN_EMAILS` setting) offers *Keep it* or *Remove from gallery*. Set `ADMIN_EMAILS` on the server for it to appear |
+| **Public** switch on a design in a project | **Done**: designs are private by default; a switch on the project page (and Visibility in the editor's page details) puts a design in the gallery |
+| **New project** opens the editor on a blank page with code left | **Done**: it is created at once as "Untitled project" (2, 3… if taken) and the editor opens |
+| Project **share link** (look and copy code) | **Done**: `/p/<token>`, view-only, no account, in the project's theme, with HTML / React / Vue / Svelte; on and off from the project page |
 | Project theme (brand colour, gray, font, corners) used by the editor and previews | **Exists** (built, committed) |
 | Editor with the code docked left or below, one-field save | **Exists** |
 | Project required to save a design | **Exists** |
 | MCP tools | **Exists** |
 | Figma import | **Exists** |
-| The separate `/catalog` pages (hand-made Button and Input) | **Decided: remove** (the gallery is the catalog). The files stay in git history; the parked families are in a stash |
-| Library page | **Decided: remove**. Saved designs live on the Projects page. Its jobs move first (export, history and restore, move, delete, import, design guide); the work is already done and kept in a git stash |
+| The separate `/catalog` pages (hand-made Button and Input) | **Done: removed**; `/catalog` redirects to the gallery. The files are in git history; the parked families are in a stash |
+| Library page | **Done: removed**. Its jobs are on the project page (export, history and restore, move, delete, import) and the Projects page (design guide); `/library` redirects to Projects |
 
 ## 5. Build order (each step is usable on its own)
 
@@ -68,7 +68,7 @@ It is free.
 4. **Public switch** and publishing to the gallery.
 5. **Report** and the owner's review screen.
 6. **Share link** for a project.
-7. Tidy: remove the `/catalog` pages; retire the Library page (move its jobs into Projects); rewrite the documentation and About pages to match.
+7. Tidy: remove the `/catalog` pages; retire the Library page (move its jobs into Projects); rewrite the documentation and About pages to match. **All seven steps are done.**
 
 ## 6. Still open
 
