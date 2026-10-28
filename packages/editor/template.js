@@ -233,6 +233,7 @@ export const editorHtml = `<div class="flex h-full flex-col">
                     <option value="false">Private (only me)</option>
                 </select>
             </div>
+            <label class="flex cursor-pointer items-start gap-2 text-xs text-neutral-700"><input id="dRef" type="checkbox" checked class="mt-0.5 h-4 w-4 rounded border-neutral-300"><span><span class="font-medium">Use as AI reference</span><br><span class="text-neutral-500">AI tools may use this design as a style reference.</span></span></label>
             <p id="detailsError" class="hidden text-xs text-red-700"></p>
         </div>
         <div class="flex justify-end gap-2 border-t border-neutral-200 px-5 py-3">

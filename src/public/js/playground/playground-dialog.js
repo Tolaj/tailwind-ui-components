@@ -129,6 +129,7 @@ function showDetails(f) {
     $("description").value = f.description || "";
     $("tags").value = f.tags || "";
     $("isPublished").value = String(f.isPublished !== false);
+    $("useAsReference").checked = f.useAsReference !== false;
     $("detailsError").classList.add("hidden");
     fillProjects(f.project);
     panel.classList.remove("hidden");
@@ -159,7 +160,7 @@ export const handleSave = async (e) => {
         }
         await ed.saveDetails({
             title: $("title").value.trim(), category: $("category").value, description: $("description").value.trim(),
-            tags: $("tags").value, isPublished: $("isPublished").value, project,
+            tags: $("tags").value, isPublished: $("isPublished").value, useAsReference: $("useAsReference").checked, project,
         });
         btn.textContent = "Published";
         window.location.reload();
@@ -196,7 +197,7 @@ if (dialog.open) openEditor();
 export const openFullEditor = () => {
     const draft = {
         html: ed ? ed.getHtml() : $("htmlEditor").value, title: $("title").value, category: $("category").value,
-        description: $("description").value, tags: $("tags").value, isPublished: $("isPublished").value,
+        description: $("description").value, tags: $("tags").value, isPublished: $("isPublished").value, useAsReference: $("useAsReference").checked,
     };
     try {
         sessionStorage.setItem("wc:draft", JSON.stringify(draft));
@@ -213,7 +214,7 @@ try {
     if (back) {
         setCode(back.html || "");
         updateSourceBadge(back.html || "");
-        resume = { title: back.title || "", category: back.category || "", description: back.description || "", tags: Array.isArray(back.tags) ? back.tags : String(back.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: back.isPublished !== false };
+        resume = { title: back.title || "", category: back.category || "", description: back.description || "", tags: Array.isArray(back.tags) ? back.tags : String(back.tags || "").split(",").map((t) => t.trim()).filter(Boolean), useAsReference: back.useAsReference !== false, isPublished: back.isPublished !== false };
         dialog.showModal();
     }
 } catch { /* nothing to resume */ }

@@ -15,7 +15,7 @@ if (!data.id && new URLSearchParams(window.location.search).has("draft")) {
         if (d) {
             Object.assign(data, {
                 htmlCode: d.html || "", title: d.title || "", category: d.category || "", description: d.description || "",
-                tags: String(d.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: d.isPublished !== "false",
+                tags: String(d.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: d.isPublished !== "false", useAsReference: d.useAsReference !== false,
             });
             sessionStorage.removeItem("wc:draft");
         }

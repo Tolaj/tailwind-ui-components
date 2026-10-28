@@ -4,7 +4,7 @@
 //   onChange(fn)       fn({ html, dirty, status, source }) after every change; source says where it came from: "host" (your setHtml), "editor" (the markup changed there) or "status" (only the save state). Returns an unsubscribe
 //   isDirty()          whether there is anything unsaved
 //   save()             the editor's own save (a first save that needs a name asks the app through ui.onDetails, else shows its dialog)
-//   saveDetails(f)     finishes that first save with { title, category, description, tags, isPublished, project }; rejects with the reason
+//   saveDetails(f)     finishes that first save with { title, category, description, tags, isPublished, useAsReference, project }; rejects with the reason
 //   details()          what the details form starts from
 //   release()          the app is leaving the page on purpose and has kept the work: no "Leave site?" question
 import { config } from "../config.js";

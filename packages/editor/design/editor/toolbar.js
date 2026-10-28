@@ -33,7 +33,7 @@ async function persist(d) {
     if (d.isNew) {
         const saved = await host.createComponent({
             ...body, title: m.title || "Untitled page", category: m.category || DEFAULT_CATEGORY, description: m.description || "A page on the canvas.",
-            tags: (m.tags || []).join(","), isPublished: String(m.isPublished), project: m.project ? m.project.id : "",
+            tags: (m.tags || []).join(","), isPublished: String(m.isPublished), useAsReference: m.useAsReference !== false, project: m.project ? m.project.id : "",
             ...(S.draftKey && d.key === S.draftKey ? { draftId: data.draftId } : {}), // a draft from Figma: its Figma data moves to this page
         });
         m.id = saved._id;

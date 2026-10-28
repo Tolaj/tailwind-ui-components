@@ -68,7 +68,7 @@ export const getComponentById = async (req, res) => {
 // Create component
 export const createComponent = async (req, res) => {
     try {
-        const { title, category, description, htmlCode, tags, isPublished, project: projectRef, group, draftId } = req.body;
+        const { title, category, description, htmlCode, tags, isPublished, useAsReference, project: projectRef, group, draftId } = req.body;
         const project = await resolveProject(req.session.user.id, projectRef);
         if (!project) return res.status(400).json({ success: false, message: 'Choose a project: every design belongs to one' });
 
@@ -90,6 +90,7 @@ export const createComponent = async (req, res) => {
             kind: kindOfCategory(category), // the category decides: a page (the "Pages" group) or a component
             group: project ? normalizeGroup(group) : "",
             isPublished: isPublished === true || isPublished === "true", // private until its owner turns Public on
+            useAsReference: !(useAsReference === false || useAsReference === "false"), // AI may use it as a style reference unless the owner says no
             createdBy: req.session.user.id
         });
 
@@ -163,7 +164,7 @@ export const updateComponent = async (req, res) => {
         if (title) component.title = title;
         if (category) component.category = category;
         if (description) component.description = description;
-        if (typeof useAsReference === 'boolean') component.useAsReference = useAsReference;
+        if (typeof useAsReference === 'boolean' || useAsReference === 'true' || useAsReference === 'false') component.useAsReference = useAsReference === true || useAsReference === 'true';
         if (tags !== undefined) component.tags = normalizeTags(tags);
         if (typeof isPublished !== 'undefined') component.isPublished = isPublished === true || isPublished === "true";
 

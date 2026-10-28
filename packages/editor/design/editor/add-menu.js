@@ -57,7 +57,7 @@ function fillProjects() {
 /** What the details dialog shows now: the design's name, category, tags... (also what the app's own details form starts from). */
 export const detailsOf = () => ({
     title: data.title || "", category: data.category || "", description: data.description || "", tags: (data.tags || []).join(", "),
-    isPublished: data.isPublished, project: data.project ? data.project.id : "", isNew: S.isNew,
+    isPublished: data.isPublished, useAsReference: data.useAsReference !== false, project: data.project ? data.project.id : "", isNew: S.isNew,
 });
 
 export function openDetails() {
@@ -68,6 +68,7 @@ export function openDetails() {
     $("dDesc").value = data.description || "";
     $("dTags").value = (data.tags || []).join(", ");
     $("dVis").value = String(Boolean(data.isPublished)); // private unless it was made public
+    $("dRef").checked = data.useAsReference !== false;
     $("dDesc").required = false; // optional: it defaults to the name
     $("detailsTitle").textContent = S.isNew ? "Name and save your component" : "Component details";
     $("detailsSave").textContent = S.isNew ? "Create component" : "Save details";
@@ -81,7 +82,7 @@ export async function saveDetails(fields) {
     const saved = S.isNew ? await host.createComponent({ ...fields, htmlCode: assemble(), ...(fromDraft ? { draftId: data.draftId } : {}) }) : await host.updateComponent(data.id, fields);
     const movedProject = (data.project ? data.project.id : "") !== (fields.project || "");
     data.project = (data.projects || []).find((p) => p.id === fields.project) || null;
-    Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: String(fields.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: String(fields.isPublished) === "true" });
+    Object.assign(data, { title: fields.title, category: fields.category, description: fields.description, tags: String(fields.tags || "").split(",").map((t) => t.trim()).filter(Boolean), isPublished: String(fields.isPublished) === "true", useAsReference: fields.useAsReference !== false && fields.useAsReference !== "false" });
     if (S.isNew) {
         data.id = saved._id;
         data.version = saved.version || 1;
@@ -131,7 +132,7 @@ $("dCategory").innerHTML += (data.categories || []).map((g) => `<optgroup label=
 
     $("detailsForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const fields = { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value, project: $("dProject").value };
+        const fields = { title: $("dTitle").value.trim(), category: $("dCategory").value, description: $("dDesc").value.trim(), tags: $("dTags").value, isPublished: $("dVis").value, useAsReference: $("dRef").checked, project: $("dProject").value };
         if (!fields.description) fields.description = fields.title;
         if (!fields.title || !fields.category || !fields.description) return;
         const err = $("detailsError");
