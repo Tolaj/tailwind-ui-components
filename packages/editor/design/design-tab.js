@@ -7,23 +7,32 @@ import { STATES, BREAKPOINT_WIDTH, parseToken } from "@windcraft/core/class-grou
 import { TAG_KINDS, variant, modeFor } from "./panel-model.js";
 import { useUi } from "./panel-state.js";
 import { TextInput, TextArea, SelectInput, Field } from "./controls.js";
+import { I, IconBtn } from "./figma-sections.js";
 
 const Crumbs = ({ s, actions }) => html`<div class="crumbs">${s.crumbs.map((c, i) => html`${i > 0 && html`<span class="sl">/</span>`}<button type="button" class=${i === s.crumbs.length - 1 ? "cur" : ""} onClick=${() => actions.select(c.path || [])}>${c.tag}</button>`)}</div>`;
 
-/** The tag it can be changed to (only tags that stay valid where it sits and for what it holds), grouped by kind. */
-const TagRow = ({ s, actions }) => {
+/**
+ * The element's tag (only tags that stay valid where it sits and for what it holds, grouped by kind) and what can be done with
+ * it: move earlier / later among its siblings, duplicate, delete. One compact row under the crumbs.
+ */
+const ElementBar = ({ s, actions }) => {
     const opts = s.tagOptions || [];
-    if (opts.length < 2 || (s.count || 1) > 1) return null;
+    const many = (s.count || 1) > 1;
     const groups = TAG_KINDS.map(([label, re]) => [label, opts.filter((t) => re.test(t)).map((t) => [t, `<${t}>`])]).filter(([, list]) => list.length);
-    return html`<label class="row tagrow" title="Only tags that stay valid here are listed"><span class="lbl">Tag</span>
-        <${SelectInput} value=${s.tag} groups=${groups} onChange=${actions.setTag} /></label>`;
+    const canTag = opts.length > 1 && !many;
+    if (s.tag === "body") return null;
+    return html`<div class="ebar">
+        <label class=${`nf etag ${canTag ? "" : "off"}`} title=${canTag ? "Change the tag (only tags that stay valid here are listed)" : "This tag can't change here"}>
+            <span class="nfl">Tag</span>${canTag
+                ? html`<${SelectInput} class="nfs wide" value=${s.tag} groups=${groups} onChange=${actions.setTag} />`
+                : html`<span class="nfi etagv">${many ? `${s.count} selected` : `<${s.tag}>`}</span>`}</label>
+        <div class="ibg">
+            <${IconBtn} icon=${I.up} title="Move earlier (before the previous sibling)" onClick=${() => actions.move(-1)} />
+            <${IconBtn} icon=${I.down} title="Move later (after the next sibling)" onClick=${() => actions.move(1)} />
+            <${IconBtn} icon=${I.copy} title="Duplicate (Ctrl/Cmd+D)" onClick=${actions.duplicate} />
+            <button type="button" class="ib danger" title="Delete (Del)" onClick=${actions.remove}>${I.trash}</button>
+        </div></div>`;
 };
-
-const Actions = ({ s, actions }) => s.tag === "body" ? null : html`<div class="acts">
-    <button type="button" title="Move earlier" onClick=${() => actions.move(-1)}>Up</button>
-    <button type="button" title="Move later" onClick=${() => actions.move(1)}>Down</button>
-    <button type="button" title="Ctrl/Cmd+D" onClick=${actions.duplicate}>Duplicate</button>
-    <button type="button" class="danger" title="Delete" onClick=${actions.remove}>Delete</button></div>`;
 
 const Legend = ({ s }) => html`<p class="legend"><span class="stag tw">TW</span> Tailwind class <span class="stag css">CSS</span> style. Edits go where the value comes from; anything new is written as ${modeFor(s, useUi()) === "tailwind" ? "Tailwind" : "CSS"}.</p>`;
 
@@ -79,6 +88,6 @@ const Content = ({ s, actions }) => {
 
 /** Everything above the Design tab's sections. */
 export function DesignTop({ s, actions }) {
-    return html`<${Crumbs} s=${s} actions=${actions} /><${TagRow} s=${s} actions=${actions} /><${Actions} s=${s} actions=${actions} />
+    return html`<${Crumbs} s=${s} actions=${actions} /><${ElementBar} s=${s} actions=${actions} />
         <${Legend} s=${s} /><${VariantBar} s=${s} actions=${actions} /><${Content} s=${s} actions=${actions} />`;
 }

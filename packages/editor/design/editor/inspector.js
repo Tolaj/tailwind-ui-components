@@ -111,7 +111,6 @@ const panelActions = {
     toggleSection,
     setAttr: (name, value) => { if (S.selected) cmd({ cmd: "setAttr", path: S.selected.path, name, value: value === "" ? null : value }, `attr-${name}`); },
     // the classes, inline CSS and attributes below the element's code (classes-section.js)
-    removeClass: (index) => { if (S.selected) setClassString(S.selected.classes.split(/\s+/).filter(Boolean).filter((_, i) => i !== index).join(" ")); },
     addClasses: (text) => {
         if (!S.selected) return;
         const add = text.split(/\s+/).filter(Boolean);
