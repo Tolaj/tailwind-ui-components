@@ -75,6 +75,7 @@ function renderProjects(open = true) {
         || `<li class="px-2.5 py-1.5 text-neutral-400">Type a name to create a project</li>`;
     const show = open && (rows.length > 0 || !(projects || []).length);
     if (show) placeList(ul);
+    if (activeRow < 0) ul.scrollTop = 0;
     ul.classList.toggle("hidden", !show);
     $("project").setAttribute("aria-expanded", String(show));
 }
