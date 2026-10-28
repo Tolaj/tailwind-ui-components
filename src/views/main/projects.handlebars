@@ -4,7 +4,7 @@
             <h1 class="text-3xl font-semibold tracking-[-0.035em] text-gray-900">Projects</h1>
             <p class="mt-1 text-sm text-gray-500">Group the pages and sections of a website or app, like a Figma file. Claude can file designs straight into a project.</p>
         </div>
-        <button type="button" id="newProjectBtn" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New project</button>
+        <button type="button" id="newProjectBtn" onclick="newProject(this)" class="h-9 rounded-md bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800 transition-colors">New project</button>
     </div>
 
     {{#if projects.length}}
@@ -31,13 +31,4 @@
     </div>
     {{/if}}
 </main>
-<script>
-    document.getElementById("newProjectBtn").addEventListener("click", async () => {
-        const name = prompt("Project name");
-        if (!name || !name.trim()) return;
-        const res = await fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-        const json = await res.json();
-        if (json.success) location.href = "/projects/" + json.data.id;
-        else alert(json.message || "Could not create the project");
-    });
-</script>
+

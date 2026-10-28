@@ -61,8 +61,12 @@ const clean = (b) => ({ name: String(b.name || "").trim().slice(0, 80), descript
 projectApi.get("/", async (req, res) => res.json({ success: true, data: await listProjects(req.session.user.id) }));
 
 projectApi.post("/", async (req, res) => {
-    const { name, description } = clean(req.body || {});
+    let { name, description } = clean(req.body || {});
     if (!name) return res.status(400).json({ success: false, message: "A project needs a name" });
+    if (name === "Untitled project") { // the name New project gives: the next free "Untitled project 2", "3"...
+        const taken = new Set((await Project.find({ owner: req.session.user.id, name: /^Untitled project( \d+)?$/ }).select("name").lean()).map((x) => x.name));
+        for (let n = 2; taken.has(name); n++) name = `Untitled project ${n}`;
+    }
     const p = await Project.create({ name, description, owner: req.session.user.id });
     res.status(201).json({ success: true, data: { id: String(p._id), name: p.name, description: p.description } });
 });

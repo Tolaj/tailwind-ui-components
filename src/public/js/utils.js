@@ -151,3 +151,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btn = document.querySelector(`[data-like="${CSS.escape(id)}"]`);
   if (btn && btn.dataset.signedIn && !btn.dataset.liked) { try { await sendLike(id, btn, true); } catch { /* the like button still works by hand */ } }
 });
+
+// ── New project: made at once, and the editor opens on a blank page with the code beside it ──────────────────
+// (the name is "Untitled project" until it is renamed on the project page)
+async function newProject(btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Untitled project" }) });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message || "Could not create the project");
+    location.href = `/design/new?project=${json.data.id}&kind=component`;
+  } catch (err) {
+    alert(err.message);
+    if (btn) btn.disabled = false;
+  }
+}

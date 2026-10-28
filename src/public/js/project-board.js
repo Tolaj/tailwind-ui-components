@@ -354,6 +354,8 @@ function renderDetails() {
         ${secs.length ? `<p class="mb-1 mt-4 font-semibold text-neutral-700">Sections</p>${secs.map((s) => `<button type="button" data-pick="${s.id}" class="block w-full truncate rounded px-1.5 py-1 text-left hover:bg-neutral-100">${esc(s.title)}</button>`).join("")}` : ""}
         <button type="button" id="focusBtn" class="mt-4 h-8 w-full rounded-md border border-neutral-200 text-xs hover:bg-neutral-50">Zoom to this frame (Shift+2)</button>
         <a href="/design/${it.id}" class="mt-2 flex h-8 items-center justify-center rounded-md bg-[#0d99ff] text-xs font-semibold text-white hover:bg-[#0a84e0]">Open in editor</a>
+        ${it.kind === "section" ? "" : `<label class="mt-3 flex cursor-pointer items-center gap-2 text-neutral-700" title="Public designs appear in the gallery, where anyone can look at them, copy the code and like them"><input id="publicBox" type="checkbox" ${it.isPublished ? "checked" : ""} class="h-3.5 w-3.5 accent-black"> Public in the gallery</label>
+        <p id="publicNote" class="mt-1 text-neutral-500">${it.isPublished ? `Shown in the gallery under <a class="underline" href="/category/${esc(it.category)}" target="_blank" rel="noopener">its category</a>.` : "Private: only you can see it."}</p>`}
         <button type="button" id="removeBtn" class="mt-2 h-8 w-full rounded-md border border-neutral-200 text-xs text-neutral-700 hover:bg-neutral-50">Remove from project</button>`;
 }
 
@@ -363,6 +365,16 @@ function select(id) {
     renderOutline();
     renderDetails();
 }
+
+document.addEventListener("change", async (e) => {
+    if (e.target.id !== "publicBox" || !selectedId) return;
+    const it = byId(selectedId), on = e.target.checked;
+    const res = await fetch(`/api/components/${it.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPublished: on }) });
+    const json = await res.json().catch(() => ({}));
+    if (!json.success) { e.target.checked = !on; return alert(json.message || "Could not change it"); }
+    it.isPublished = on;
+    renderDetails();
+});
 
 document.addEventListener("click", async (e) => {
     const pick = e.target.closest("[data-pick]");

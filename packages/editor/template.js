@@ -232,8 +232,8 @@ export const editorHtml = `<div class="flex h-full flex-col">
             </div>
             <div><label class="mb-1 block text-xs font-medium text-neutral-700" for="dVis">Visibility</label>
                 <select id="dVis" class="field" style="height:36px">
-                    <option value="true">Public gallery and my library</option>
-                    <option value="false">My library only (private)</option>
+                    <option value="true">Public in the gallery</option>
+                    <option value="false">Private (only me)</option>
                 </select>
             </div>
             <p id="detailsError" class="hidden text-xs text-red-700"></p>

@@ -88,7 +88,7 @@ export const createComponent = async (req, res) => {
             project: project ? project._id : null,
             kind: req.body.kind === "component" ? "component" : project ? "page" : "component", // a component made from a project stays a component, not a page
             group: project ? normalizeGroup(group) : "",
-            isPublished: isPublished === undefined ? true : isPublished === true || isPublished === "true",
+            isPublished: isPublished === true || isPublished === "true", // private until its owner turns Public on
             createdBy: req.session.user.id
         });
 
