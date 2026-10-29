@@ -9,7 +9,7 @@
  * @property {(name: string) => Promise<{ id: string, name: string }>} createProject   a project is the canvas that designs share
  * @property {(projectId: string, positions: object[]) => Promise<void>} saveLayout   where each design sits on the project's canvas
  * @property {(projectId: string, positions: object[]) => void} saveLayoutOnExit   the same, while the page is closing
- * @property {(body: object, onText?: (text: string) => void) => Promise<string>} generate   the AI drafts a page; resolves to its HTML
+ * @property {(body: object, onText?: (text: string) => void) => Promise<string>} [generate]   the AI drafts a page; resolves to its HTML. Omit it and the editor shows no AI box or AI tab
  * @property {(id: string | null) => void} showDesign   the address now shows this saved design (null: an unsaved one)
  * @property {(projectId: string) => string} [projectUrl]   where a project's own page is (the project name links there); omit for none
  * @property {(id: string) => void} openDesign   go to this design (loads the page again)

@@ -1,6 +1,17 @@
 # Bug Tracker
 
-All issues from the initial audit have been resolved.
+All issues from the initial audit have been resolved. Open items are listed first.
+
+## Open
+
+None.
+
+## Fixed (found while making the demo videos, 2026-10-28)
+
+- A shape drawn with the Rectangle or Frame tool (or any drag) that was released outside the page, or exactly on its edge, never finished: the page is a separate document and gets no pointer events outside itself. The editor window now passes the pointer on to the page while a drag runs (`extPointer` in `frame-messages.js` and `agent.js`).
+- A Tailwind colour name for the project's own scale (`brand-700`) typed in a colour field was ignored. `brand` is now one of the colour families (`HUES` in `core/class-groups.js`), with its swatch read from the project's theme; the palette grid still lists only Tailwind's own hues.
+- The code panel scrolled sideways to show a changed class, cutting off the start of the lines in a narrow panel. Long lines now wrap.
+- The Properties panel showed "Generate with AI" and an AI tab even when the app gave the editor no AI (the demo). `host.generate` is now optional, and without it the box and the tab are not shown.
 
 ## Fixed (initial audit)
 

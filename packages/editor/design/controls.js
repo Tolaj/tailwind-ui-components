@@ -114,7 +114,7 @@ export function ColorField({ label, name, opacity, swatchClass, swatchStyle, cus
                 <label class="sw2 custom" title="Custom color"><${ColorInput} class="" value=${customValue || "#111"} hook=${{ "data-ccustom": customKey }}
                     onLive=${(hex) => onCustom(hex, false, null)} onDone=${(hex, input) => onCustom(hex, true, input)} /></label>
                 <button type="button" class="clear" onClick=${() => onPick("")}>None</button></div>
-            ${HUES.map((h) => html`<div class="palrow">${SHADES.map((s) => cell(`${h}-${s}`, `bg-${h}-${s}`))}</div>`)}
+            ${HUES.filter((h) => h !== "brand").map((h) => html`<div class="palrow">${SHADES.map((s) => cell(`${h}-${s}`, `bg-${h}-${s}`))}</div>`)}
         </div>`}`;
 }
 

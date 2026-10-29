@@ -12,6 +12,27 @@ import { convertGesture, renderInspector } from "./inspector.js";
 import { updateCodeHighlight } from "./code-panel.js";
 
 let pendingKey = "";
+
+// A drag that starts in the page and leaves the frame: the frame gets no more pointer events outside itself (it is a separate
+// document), so a shape drawn up to the edge never finished. While a gesture runs, this window passes the pointer on, in the page's own units.
+let following = null;
+function followOutside() {
+    if (following) return;
+    const forward = (ev) => (e) => {
+        const r = frame.getBoundingClientRect(), k = r.width / (frame.offsetWidth || r.width);
+        send({ cmd: "extPointer", ev, x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey, ctrl: e.ctrlKey });
+    };
+    const move = forward("move"), up = (e) => { forward("up")(e); stopFollowing(); };
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", up, true);
+    following = { move, up };
+}
+function stopFollowing() {
+    if (!following) return;
+    window.removeEventListener("pointermove", following.move, true);
+    window.removeEventListener("pointerup", following.up, true);
+    following = null;
+}
 export const cmd = (msg, key = "") => { pendingKey = key; send(key ? { key, ...msg } : msg); };
 
 // A design takes a moment to load into the canvas (its Tailwind styling, its pictures): until it does, the canvas shows a loading
@@ -134,6 +155,7 @@ export function init() {
             renderFloat();
         } else if (m.type === "gesture") {
             S.gestureOn = m.on;
+            m.on ? followOutside() : stopFollowing();
             renderFloat();
         } else if (m.type === "tool") {
             setTool(m.tool, true);

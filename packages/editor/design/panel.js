@@ -150,7 +150,7 @@ function PagePanel({ page: pg, actions }) {
             <${PageField} row label="Group" value=${pg.group} placeholder="none" onCommit=${set("group")} />
             <div class="row"><span class="lbl">Version</span><span class="text-[11px] text-neutral-700">${pg.isNew ? "not saved yet" : `v${pg.version}`}${pg.project ? ` · ${pg.project}` : ""}</span></div>
         </div></div>
-        ${pg.empty && html`<${AskBox} title="Generate with AI" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan" rows=${3}
+        ${pg.empty && actions.canAI && html`<${AskBox} title="Generate with AI" placeholder="e.g. a pricing section with three tiers and a highlighted middle plan" rows=${3}
             button="Generate" help="Or draw with the tools, add blocks from +, or paste code in the code panel." empty="Describe what you want first."
             run=${actions.draftPage} />`}
         <div class="sec"><div class="secb nopad"><p class="sub first">Size</p>
@@ -183,7 +183,7 @@ const TABS = [["design", "Design"], ["classes", "Code"], ["ai", "AI"]];
 function Head({ page, tab, actions }) {
     return html`<div class="itabs">
         ${page ? html`<span class="px-1 text-[11px] font-medium text-neutral-800">Page</span>`
-        : TABS.map(([k, label]) => html`<button type="button" class=${tab === k ? "on" : ""} onClick=${() => actions.setTab(k)}>${label}</button>`)}
+        : TABS.filter(([k]) => k !== "ai" || actions.canAI).map(([k, label]) => html`<button type="button" class=${tab === k ? "on" : ""} onClick=${() => actions.setTab(k)}>${label}</button>`)}
         <button type="button" title="Close" style="padding:0" class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100" onClick=${actions.closePanel}>${CLOSE}</button>
     </div>`;
 }

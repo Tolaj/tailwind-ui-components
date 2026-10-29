@@ -1941,6 +1941,11 @@ export function agentMain() {
             if (primary()) post({ type: "selected", info: describe(primary()) });
             return;
         }
+        if (m.cmd === "extPointer") { // a drag that left the frame: the page around it sends the pointer on (the frame gets nothing outside itself)
+            const ev = { clientX: m.x, clientY: m.y, shiftKey: Boolean(m.shift), altKey: Boolean(m.alt), metaKey: Boolean(m.meta), ctrlKey: Boolean(m.ctrl), button: 0, target: document.body, preventDefault() {}, stopPropagation() {} };
+            if (m.ev === "up") onUp(ev); else if (gesture) onMove(ev);
+            return;
+        }
         if (m.cmd === "select") { if (Array.isArray(m.paths)) setSelection(m.paths.map(elAt).filter(Boolean)); else select(elAt(m.path)); return; } // paths: several at once
         if (m.cmd === "previewState") { shownState = m.state || ""; showState(); redraw(); if (primary() && alive(primary())) post({ type: "info", info: describe(primary()) }); return; }
         if (m.cmd === "deselect") { editing = null; setSelection([], true); post({ type: "body", info: describe(document.body) }); return; } // the page's styling, for the page panel

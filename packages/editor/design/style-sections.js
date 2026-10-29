@@ -12,6 +12,8 @@ import { TextInput, ColorInput } from "./controls.js";
 import { GroupColor } from "./group-controls.js";
 import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, off, comp, srcKind, srcNote, atVariant } from "./figma-sections.js";
 import { twShown } from "@windcraft/core/prop-tailwind.js";
+import { brandScale, normalizeTheme } from "@windcraft/core/theme.js";
+import { data } from "./editor/base.js";
 import { PropRow } from "./prop-sections.js";
 
 const SIDES = ["top", "right", "bottom", "left"];
@@ -37,6 +39,8 @@ let probe = null;
 function hexOf(name) {
     if (!name) return "#000000";
     if (/^(#|rgb|hsl)/.test(name)) return rgbToHex(name) || name;
+    const brand = /^brand-(\d+)$/.exec(name); // the project's own scale: the editor's page has no project theme to read it from
+    if (brand) return brandScale(normalizeTheme(data.theme).brand)[brand[1]] || "#000000";
     if (!probe) { probe = document.createElement("span"); probe.style.display = "none"; document.body.appendChild(probe); }
     probe.className = `bg-${name.replace(/\/\d+$/, "")}`;
     return rgbToHex(getComputedStyle(probe).backgroundColor) || "#000000";

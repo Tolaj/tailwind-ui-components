@@ -26,7 +26,6 @@ const host = {
     async createProject(name) { return { id: id(), name }; },
     async saveLayout(projectId, positions) { (window.__layouts ||= []).push({ projectId, positions }); },
     saveLayoutOnExit() {},
-    async generate() { throw new Error("The AI is not connected in this demo."); },
     showDesign(docId) { history.replaceState({}, "", docId ? `?design=${docId}` : location.pathname); },
     openDesign(docId) { location.href = `?design=${docId}`; },
 };

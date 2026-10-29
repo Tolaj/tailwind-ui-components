@@ -81,6 +81,7 @@ async function setCodePanel(open) {
         try {
             ed = await createCodeEditor($("codeMount"), {
                 value: model.markup.trim() ? assemble() : "", onChange: onCodeInput, problems: tagProblems, onSave: () => $("saveBtn").click(),
+                wrap: true, // long class lists wrap instead of scrolling sideways (a narrow panel beside the design would cut off the start of the line)
             });
         } finally { starting = false; }
     }

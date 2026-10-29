@@ -2,7 +2,7 @@
 // A registry of Tailwind utility groups. Each group is a set of mutually exclusive classes
 // (for example every font size). Controls read and write a group for a chosen variant
 // (breakpoint and state), e.g. "md:hover:".
-export const HUES = ["slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"];
+export const HUES = ["slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose", "brand"]; // brand: every project has its own scale (brand-50 to brand-950, see theme.js)
 export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 export const SPECIAL_COLORS = ["black", "white", "transparent", "current"];
 

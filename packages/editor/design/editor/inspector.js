@@ -55,6 +55,7 @@ function setPageBox(patch) {
 /** What the panel's components ask of the editor (panel.js). */
 const panelActions = {
     applyElement: applyElementCode,
+    get canAI() { return typeof host.generate === "function"; }, // an app with no AI behind it gets no AI box and no AI tab
     askAI: (path, outer, prompt) => askAI(path, outer, prompt),
     draftPage: (prompt) => draftPage(prompt),
     setPageField,
