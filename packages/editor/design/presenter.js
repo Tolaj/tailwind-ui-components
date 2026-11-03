@@ -2,22 +2,25 @@ import { buildPreviewDocument, parseComponentSource } from "../playground/compon
 
 // ── The prototype viewer: pages shown one at a time, full screen, as a visitor would see them ───────────────────────────────
 // No editor state in here: the editor's Preview (a fallback when the app has no prototype page) and the /prototype page both use it.
-// A toolbar at the top right (like the editor's own): previous / next page with a count, Restart, how the page is scaled to the
+// A toolbar at the top right (like the editor's own): previous / next page with a count, Share, how the page is scaled to the
 // screen, and Share. Hide UI hides it again; ⌘\ or the top right corner brings it back.
 
 const SCALES = [
     ["actual", "Actual size (100%)", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9.5 10.5 11 9.5v5"/><path d="M13.5 11.2v.1M13.5 13.1v.1"/>'],
     ["responsive", "Responsive", "Z", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M8.5 10.5 7 12l1.5 1.5M15.5 10.5 17 12l-1.5 1.5"/>'],
+    ["desktop", "Desktop", "1280", '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'],
+    ["tablet", "Tablet", "768", '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M11 18h2"/>'],
+    ["mobile", "Mobile", "390", '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>'],
     ["fitw", "Fit width", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7.5 12h9M10 9.5 7.5 12l2.5 2.5M14 9.5l2.5 2.5-2.5 2.5"/>'],
     ["fitwh", "Fit width and height", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 8v8M8 12h8M10.5 9.5 12 8l1.5 1.5M10.5 14.5 12 16l1.5-1.5M9.5 10.5 8 12l1.5 1.5M14.5 10.5 16 12l-1.5 1.5"/>'],
     ["fill", "Fill screen", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9.5V8h1.5M14.5 8H16v1.5M16 14.5V16h-1.5M9.5 16H8v-1.5"/>'],
 ];
 export const SCALE_NAMES = SCALES.map((s) => s[0]);
+const DEVICE_W = { desktop: 1280, tablet: 768, mobile: 390 }; // the page is built at that width (its own responsive styles apply), as the editor's page sizes
 const ICON = {
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     prev: '<path d="m15 6-6 6 6 6"/>',
     next: '<path d="m9 6 6 6-6 6"/>',
-    restart: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
     down: '<path d="m6 9 6 6 6-6"/>',
     check: '<path d="m5 12 5 5L20 7"/>',
     hide: '<rect x="3" y="4" width="18" height="6" rx="1.5"/><path d="M3 15h18M3 19h12"/>',
@@ -72,8 +75,9 @@ function addStyle() {
 export function createPresenter(o) {
     addStyle();
     const pages = o.pages;
-    let at = Math.min(Math.max(0, o.start || 0), pages.length - 1), start = at;
+    let at = Math.min(Math.max(0, o.start || 0), pages.length - 1);
     let scaleMode = SCALE_NAMES.includes(o.scaling) ? o.scaling : "", uiHidden = false, menu = null; // "": the page decides (a page as wide as a tablet or more fills the width; a phone-sized one keeps its own size)
+    const widthFor = (p) => { const m = modeOf(p); return DEVICE_W[m] || (m === "responsive" ? stage.clientWidth : p.width || 1280); };
     const modeOf = (p) => scaleMode || ((p.width || 1280) >= 768 ? "fitw" : "actual");
 
     const box = document.createElement("div");
@@ -95,13 +99,12 @@ export function createPresenter(o) {
                 </span>
                 <button type="button" data-next class="pv-b" style="width:32px" title="Next page (Right arrow)" aria-label="Next page">${svg(ICON.next)}</button>
                 <span class="pv-sep"></span>
-                <button type="button" data-restart class="pv-b" style="padding:0 10px" title="Back to the first page you saw, loaded again (R)">${svg(ICON.restart, 16)}<span>Restart</span><span style="font-size:11px;color:#737373">R</span></button>
+                ${o.share ? `<button type="button" data-share class="pv-b" style="padding:0 10px;gap:6px;font-weight:500;color:#171717" title="Get a link to this prototype">${svg(ICON.share, 16)}<span>${esc(o.share.label || "Share")}</span></button><span class="pv-sep"></span>` : ""}
                 <span class="pv-sep"></span>
                 <button type="button" data-scale class="pv-b" style="padding:0 8px 0 10px;gap:4px;font-weight:500;color:#171717" title="How the page fits the screen" aria-haspopup="menu"><span>100%</span>${svg(ICON.down, 14, 1.8)}</button>
                 <span class="pv-sep"></span>
                 <button type="button" data-min class="pv-b" style="width:32px" title="Minimize the toolbar" aria-label="Minimize the toolbar">${svg(ICON.minimize)}</button>
             </div>
-            ${o.share ? `<button type="button" data-share class="pv-b pv-share" style="height:40px" title="Get a link to this prototype">${svg(ICON.share, 16)}<span>${esc(o.share.label || "Share")}</span></button>` : ""}
         </div>
         <div data-mini class="pv-pill" style="display:none;align-items:center;gap:2px;padding:4px">
             <span data-grip class="pv-grip" title="Drag to move the toolbar">${GRIP}</span>
@@ -114,7 +117,7 @@ export function createPresenter(o) {
     const stage = q("[data-stage]"), wrap = q("[data-wrap]"), frame = q("[data-frame]"), dock = q("[data-dock]"), full = q("[data-full]"), mini = q("[data-mini]");
 
     // A page of its own has none of the editor's script: keys and Ctrl/Cmd + scroll (the browser's zoom) are handed to this window.
-    const pageScript = (id) => `<script data-wc-present>(function(){var I=${JSON.stringify(id)};function name(e){var m=e.metaKey||e.ctrlKey;if(m&&e.key==="\\\\")return"hideui";if(m||e.altKey)return"";if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="Escape")return e.key;if(e.key==="r"||e.key==="R")return"restart";if(e.key==="z"||e.key==="Z")return"responsive";return""}addEventListener("keydown",function(e){var k=name(e);if(!k)return;var t=e.target;if(k!=="Escape"&&k!=="hideui"&&t&&(/^(input|textarea|select)$/i.test(t.tagName)||t.isContentEditable))return;e.preventDefault();parent.postMessage({wcPresent:I,key:k},"*")},true);addEventListener("wheel",function(e){if(e.ctrlKey||e.metaKey)e.preventDefault()},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){addEventListener(t,function(e){e.preventDefault()})})})()<\/script>`;
+    const pageScript = (id) => `<script data-wc-present>(function(){var I=${JSON.stringify(id)};function name(e){var m=e.metaKey||e.ctrlKey;if(m&&e.key==="\\\\")return"hideui";if(m||e.altKey)return"";if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="Escape")return e.key;if(e.key==="z"||e.key==="Z")return"responsive";return""}addEventListener("keydown",function(e){var k=name(e);if(!k)return;var t=e.target;if(k!=="Escape"&&k!=="hideui"&&t&&(/^(input|textarea|select)$/i.test(t.tagName)||t.isContentEditable))return;e.preventDefault();parent.postMessage({wcPresent:I,key:k},"*")},true);addEventListener("wheel",function(e){if(e.ctrlKey||e.metaKey)e.preventDefault()},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){addEventListener(t,function(e){e.preventDefault()})})})()<\/script>`;
 
     const sourceOf = (p) => {
         const s = typeof p.source === "function" ? p.source() : p.source;
@@ -127,7 +130,8 @@ export function createPresenter(o) {
         const availW = stage.clientWidth, availH = stage.clientHeight;
         const w = p.width || 1280, h = p.height || availH;
         let k = 1, fw = w, fh = availH;
-        if (mode === "responsive") fw = availW;
+        if (DEVICE_W[mode]) { fw = DEVICE_W[mode]; k = Math.min(1, availW / fw); fh = availH / k; } // a device's width, centred; smaller only when the window is narrower
+        else if (mode === "responsive") fw = availW;
         else if (mode === "fitw") { k = availW / w; fh = availH / k; }
         else if (mode === "fitwh") { k = Math.min(availW / w, availH / h); fh = h; }
         else if (mode === "fill") { k = Math.max(availW / w, availH / h); fh = h; }
@@ -141,7 +145,7 @@ export function createPresenter(o) {
     function show(i) {
         at = (i + pages.length) % pages.length;
         const p = pages[at];
-        const html = buildPreviewDocument(sourceOf(p), { width: modeOf(p) === "responsive" ? stage.clientWidth : p.width || 1280 });
+        const html = buildPreviewDocument(sourceOf(p), { width: widthFor(p) });
         const cut = html.lastIndexOf("</body>");
         const id = `p${Date.now()}${at}`;
         box.dataset.id = id;
@@ -222,7 +226,7 @@ export function createPresenter(o) {
         menu.className = "pv-pop";
         menu.setAttribute("role", "menu");
         menu.style.cssText = `top:${r.bottom + 6}px;left:${Math.max(8, Math.min(innerWidth - 288, r.right - 280))}px;width:280px;padding:6px;`;
-        menu.innerHTML = head("Recommended") + one(SCALES[0]) + one(SCALES[1]) + sep + head("Other scaling options") + SCALES.slice(2).map(one).join("") + sep + item(svg(ICON.hide, 16), "Hide UI", "&#8984;\\", false, "hideui");
+        menu.innerHTML = head("Recommended") + one(SCALES[0]) + one(SCALES[1]) + sep + head("Device") + SCALES.slice(2, 5).map(one).join("") + sep + head("Other scaling options") + SCALES.slice(5).map(one).join("") + sep + item(svg(ICON.hide, 16), "Hide UI", "&#8984;\\", false, "hideui");
         box.appendChild(menu);
         menu.addEventListener("click", (e) => {
             const b = e.target.closest("[data-act]");
@@ -235,7 +239,6 @@ export function createPresenter(o) {
         if (k === "Escape") return menu ? closeMenu() : o.onClose && o.onClose();
         if (k === "ArrowRight") return show(at + 1);
         if (k === "ArrowLeft") return show(at - 1);
-        if (k === "restart") return show(start);
         if (k === "responsive") return setScale("responsive");
         if (k === "hideui") return setUi(!uiHidden);
     }
@@ -249,7 +252,6 @@ export function createPresenter(o) {
         let k = "";
         if (e.key === "Escape" || e.key === "ArrowRight" || e.key === "ArrowLeft") k = typing && e.key !== "Escape" ? "" : e.key;
         else if (mod && e.key === "\\") k = "hideui";
-        else if (!mod && !e.altKey && !typing && /^[rR]$/.test(e.key)) k = "restart";
         else if (!mod && !e.altKey && !typing && /^[zZ]$/.test(e.key)) k = "responsive";
         if (k) { e.preventDefault(); e.stopImmediatePropagation(); key(k); return; }
         if (!mod && !typing) e.stopImmediatePropagation(); // the editor's own shortcuts stay off
@@ -259,7 +261,6 @@ export function createPresenter(o) {
 
     q("[data-prev]").onclick = () => show(at - 1);
     q("[data-next]").onclick = () => show(at + 1);
-    q("[data-restart]").onclick = () => key("restart");
     q("[data-scale]").onclick = () => (menu ? closeMenu() : openMenu());
     if (o.onClose) q("[data-close]").onclick = () => o.onClose();
     if (o.share) q("[data-share]").onclick = (e) => { closeScale(); o.share.open(e.currentTarget, box); };
