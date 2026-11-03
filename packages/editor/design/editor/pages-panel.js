@@ -55,7 +55,7 @@ export function init() {
     $("pagesList").addEventListener("click", (e) => {
         if (!e.target.closest("[data-pedit]")) return;
         e.stopImmediatePropagation();
-        $("detailsBtn").click();
+        if (S.mode === "edit") $("detailsBtn").click(); // not in Interact
     }, true);
     $("leftProject").addEventListener("click", (e) => { if (!data.project) { e.preventDefault(); $("detailsBtn").click(); } });
     $("pagesList").addEventListener("click", (e) => {
@@ -67,7 +67,7 @@ export function init() {
     });
     $("pagesList").addEventListener("dblclick", (e) => {
         const row = e.target.closest("[data-page]");
-        if (!row || e.target.closest(".frename, [data-pedit]")) return;
+        if (S.mode !== "edit" || !row || e.target.closest(".frename, [data-pedit]")) return; // not in Interact
         const key = row.dataset.page;
         const d = docs.get(key);
         const current = (key === S.curKey ? data.title : d.meta.title) || "";

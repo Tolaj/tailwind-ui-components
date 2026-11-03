@@ -61,6 +61,7 @@ export const detailsOf = () => ({
 });
 
 export function openDetails() {
+    if (S.mode !== "edit") return; // Interact uses the page as it is: name, category and the rest are not changed there
     if (config.hooks.details) return config.hooks.details(detailsOf()); // the app shows its own form and answers with saveDetails()
     fillProjects();
     $("dTitle").value = data.title || "";

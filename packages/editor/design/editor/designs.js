@@ -272,7 +272,7 @@ function finishMarquee(g, e) {
 function startRename(key) {
     const en = wraps.get(key);
     const d = docs.get(key);
-    if (!en || !d || en.renaming) return;
+    if (S.mode !== "edit" || !en || !d || en.renaming) return; // Interact uses the page as it is: nothing is renamed there
     en.renaming = true;
     const current = (key === S.curKey ? data.title : d.meta.title) || "";
     en.label.innerHTML = `<input class="frename" value="${esc(current)}" maxlength="80" aria-label="Frame name">`;

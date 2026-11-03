@@ -47,7 +47,17 @@ export function loadFrame() {
     renderSel();
     renderInspector();
     renderFloat();
-    frame.srcdoc = S.mode === "edit" ? editDocument() : buildPreviewDocument(parseComponentSource(assemble()), { width: curWidth() });
+    frame.srcdoc = S.mode === "edit" ? editDocument() : previewDocument();
+}
+
+// The live page (Interact) has none of the editor's own script, so Ctrl/Cmd + scroll or a pinch over it zoomed the whole browser window.
+// This small script keeps those two for the canvas: it stops the browser's zoom and hands the gesture to the editor, which zooms the
+// design plane as it does everywhere else. Plain scrolling stays the page's own.
+const previewWheelScript = (load) => `<script data-wc-wheel>(function(){var L=${load};addEventListener("wheel",function(e){if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();parent.postMessage({type:"wheel",x:e.clientX,y:e.clientY,dx:e.deltaX,dy:e.deltaY,zoom:true,load:L},"*")},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){addEventListener(t,function(e){e.preventDefault()})})})()<\/script>`;
+function previewDocument() {
+    const html = buildPreviewDocument(parseComponentSource(assemble()), { width: curWidth() });
+    const at = html.lastIndexOf("</body>");
+    return at < 0 ? html + previewWheelScript(S.loadSeq) : html.slice(0, at) + previewWheelScript(S.loadSeq) + html.slice(at);
 }
 
 // ── History, dirty state, layout ─────────────────────────────────────────────
