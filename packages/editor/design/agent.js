@@ -48,7 +48,9 @@ export function agentMain() {
     const px = (n) => n / zoom;
 
     const DRAW = new Set(["frame", "rect", "ellipse", "line", "arrow", "text", "image", "button"]);
-    const CURSOR = { move: "default", hand: "grab", frame: "crosshair", rect: "crosshair", ellipse: "crosshair", line: "crosshair", arrow: "crosshair", text: "text", image: "crosshair", button: "crosshair" };
+    // the arrow tool's pointer: a bold dark arrow with a white edge (so it shows on any page), tip at the hot spot
+    const ARROW = 'url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M21%2011%202%202l9%2019%202-8z%22%20fill%3D%22%23111%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.6%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E") 2 2, default';
+    const CURSOR = { move: ARROW, hand: "grab", frame: "crosshair", rect: "crosshair", ellipse: "crosshair", line: "crosshair", arrow: "crosshair", text: "text", image: "crosshair", button: "crosshair" };
     const CONTAINERS = new Set(["div", "section", "main", "header", "footer", "aside", "nav", "article", "form", "ul", "ol", "li", "figure", "body"]);
     const PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" fill="#e5e5e5"/><circle cx="92" cy="58" r="12" fill="#bdbdbd"/><path d="M60 128l36-44 26 30 20-22 38 36z" fill="#bdbdbd"/></svg>');
     const TEMPLATES = {

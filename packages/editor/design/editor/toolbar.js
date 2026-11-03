@@ -162,6 +162,7 @@ function paintTools() {
 
 export function setTool(t, fromAgent) {
     S.tool = t;
+    canvas.dataset.tool = t; // the canvas shows the pointer of the tool in use (styles.css)
     setMode(t === "interact" ? "preview" : "edit");
     if (SHAPES.some(([id]) => id === t) && shape !== t) { shape = t; renderTools(); } else paintTools();
     updateShield();
