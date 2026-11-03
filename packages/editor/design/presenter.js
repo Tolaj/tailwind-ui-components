@@ -16,6 +16,12 @@ const SCALES = [
     ["fill", "Fill screen", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9.5V8h1.5M14.5 8H16v1.5M16 14.5V16h-1.5M9.5 16H8v-1.5"/>'],
 ];
 export const SCALE_NAMES = SCALES.map((s) => s[0]);
+// A phone and a tablet are shown in a frame (bezel, notch or camera, side buttons) at their real screen size: the page is built at that
+// width and height, so its own responsive styles and its screen-high sections behave as on the device. Desktop has no frame.
+const DEVICES = {
+    mobile: { w: 390, h: 844, bz: 14, r: 56, screenR: 44, ring: "#cdbfd8", notch: true },
+    tablet: { w: 768, h: 1024, bz: 22, r: 42, screenR: 22, ring: "#d4d4d8", notch: false },
+};
 const DEVICE_W = { desktop: 1280, tablet: 768, mobile: 390 }; // the page is built at that width (its own responsive styles apply), as the editor's page sizes
 const ICON = {
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -85,7 +91,8 @@ export function createPresenter(o) {
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-label", "Prototype");
     const name = esc(o.name || "");
-    box.innerHTML = `<div data-stage style="position:absolute;inset:0;overflow:hidden"><div data-wrap><iframe data-frame title="Prototype" sandbox="allow-scripts allow-forms allow-popups"></iframe></div></div>
+    box.innerHTML = `<div data-stage style="position:absolute;inset:0;overflow:hidden"><div data-wrap><div data-shell><div data-screen><iframe data-frame title="Prototype" sandbox="allow-scripts allow-forms allow-popups"></iframe></div>
+        <span data-notch style="display:none"></span><span data-cam style="display:none"></span><span data-side style="display:none"></span></div></div></div>
     <div data-hot style="position:absolute;left:0;right:0;top:0;height:20px;z-index:205"></div>
     <div data-dock class="pv-dock" style="right:12px;top:12px">
         <div data-full style="display:flex;align-items:center;gap:8px">
@@ -99,8 +106,7 @@ export function createPresenter(o) {
                 </span>
                 <button type="button" data-next class="pv-b" style="width:32px" title="Next page (Right arrow)" aria-label="Next page">${svg(ICON.next)}</button>
                 <span class="pv-sep"></span>
-                ${o.share ? `<button type="button" data-share class="pv-b" style="padding:0 10px;gap:6px;font-weight:500;color:#171717" title="Get a link to this prototype">${svg(ICON.share, 16)}<span>${esc(o.share.label || "Share")}</span></button><span class="pv-sep"></span>` : ""}
-                <span class="pv-sep"></span>
+                ${o.share ? `<button type="button" data-share class="pv-b pv-share" style="padding:0 14px;gap:6px;font-weight:600;margin-right:2px" title="Get a link to this prototype">${svg(ICON.share, 16)}<span>${esc(o.share.label || "Share")}</span></button>` : ""}
                 <button type="button" data-scale class="pv-b" style="padding:0 8px 0 10px;gap:4px;font-weight:500;color:#171717" title="How the page fits the screen" aria-haspopup="menu"><span>100%</span>${svg(ICON.down, 14, 1.8)}</button>
                 <span class="pv-sep"></span>
                 <button type="button" data-min class="pv-b" style="width:32px" title="Minimize the toolbar" aria-label="Minimize the toolbar">${svg(ICON.minimize)}</button>
@@ -114,7 +120,7 @@ export function createPresenter(o) {
     </div>`;
     document.body.appendChild(box);
     const q = (s) => box.querySelector(s);
-    const stage = q("[data-stage]"), wrap = q("[data-wrap]"), frame = q("[data-frame]"), dock = q("[data-dock]"), full = q("[data-full]"), mini = q("[data-mini]");
+    const stage = q("[data-stage]"), wrap = q("[data-wrap]"), shell = q("[data-shell]"), screen = q("[data-screen]"), notch = q("[data-notch]"), cam = q("[data-cam]"), side = q("[data-side]"), frame = q("[data-frame]"), dock = q("[data-dock]"), full = q("[data-full]"), mini = q("[data-mini]");
 
     // A page of its own has none of the editor's script: keys and Ctrl/Cmd + scroll (the browser's zoom) are handed to this window.
     const pageScript = (id) => `<script data-wc-present>(function(){var I=${JSON.stringify(id)};function name(e){var m=e.metaKey||e.ctrlKey;if(m&&e.key==="\\\\")return"hideui";if(m||e.altKey)return"";if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="Escape")return e.key;if(e.key==="z"||e.key==="Z")return"responsive";return""}addEventListener("keydown",function(e){var k=name(e);if(!k)return;var t=e.target;if(k!=="Escape"&&k!=="hideui"&&t&&(/^(input|textarea|select)$/i.test(t.tagName)||t.isContentEditable))return;e.preventDefault();parent.postMessage({wcPresent:I,key:k},"*")},true);addEventListener("wheel",function(e){if(e.ctrlKey||e.metaKey)e.preventDefault()},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){addEventListener(t,function(e){e.preventDefault()})})})()<\/script>`;
@@ -128,9 +134,32 @@ export function createPresenter(o) {
     function layout() {
         const p = pages[at], mode = modeOf(p);
         const availW = stage.clientWidth, availH = stage.clientHeight;
+        const dev = DEVICES[mode];
+        if (dev) { // a phone or a tablet in its frame, centred, scaled down only when the window is smaller than it
+            const sW = dev.w + 2 * dev.bz, sH = dev.h + 2 * dev.bz;
+            const k = Math.min(1, (availW - 24) / sW, (availH - 24) / sH), W = sW * k, H = sH * k;
+            shell.style.cssText = `position:absolute;left:0;top:0;width:${sW}px;height:${sH}px;transform:scale(${k});transform-origin:0 0;background:#161618;border-radius:${dev.r}px;box-shadow:0 0 0 3px ${dev.ring},inset 0 0 0 2px #2b2b2f,0 28px 70px rgba(0,0,0,.55);`;
+            screen.style.cssText = `position:absolute;left:${dev.bz}px;top:${dev.bz}px;width:${dev.w}px;height:${dev.h}px;border-radius:${dev.screenR}px;overflow:hidden;background:#fff;`;
+            frame.style.cssText = `position:absolute;left:0;top:0;width:${dev.w}px;height:${dev.h}px;border:0;background:#fff;`;
+            notch.style.cssText = dev.notch ? `display:block;position:absolute;z-index:2;pointer-events:none;top:${dev.bz}px;left:${sW / 2 - 63}px;width:126px;height:30px;background:#161618;border-radius:0 0 20px 20px;box-shadow:inset 0 -1px 0 #2b2b2f;` : "display:none";
+            cam.style.cssText = dev.notch ? `display:block;position:absolute;z-index:3;pointer-events:none;top:${dev.bz + 9}px;left:${sW / 2 + 30}px;width:11px;height:11px;border-radius:50%;background:#0b1220;box-shadow:inset 0 0 0 2px #2a3344;` : `display:block;position:absolute;pointer-events:none;top:${dev.bz / 2 - 3}px;left:${sW / 2 - 3}px;width:6px;height:6px;border-radius:50%;background:#2a3344;`;
+            // the side buttons: a mute switch and two volume keys on the left, power on the right (a phone only)
+            side.style.cssText = dev.notch ? `display:block;position:absolute;left:-8px;right:-8px;top:0;bottom:0;pointer-events:none;background:
+                linear-gradient(${dev.ring},${dev.ring}) 0 100px/4px 26px no-repeat,
+                linear-gradient(${dev.ring},${dev.ring}) 0 160px/4px 52px no-repeat,
+                linear-gradient(${dev.ring},${dev.ring}) 0 226px/4px 52px no-repeat,
+                linear-gradient(${dev.ring},${dev.ring}) ${sW + 11}px 190px/4px 88px no-repeat;` : "display:none";
+            wrap.style.cssText = `position:relative;flex:none;width:${W}px;height:${H}px;margin:${(availH - H) / 2}px 0 0 ${(availW - W) / 2}px;`;
+            stage.style.overflowX = "hidden";
+            q("[data-scale] span").textContent = `${Math.round(k * 100)}%`;
+            return;
+        }
+        shell.style.cssText = "position:absolute;inset:0;";
+        screen.style.cssText = "position:absolute;inset:0;overflow:hidden;";
+        notch.style.display = cam.style.display = side.style.display = "none";
         const w = p.width || 1280, h = p.height || availH;
         let k = 1, fw = w, fh = availH;
-        if (DEVICE_W[mode]) { fw = DEVICE_W[mode]; k = Math.min(1, availW / fw); fh = availH / k; } // a device's width, centred; smaller only when the window is narrower
+        if (mode === "desktop") { fw = DEVICE_W.desktop; k = Math.min(1, availW / fw); fh = availH / k; } // the desktop width, centred; smaller only when the window is narrower
         else if (mode === "responsive") fw = availW;
         else if (mode === "fitw") { k = availW / w; fh = availH / k; }
         else if (mode === "fitwh") { k = Math.min(availW / w, availH / h); fh = h; }
