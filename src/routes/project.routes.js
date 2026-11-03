@@ -114,6 +114,17 @@ projectApi.post("/:id/share", async (req, res) => {
     res.json({ success: true, token });
 });
 
+/** Turn the prototype link on (a new link) or off. `{ on: true }` returns { token }. Anyone with the link can click through the pages; nothing else. */
+projectApi.post("/:id/prototype-share", async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
+    const on = !(req.body && req.body.on === false);
+    const p = await Project.findOne({ _id: req.params.id, owner: req.session.user.id });
+    if (!p) return res.status(404).json({ success: false, message: "Not found" });
+    p.protoToken = on ? p.protoToken || crypto.randomBytes(16).toString("hex") : ""; // turning it on again keeps the link that already works
+    await p.save();
+    res.json({ success: true, token: p.protoToken });
+});
+
 projectApi.put("/:id", async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: "Not found" });
     const { name, description } = clean(req.body || {});
@@ -180,4 +191,25 @@ sharePages.get("/:token", async (req, res) => {
         items: items.map((c) => ({ id: String(c._id), title: c.title, description: c.description, kind: c.kind, htmlCode: c.htmlCode })),
     };
     res.render("main/share", { layout: "main", title: project.name, user: req.session?.user || null, projectName: project.name, count: items.length, dataJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, "") });
+});
+
+// ── The prototype: a project's pages, one at a time, full screen (its own view, like Figma's /proto) ─────────────────────────
+// /prototype/<token>: open to anyone who has the link. /prototype/<project id>: the owner, signed in (and the Share button there makes the link).
+export const protoPages = express.Router();
+protoPages.get("/:ref", async (req, res) => {
+    const ref = String(req.params.ref || "");
+    const me = req.session?.user?.id;
+    let project = null, owner = false;
+    if (/^[a-f0-9]{32}$/.test(ref)) project = await Project.findOne({ protoToken: ref }).lean();
+    else if (mongoose.isValidObjectId(ref) && me) { project = await Project.findOne({ _id: ref, owner: me }).lean(); owner = Boolean(project); }
+    if (!project) return res.status(404).render("error", { layout: "main", title: "Not found", message: "This link doesn't work (any more).", user: req.session?.user || null });
+    owner = owner || Boolean(me && String(project.owner) === String(me));
+    const items = await Component.find({ project: project._id, kind: { $ne: "section" } }).select("title htmlCode kind frameW board").sort("order createdAt").lean();
+    const pages = items.filter((c) => c.kind === "page");
+    const shown = (pages.length ? pages : items).map((c) => ({
+        id: String(c._id), title: c.title, htmlCode: c.htmlCode, width: (c.board && Number.isFinite(c.board.w) && c.board.w) || c.frameW || null,
+        height: (c.board && Number.isFinite(c.board.h) && c.board.h) || null,
+    }));
+    const data = { project: { id: String(project._id), name: project.name, theme: normalizeTheme(project.theme) }, items: shown, owner, token: project.protoToken || "" };
+    res.render("main/prototype", { layout: "canvas", title: `${project.name} (prototype)`, dataJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, "") });
 });

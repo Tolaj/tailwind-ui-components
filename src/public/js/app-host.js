@@ -47,6 +47,7 @@ export const appHost = {
     },
     generate,
     projectUrl: (id) => `/projects/${id}`,
+    previewUrl: ({ projectId, designId }) => `/prototype/${projectId}?page=${designId}`, // the prototype page (its own tab)
     showDesign: (id) => window.history.replaceState({}, "", id ? `/design/${id}` : "/design/new"),
     openDesign: (id) => { window.location.href = `/design/${id}`; },
     updateFromFigma: async (id) => {

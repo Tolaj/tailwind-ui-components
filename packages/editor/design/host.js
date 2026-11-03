@@ -12,6 +12,7 @@
  * @property {(body: object, onText?: (text: string) => void) => Promise<string>} [generate]   the AI drafts a page; resolves to its HTML. Omit it and the editor shows no AI box or AI tab
  * @property {(id: string | null) => void} showDesign   the address now shows this saved design (null: an unsaved one)
  * @property {(projectId: string) => string} [projectUrl]   where a project's own page is (the project name links there); omit for none
+ * @property {(where: { projectId: string, designId: string }) => string} [previewUrl]   the address of the prototype page for a saved design (the play button opens it in its own tab); omit it and Preview opens over the editor instead
  * @property {(id: string) => void} openDesign   go to this design (loads the page again)
  * @property {(id: string) => Promise<{ changed?: boolean }>} [updateFromFigma]   converts a design again from the Figma data kept with it (a new version when the code changed); omit for no such button
  */

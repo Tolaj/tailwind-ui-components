@@ -11,6 +11,8 @@ const projectSchema = new mongoose.Schema(
         theme: { type: mongoose.Schema.Types.Mixed, default: null },
         // the share link: anyone with /p/<shareToken> can look at the project and copy its code (no account); empty = not shared
         shareToken: { type: String, default: "", index: true },
+        // the prototype link: anyone with /prototype/<protoToken> can click through the pages, full screen, and nothing else (no code, no editing); empty = not shared
+        protoToken: { type: String, default: "", index: true },
         owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     },
     { timestamps: true }
