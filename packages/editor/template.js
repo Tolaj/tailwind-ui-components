@@ -103,7 +103,7 @@ export const editorHtml = `<div class="flex h-full flex-col">
                         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                         <path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" />
                     </svg></button>
-<button id="playBtn" type="button" title="Preview: run it with its JavaScript" class="tbtn"><svg
+<button id="playBtn" type="button" title="Preview the pages one at a time, full screen" class="tbtn"><svg
                         class="mx-auto h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M7 5v14l12-7z" />

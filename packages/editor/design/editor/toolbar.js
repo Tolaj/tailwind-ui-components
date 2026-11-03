@@ -6,16 +6,16 @@ import { pref } from "./color-ui.js";
 import { applyView, canvas, canvasSize, fitTo, handleWheel, layout, view, zoomAt } from "./plane.js";
 import { activate, anyDirty, boardPayload, docDirty, docs, loadActiveFromStash, pinBoard, remapKey, saveBoard } from "./designs.js";
 import { openDetails } from "./add-menu.js";
+import { closePreview, openPreview, previewOpen } from "./present.js";
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
 /**
- * Editing, or the live page ("preview"): the Interact tool (P, or the play button) shows the page as it runs on a device, at the
+ * Editing, or the live page ("preview"): the Interact tool (P) shows the page as it runs on a device, at the
  * device's width and height, with its hover, focus, clicks, typing, scrolling and JavaScript; any other tool, V or Esc edits again.
  */
 function setMode(next) {
     if (next === S.mode) return;
     S.mode = next;
-    $("playBtn").classList.toggle("on", S.mode === "preview");
     $("inspector").style.opacity = $("layers").style.opacity = S.mode === "edit" ? "" : "0.4";
     $("inspector").style.pointerEvents = $("layers").style.pointerEvents = S.mode === "edit" ? "" : "none";
     $("canvasHint").textContent = S.mode === "edit" ? "Click to select. Double-click text to edit it. Alt-drag to place freely. Scroll to pan, Ctrl/Cmd + scroll to zoom." : "Interact: hover, click, type and scroll as on the device. Press Esc or V to edit again.";
@@ -205,7 +205,7 @@ function setupFigmaButton(info, designId) {
 }
 
 export function init() {
-    $("playBtn").addEventListener("click", () => setTool(S.mode === "edit" ? "interact" : "move")); // the same as the Interact tool
+    $("playBtn").addEventListener("click", () => (previewOpen() ? closePreview() : openPreview())); // Preview: every page, one at a time, full screen (Interact is its own tool)
     $("zoomSel").addEventListener("change", (e) => {
         const v = e.target.value;
         if (v === "custom") return;
