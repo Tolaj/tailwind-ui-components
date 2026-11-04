@@ -79,7 +79,7 @@
             <!-- More options: save a private copy into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
             <div class="relative">
                 <button type="button" id="more-btn-{{_id}}" onclick="toggleMoreMenu('{{_id}}')" aria-haspopup="menu"
-                    class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="More options"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+                    class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="More options"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
                 <div id="more-menu-{{_id}}" role="menu" class="hidden absolute right-0 top-full z-30 mt-1 w-60 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
                     {{#unless savedId}}
                     <button type="button" role="menuitem" onclick="chooseProject('{{_id}}', 'save', this, document.getElementById('more-btn-{{_id}}')); closeMoreMenus()" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
