@@ -28,31 +28,14 @@
 
             <div class="h-4 w-px bg-gray-300"></div>
 
-            <!-- Device: Desktop (default), Tablet or Mobile; the last two show the component in a device frame -->
-            <div class="relative">
-                <button onclick="toggleViewSize('{{_id}}')" id="size-btn-{{_id}}" aria-haspopup="menu"
-                    class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="Desktop view (change the device)">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="3" y="4" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 20h8M12 16v4"/></svg>
-                </button>
-                <div id="size-menu-{{_id}}" role="menu"
-                    class="hidden absolute right-0 top-full z-30 mt-1 w-[280px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
-                    <div class="px-2.5 pb-1 pt-2 text-[11px] text-gray-500">Device</div>
-                    <button type="button" role="menuitem" data-device="desktop" onclick="setViewDevice('{{_id}}', 'desktop')"
-                        class="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-gray-900 hover:bg-gray-100 bg-gray-100">
-                        <span data-tick style="visibility:visible"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg></span>
-                        <span class="text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="3" y="4" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 20h8M12 16v4"/></svg></span><span class="flex-1 text-left">Desktop</span><span class="text-xs text-neutral-500">Full width</span>
-                    </button>
-                    <button type="button" role="menuitem" data-device="tablet" onclick="setViewDevice('{{_id}}', 'tablet')"
-                        class="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-gray-900 hover:bg-gray-100">
-                        <span data-tick style="visibility:hidden"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg></span>
-                        <span class="text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="5" y="3" width="14" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg></span><span class="flex-1 text-left">Tablet</span><span class="text-xs text-neutral-500">768</span>
-                    </button>
-                    <button type="button" role="menuitem" data-device="mobile" onclick="setViewDevice('{{_id}}', 'mobile')"
-                        class="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-gray-900 hover:bg-gray-100">
-                        <span data-tick style="visibility:hidden"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg></span>
-                        <span class="text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="7" y="3" width="10" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg></span><span class="flex-1 text-left">Mobile</span><span class="text-xs text-neutral-500">390</span>
-                    </button>
-                </div>
+            <!-- Device: Desktop (default), Tablet or Mobile, like Preview / Code; the last two show the component in a device frame -->
+            <div id="device-pill-{{_id}}" role="group" aria-label="Device" class="flex items-center bg-gray-200 rounded-full p-1">
+                <button type="button" onclick="setViewDevice('{{_id}}', 'desktop')" data-device="desktop" aria-pressed="true" title="Desktop" aria-label="Desktop"
+                    class="flex items-center justify-center px-2.5 py-1.5 rounded-full bg-white shadow text-gray-900"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 20h8M12 16v4"/></svg></button>
+                <button type="button" onclick="setViewDevice('{{_id}}', 'tablet')" data-device="tablet" aria-pressed="false" title="Tablet" aria-label="Tablet"
+                    class="flex items-center justify-center px-2.5 py-1.5 rounded-full text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg></button>
+                <button type="button" onclick="setViewDevice('{{_id}}', 'mobile')" data-device="mobile" aria-pressed="false" title="Mobile" aria-label="Mobile"
+                    class="flex items-center justify-center px-2.5 py-1.5 rounded-full text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg></button>
             </div>
 
             <!-- Theme Toggle (Light default) -->
@@ -83,16 +66,6 @@
                 <option>HTML</option>
             </select>
 
-            <!-- Save into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
-            {{#unless savedId}}
-            <button type="button" onclick="chooseProject('{{_id}}', 'save', this)" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
-                title="Save a private copy in one of your projects"
-                class="h-8 rounded-md border border-gray-300 px-2.5 text-xs font-medium text-gray-800 hover:bg-gray-100 whitespace-nowrap">Save</button>
-            {{/unless}}
-            <button type="button" onclick="chooseProject('{{_id}}', 'edit', this)" data-card-action="edit" data-card-id="{{_id}}" data-saved-id="{{savedId}}" data-signed-in="{{#if @root.user}}1{{/if}}"
-                title="Make your own copy in a project and open it in the editor"
-                class="h-8 rounded-md bg-black px-2.5 text-xs font-medium text-white hover:bg-neutral-800 whitespace-nowrap">Open in editor</button>
-
             <!-- Copy -->
             <button onclick="copyCode('{{_id}}')" id="copy-btn-{{_id}}"
                 class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="Copy code">
@@ -101,6 +74,23 @@
                     <path d="M5 15V5a2 2 0 012-2h10" />
                 </svg>
             </button>
+
+
+            <!-- More options: save a private copy into a project, or open a copy in the editor. Signed out, both ask you to sign in and then carry on -->
+            <div class="relative">
+                <button type="button" id="more-btn-{{_id}}" onclick="toggleMoreMenu('{{_id}}')" aria-haspopup="menu"
+                    class="p-1.5 rounded-md hover:bg-gray-200 text-gray-600" title="More options"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+                <div id="more-menu-{{_id}}" role="menu" class="hidden absolute right-0 top-full z-30 mt-1 w-60 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+                    {{#unless savedId}}
+                    <button type="button" role="menuitem" onclick="chooseProject('{{_id}}', 'save', this, document.getElementById('more-btn-{{_id}}')); closeMoreMenus()" data-card-action="save" data-card-id="{{_id}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                        title="Save a private copy in one of your projects"
+                        class="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] text-gray-900 hover:bg-gray-100"><span class="text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>Save to a project</button>
+                    {{/unless}}
+                    <button type="button" role="menuitem" onclick="chooseProject('{{_id}}', 'edit', this, document.getElementById('more-btn-{{_id}}')); closeMoreMenus()" data-card-action="edit" data-card-id="{{_id}}" data-saved-id="{{savedId}}" data-signed-in="{{#if @root.user}}1{{/if}}"
+                        title="Make your own copy in a project and open it in the editor"
+                        class="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] text-gray-900 hover:bg-gray-100"><span class="text-gray-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Open in editor</button>
+                </div>
+            </div>
 
         </div>
     </div>

@@ -8,8 +8,6 @@ import { DEVICES, buildDeviceFrame } from '@windcraft/editor/design/device-frame
 
     // ─── Icons ───────────────────────────────────────────────────────────────
 
-    const mobileIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>`;
-    const desktopIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" /></svg>`;
     const sunIcon = `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" /></svg>`;
     const moonIcon = `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>`;
 
@@ -154,30 +152,25 @@ import { DEVICES, buildDeviceFrame } from '@windcraft/editor/design/device-frame
     // ─── Device: Desktop (default), Tablet or Mobile ──────────────────────────
     // Tablet and Mobile show the component in a device frame at the device's real screen size (device-frame.js, as in the prototype).
 
-    const tabletIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="5" y="3" width="14" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg>`;
-    const DEVICE_ICON = { desktop: desktopIcon, tablet: tabletIcon, mobile: mobileIcon };
-    const DEVICE_NAME = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' };
+    const DEVICES_OK = { desktop: true, tablet: true, mobile: true };
 
-    const closeSizeMenus = () => document.querySelectorAll('[id^="size-menu-"]').forEach((m) => m.classList.add('hidden'));
-    document.addEventListener('click', (e) => { if (!e.target.closest('[id^="size-menu-"]') && !e.target.closest('[id^="size-btn-"]')) closeSizeMenus(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSizeMenus(); });
-
-    // the button opens a small menu of the three devices
-    window.toggleViewSize = function (id) {
-        const menu = document.getElementById(`size-menu-${id}`);
+    // the device options are a Preview / Code-style pill; the three dots at the end hold Save and Open in editor
+    window.closeMoreMenus = () => document.querySelectorAll('[id^="more-menu-"]').forEach((m) => m.classList.add('hidden'));
+    window.toggleMoreMenu = function (id) {
+        const menu = document.getElementById(`more-menu-${id}`);
         if (!menu) return;
         const open = menu.classList.contains('hidden');
-        closeSizeMenus();
+        window.closeMoreMenus();
         menu.classList.toggle('hidden', !open);
     };
+    document.addEventListener('click', (e) => { if (!e.target.closest('[id^="more-menu-"]') && !e.target.closest('[id^="more-btn-"]')) window.closeMoreMenus(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.closeMoreMenus(); });
 
     window.addEventListener('resize', () => Object.values(componentStates).forEach((st) => st.fit && st.fit()));
 
     window.setViewDevice = function (id, device) {
         const preview = document.getElementById(`preview-${id}`);
-        const btn = document.getElementById(`size-btn-${id}`);
-        if (!preview || !btn || !DEVICE_ICON[device]) return;
-        closeSizeMenus();
+        if (!preview || !DEVICES_OK[device]) return;
 
         const state = getState(id);
         if (state.device === device) return;
@@ -241,12 +234,14 @@ import { DEVICES, buildDeviceFrame } from '@windcraft/editor/design/device-frame
             renderComponent(id);
         }
 
-        btn.innerHTML = DEVICE_ICON[device];
-        btn.title = `${DEVICE_NAME[device]} view (change the device)`;
-        document.querySelectorAll(`#size-menu-${id} [data-device]`).forEach((b) => {
+        // the pill shows the current device, like Preview / Code
+        document.querySelectorAll(`#device-pill-${id} [data-device]`).forEach((b) => {
             const on = b.dataset.device === device;
-            b.querySelector('[data-tick]').style.visibility = on ? 'visible' : 'hidden';
-            b.classList.toggle('bg-gray-100', on);
+            b.setAttribute('aria-pressed', String(on));
+            b.classList.toggle('bg-white', on);
+            b.classList.toggle('shadow', on);
+            b.classList.toggle('text-gray-900', on);
+            b.classList.toggle('text-gray-600', !on);
         });
     };
 

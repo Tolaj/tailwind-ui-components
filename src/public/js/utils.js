@@ -57,7 +57,7 @@ let projectsLoad = null;
 const loadProjects = () => (projectsLoad ||= fetch("/api/projects").then((r) => r.json()).then((j) => j.data || []).catch(() => []));
 document.addEventListener("DOMContentLoaded", () => { if (document.querySelector('[data-card-action][data-signed-in="1"]')) loadProjects(); });
 
-async function chooseProject(id, mode, btn) {
+async function chooseProject(id, mode, btn, anchor = btn) { // anchor: what the chooser opens under (the three dots, when the button is inside their menu)
   if (!btn.dataset.signedIn) {
     const back = new URL(location.href);
     back.searchParams.set(mode === "edit" ? "edit" : "save", id);
@@ -78,7 +78,7 @@ async function chooseProject(id, mode, btn) {
     <input type="text" maxlength="80" placeholder="Name the new project" class="${projects.length ? "hidden " : ""}mt-2 h-9 w-full rounded-md border border-gray-300 px-2 text-sm">
     <p class="mt-2 hidden text-xs text-red-700" data-err></p>
     <div class="mt-3 flex justify-end gap-2"><button type="button" data-cancel class="h-8 rounded-md border border-gray-300 px-3 text-xs font-medium text-gray-800 hover:bg-gray-50">Cancel</button><button type="button" data-go class="h-8 rounded-md bg-black px-3 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50">${mode === "edit" ? "Open in editor" : "Save"}</button></div>`;
-  const r = btn.getBoundingClientRect();
+  const r = anchor.getBoundingClientRect();
   card.style.top = `${window.scrollY + r.bottom + 6}px`;
   card.style.left = `${Math.max(8, Math.min(window.scrollX + r.right - 288, window.scrollX + document.documentElement.clientWidth - 296))}px`;
   document.body.appendChild(card);
@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     url.searchParams.delete(mode);
     history.replaceState({}, "", url.pathname + url.search);
     const btn = document.querySelector(`[data-card-action="${mode}"][data-card-id="${CSS.escape(id)}"]`);
-    if (btn && btn.dataset.signedIn) chooseProject(id, mode, btn);
+    if (btn && btn.dataset.signedIn) chooseProject(id, mode, btn, document.getElementById(`more-btn-${id}`) || btn);
     break;
   }
 });
