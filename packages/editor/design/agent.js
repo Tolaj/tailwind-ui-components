@@ -1403,6 +1403,16 @@ export function agentMain() {
             if (edgeY !== null) { const r = hold(edgeY, sy, g.hold.y); sy = r.s; g.hold.y = r.h; }
             if (sx !== null) w = Math.max(1, hd.includes("e") ? w + sx : w - sx);
             if (sy !== null) h = Math.max(1, hd.includes("s") ? h + sy : h - sy);
+            // the same size as a neighbour: a width or height within 6px of a sibling's takes it (an edge that lined up is left as it is)
+            const same = [];
+            if (!g.sibs) g.sibs = kidsOf(g.el.parentElement || document.body, g.el).map(pageRect).filter((r) => r.w >= 1 && r.h >= 1);
+            const match = (v, key) => { let best = null; g.sibs.forEach((r) => { const d = Math.abs(r[key] - v); if (d <= px(6) && (!best || d < best.d)) best = { d, v: r[key] }; }); return best; };
+            if (sx === null && fx !== "row" && /[ew]/.test(hd)) { const m = match(w, "w"); if (m) { w = m.v; same.push("width"); } }
+            if (sy === null && fx !== "column" && /[ns]/.test(hd)) { const m = match(h, "h"); if (m) { h = m.v; same.push("height"); } }
+            if (same.length) {
+                dropHint.textContent = `Same ${same.join(" and ")} as a neighbour`;
+                Object.assign(dropHint.style, { display: "block", left: `${pr.x}px`, top: `${Math.max(0, pr.y - px(24))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+            } else dropHint.style.display = "none";
             keysX = edgeX === null ? [] : [hd.includes("e") ? 2 : 0];
             keysY = edgeY === null ? [] : [hd.includes("s") ? 2 : 0];
             g.guide = { want: [hd.includes("e") ? "right" : hd.includes("w") ? "left" : null, hd.includes("s") ? "down" : hd.includes("n") ? "up" : null].filter(Boolean), box: { x: hd.includes("w") ? pr.x + pr.w - w : pr.x, y: hd.includes("n") ? pr.y + pr.h - h : pr.y, w, h }, keysX, keysY };
