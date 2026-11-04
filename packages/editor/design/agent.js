@@ -1169,6 +1169,20 @@ export function agentMain() {
                 ? `position:absolute;left:${l.at - px(0.5)}px;top:${b.y}px;width:${px(1)}px;height:${b.h}px;background:${RED};`
                 : `position:absolute;top:${l.at - px(0.5)}px;left:${b.x}px;height:${px(1)}px;width:${b.w}px;background:${RED};`));
         });
+        // the distances to what is around it, as Figma shows them: to the nearest child on each side, or to the edge of the box
+        {
+            const r = pageRect(el), nb = neighbours(r, g.lane.others.map((o) => o.r)), bx = g.lane.box;
+            const across = (a0, a1) => mid(a0, a1, a0, a1);
+            const side = (s, near, edge) => {
+                if (near) { const gp = gapBetween(s, r, near); if (gp >= 1) return s === "left" ? ["x", near.x + near.w, r.x, mid(near.y, near.y + near.h, r.y, r.y + r.h)] : s === "right" ? ["x", r.x + r.w, near.x, mid(near.y, near.y + near.h, r.y, r.y + r.h)] : s === "up" ? ["y", near.y + near.h, r.y, mid(near.x, near.x + near.w, r.x, r.x + r.w)] : ["y", r.y + r.h, near.y, mid(near.x, near.x + near.w, r.x, r.x + r.w)]; return null; }
+                if (s === "left" && r.x - bx.x >= 1) return ["x", bx.x, r.x, across(r.y, r.y + r.h)];
+                if (s === "right" && bx.x + bx.w - (r.x + r.w) >= 1) return ["x", r.x + r.w, bx.x + bx.w, across(r.y, r.y + r.h)];
+                if (s === "up" && r.y - bx.y >= 1) return ["y", bx.y, r.y, across(r.x, r.x + r.w)];
+                if (s === "down" && bx.y + bx.h - (r.y + r.h) >= 1) return ["y", r.y + r.h, bx.y + bx.h, across(r.x, r.x + r.w)];
+                return null;
+            };
+            if (Math.abs(dx) >= 1 || Math.abs(dy) >= 1) ["left", "right", "up", "down"].forEach((s) => { const d = side(s, nb[s]); if (d) drawGap(...d); });
+        }
         const parts = ["x", "y"].map((a) => chosen[a]).filter((c) => c && c.k !== "slot").map((c) => c.word);
         const free = ["x", "y"].filter((a) => !chosen[a] && Math.abs(a === "x" ? dx : dy) >= 1);
         if (free.length) parts.push(free.length === 2 ? `Offset ${Math.round(dx)}, ${Math.round(dy)}` : `Offset ${free[0]} ${Math.round(free[0] === "x" ? dx : dy)}`);
