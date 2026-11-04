@@ -10,6 +10,7 @@ import { applyView, fitTo, handleWheel, layout, positions, view } from "./plane.
 import { commit, updateChrome } from "./docs.js";
 import { convertGesture, renderInspector } from "./inspector.js";
 import { updateCodeHighlight } from "./code-panel.js";
+import { suggestLayout } from "./layout-chip.js";
 
 let pendingKey = "";
 
@@ -181,6 +182,8 @@ export function init() {
             if (en) en.wrap.classList.toggle("bodyhover", Boolean(m.on));
         } else if (m.type === "convert") {
             convertGesture(m.items || []);
+        } else if (m.type === "layoutHint") {
+            suggestLayout(m);
         } else if (m.type === "key") {
             handleKey(m);
         }

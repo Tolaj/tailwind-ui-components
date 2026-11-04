@@ -14,6 +14,8 @@ import { cmd } from "./frame-messages.js";
 import { setPanel } from "./color-ui.js";
 import { elementRange } from "./code-panel.js";
 import { loadFrame } from "./docs.js";
+import { compileItems } from "@windcraft/core/intent.js";
+import { offerScope, scopeMode } from "./scope-chip.js";
 
 // ── Inspector (the panel is components: see panel.js; what it shows, panel-model.js; its state, panel-state.js) ──
 export const insp = $("inspector");
@@ -204,7 +206,6 @@ export const pickerClosed = (t) => { liveSession++; t.blur(); };
 // value where it is (md:p-6 stays md:), and anything new is a plain class for every size, as a frontend developer writes it.
 /** The variant picked in the panel ("md:hover:"), or "" for none. */
 const picked = () => (panelStore.get().bp || panelStore.get().st ? variant() : "");
-function newVariant() { return picked(); }
 
 /**
  * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
@@ -281,32 +282,14 @@ export function setProps(props, raw, group, clear = [], cssOverride, key) {
 export function convertGesture(items) {
     const blocked = items.find((it) => it.blocked);
     if (blocked) flashHint(`This element's ${blocked.blocked} is set by its flex layout. Use "Size it myself" in the panel to size it by hand.`);
-    send({ cmd: "applyGesture", items: items.map((it) => {
-        const tw = it.made || modeFor({ classes: it.classes }) === "tailwind";
-        let classes = it.classes;
-        const tokens = {};
-        Object.entries(it.values).forEach(([prop, value]) => {
-            const pre = it.pre[prop] || { source: "default" };
-            if (!it.made && (pre.source === "inline" || pre.source === "design")) return; // it was CSS: it stays CSS
-            if (!tw && pre.source !== "tailwind") return;
-            const group = groupOf(prop);
-            if (!group) return;
-            const tv = /^-?[\d.]+px$/.test(value) ? fromPx(group, Math.round(parseFloat(value))) : twValue(prop, value, false); // a size, or a word (flex, column, absolute)
-            if (tv === null) return;
-            const built = GROUPS[group].build(tv);
-            if (!GROUPS[group].re.test(built)) return;
-            // judged on the classes from before this gesture: a left-[..] written a moment ago must not make top an xl: class
-            const vp = (pre.source === "tailwind" && variantOf(pre.token)) || newVariant();
-            const next = setGroup(classes, group, tv, vp);
-            if (next === null) return;
-            classes = next;
-            tokens[prop] = vp + built;
-        });
-        // class groups the element's old place gave it (margins, alignment) come off
-        let cleared = false;
-        if (tw || it.made) (it.clear || []).forEach((group) => { const next = setGroup(classes, group, "", ""); if (next !== null && next !== classes) { classes = next; cleared = true; } });
-        return { path: it.path, classes, tokens, cleared };
-    }) });
+    const out = compileGesture(items, scopeMode());
+    send({ cmd: "applyGesture", items: out.map(({ path, classes, tokens, cleared }) => ({ path, classes, tokens, cleared })) });
+    offerScope(items, out, compileGesture);
+}
+/** The gesture as classes for a scope (intent.js): the device being edited, unless a Screen chip was picked in the panel. */
+function compileGesture(items, mode) {
+    const ui = panelStore.get();
+    return compileItems(items, { tw: (it) => modeFor({ classes: it.classes }) === "tailwind", width: curWidth(), mode, picked: ui.bp, state: ui.st });
 }
 
 /** A flex child that grows to fill its row: stop flex from sizing it (flex-none, or flex: none in CSS), so a width or height set on it applies. */

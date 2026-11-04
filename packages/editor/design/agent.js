@@ -870,14 +870,11 @@ export function agentMain() {
     }
 
 
-    // ── Nudging: a drag moves the element with a pair of margins, and nothing around it moves ──────────────────
-    // The margin behind the element grows by the distance dragged and the margin ahead of it shrinks by the same amount (below zero
-    // if it has to), so the space it takes in the layout never changes and its neighbours and parent stay exactly where they are.
-    // A drag that is clearly meant to put it somewhere else (see wantsBlockDrag) becomes a block drag instead.
-    const NUDGE_PROPS = ["margin-left", "margin-right", "margin-top", "margin-bottom", "align-self", "width", "height"];
-    const ORANGE = "#f59e0b";
+    // ── Dragging in the layout: slots, as in Figma's auto layout ───────────────────────────────────────────────────
+    // An element in the flow is never moved by pixels. It is dragged to a slot (before or after a sibling, or into another box): the
+    // others slide apart to make room, the place it will take is marked, and on release it settles into it. Across a flex row or column
+    // a drag onto the start, centre or end of the box is written as an alignment (self-*), with a guide that says so.
     const kidsOf = (c, skip) => Array.prototype.filter.call(c.children, (k) => k !== skip && !["SCRIPT", "STYLE"].includes(k.tagName) && !(k.hasAttribute && k.hasAttribute("data-wc-agent-style")));
-    const canNudge = (el) => !!el.parentElement && el !== document.body && !isAbs(el) && getComputedStyle(el).display !== "inline";
     /** Would dropping at `t` leave the element where it is among its siblings? */
     function sameSlot(el, t) {
         if (t.container !== el.parentElement) return false;
@@ -886,53 +883,23 @@ export function agentMain() {
         const i = others.indexOf(t.ref);
         return i >= 0 && (t.before ? i : i + 1) === kids.indexOf(el);
     }
-    function nudgeStart(g) {
-        const el = g.el, par = el.parentElement, cs = getComputedStyle(el), pcs = getComputedStyle(par), pr = pageRect(par);
+    /** A box as the place things are dropped into: its content box, the other children (before: ahead of `skip` in the DOM) and its layout. */
+    function laneOf(c, skip) {
+        const cs = getComputedStyle(c), pr = pageRect(c);
         const f = (v) => parseFloat(v) || 0;
-        const bx = f(pcs.borderLeftWidth) + f(pcs.paddingLeft), bt = f(pcs.borderTopWidth) + f(pcs.paddingTop);
-        const box = { x: pr.x + bx, y: pr.y + bt, w: pr.w - bx - f(pcs.borderRightWidth) - f(pcs.paddingRight), h: pr.h - bt - f(pcs.borderBottomWidth) - f(pcs.paddingBottom) };
-        const idx = Array.prototype.indexOf.call(par.children, el);
-        const others = kidsOf(par, el).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none").map((k) => ({ el: k, r: pageRect(k), before: Array.prototype.indexOf.call(par.children, k) < idx }));
-        const r0 = pageRect(el);
-        // which sides are auto (ml-auto, mx-auto, mt-auto ...): that side is left alone and the other one moves
-        const tokens = (el.getAttribute("class") || "").split(/\s+/).map((t) => t.replace(/^(?:[\w-]+:)*/, ""));
-        const isAuto = (prop, side, ax) => { const v = el.style.getPropertyValue(prop); return v ? v === "auto" : tokens.some((t) => t === "m-auto" || t === `m${ax}-auto` || t === `m${side}-auto`); };
-        const auto = { l: isAuto("margin-left", "l", "x"), r: isAuto("margin-right", "r", "x"), t: isAuto("margin-top", "t", "y"), b: isAuto("margin-bottom", "b", "y") };
-        // the margins of the neighbours just above and below in the flow, which its own top and bottom margins collapse with
-        const flowKids = kidsOf(par, null).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none"), fi = flowKids.indexOf(el);
-        const side = { above: flowKids[fi - 1] ? f(getComputedStyle(flowKids[fi - 1]).marginBottom) : 0, below: flowKids[fi + 1] ? f(getComputedStyle(flowKids[fi + 1]).marginTop) : 0 };
-        g.nudge = { w0: cs.width, h0: cs.height, active: false, inl0: inlineOf(el, NUDGE_PROPS), pre: sourcesOf(el, NUDGE_PROPS), m: { x: f(cs.marginLeft), y: f(cs.marginTop) }, f: { x: f(cs.marginRight), y: f(cs.marginBottom) }, auto, side, r0, box, outer: pr, lay: layoutOf(par), others };
-    }
-    /** The gap two adjoining vertical margins make (they collapse), and the margin that makes `gap` next to `other`. */
-    const collapse = (p, q) => (p >= 0 && q >= 0 ? Math.max(p, q) : p <= 0 && q <= 0 ? Math.min(p, q) : p + q);
-    const solveCollapse = (gap, other) => (other >= 0 ? (gap >= other ? gap : gap - other) : gap >= 0 ? gap - other : Math.min(gap, other) === gap ? gap : gap - other);
-    const sameRect = (p, q) => Math.abs(p.x - q.x) < 1 && Math.abs(p.y - q.y) < 1 && Math.abs(p.w - q.w) < 1 && Math.abs(p.h - q.h) < 1;
-    /** Did anything other than the dragged element move? Its neighbours and its parent must stay exactly where they were. */
-    const othersStay = (n, el) => n.others.every((o) => sameRect(pageRect(o.el), o.r)) && sameRect(pageRect(el.parentElement), n.outer);
-    /** How far the element's margin pushed what comes after it along `a` (a neighbour after it, or the parent growing). */
-    function pushed(n, el, a) {
-        const Z = a === "x" ? "w" : "h";
-        for (const o of n.others) { if (o.r[a] <= n.r0[a]) continue; const d = pageRect(o.el)[a] - o.r[a]; if (Math.abs(d) > 0.5) return d; }
-        return pageRect(el.parentElement)[Z] - n.outer[Z];
-    }
-    const restoreProp = (el, n, p) => { if (n.inl0[p]) el.style.setProperty(p, n.inl0[p]); else el.style.removeProperty(p); };
-    function restoreNudge(g) {
-        const n = g.nudge;
-        if (!n || !n.active) return;
-        NUDGE_PROPS.forEach((p) => restoreProp(g.el, n, p));
-        tidyStyle(g.el);
-        n.active = false;
-        guideLayer.innerHTML = "";
+        const bx = f(cs.borderLeftWidth) + f(cs.paddingLeft), bt = f(cs.borderTopWidth) + f(cs.paddingTop);
+        const box = { x: pr.x + bx, y: pr.y + bt, w: pr.w - bx - f(cs.borderRightWidth) - f(cs.paddingRight), h: pr.h - bt - f(cs.borderBottomWidth) - f(cs.paddingBottom) };
+        const idx = skip ? Array.prototype.indexOf.call(c.children, skip) : -1;
+        const others = kidsOf(c, skip).filter((k) => !isAbs(k) && getComputedStyle(k).display !== "none").map((k) => ({ el: k, r: pageRect(k), before: idx >= 0 && Array.prototype.indexOf.call(c.children, k) < idx }));
+        return { box, outer: pr, lay: layoutOf(c), others };
     }
     /** Is this axis one that the element's own margin moves its siblings along (block flow down, a flex box along its direction)? */
     const mainAxis = (lay, a) => (lay === "page flow" || lay === "flex column" ? a === "y" : lay === "flex row" ? a === "x" : false);
-    const crossAxis = (lay, a) => (lay === "flex row" ? a === "y" : lay === "flex column" ? a === "x" : lay === "grid" ? a === "y" : false);
     /** The line, among the container's edges and centre, its neighbours' edges and the spacing used between them, that `start` .. `start + size` is close to. */
-    function containerLine(n, a, start, size) {
+    function containerLine(n, a, start, size, reach) {
         const S = a, Z = a === "x" ? "w" : "h", main = mainAxis(n.lay, a);
         const lines = [{ at: n.box[S], e: "s", k: "start" }, { at: n.box[S] + n.box[Z] / 2, e: "c", k: "centre" }, { at: n.box[S] + n.box[Z], e: "e", k: "end" }];
-        const sibs = n.others.filter((o) => !main || o.before);
-        sibs.forEach((o) => lines.push({ at: o.r[S], e: "s", k: "sib" }, { at: o.r[S] + o.r[Z] / 2, e: "c", k: "sib" }, { at: o.r[S] + o.r[Z], e: "e", k: "sib" }));
+        n.others.forEach((o) => lines.push({ at: o.r[S], e: "s", k: "sib" }, { at: o.r[S] + o.r[Z] / 2, e: "c", k: "sib" }, { at: o.r[S] + o.r[Z], e: "e", k: "sib" }));
         const gaps = [];
         if (main) {
             const before = n.others.filter((o) => o.before).sort((p, q) => p.r[S] - q.r[S]);
@@ -942,7 +909,7 @@ export function agentMain() {
             const med = gaps.length ? gaps.sort((p, q) => p - q)[Math.floor(gaps.length / 2)] : 0;
             [0, med].forEach((gp) => lines.push({ at: end + gp, e: "s", k: "gap", gap: gp }));
         }
-        const T = px(6);
+        const T = reach || px(6);
         let best = null, gap = null;
         lines.forEach((c) => {
             const d = c.at - (c.e === "s" ? start : c.e === "c" ? start + size / 2 : start + size);
@@ -951,101 +918,44 @@ export function agentMain() {
         });
         return gap && (!best || Math.abs(gap.d) <= Math.abs(best.d) + px(4)) ? gap : best; // the spacing wins over an edge that is about as close
     }
-    function nudgeGesture(g, e) {
-        const n = g.nudge, el = g.el;
-        let dx = e.clientX - g.sx, dy = e.clientY - g.sy;
-        if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
-        NUDGE_PROPS.forEach((p) => restoreProp(el, n, p));
-        n.active = true;
-        const lines = [], said = [];
-        const cur = (p) => parseFloat(el.style.getPropertyValue(p)) || 0, used = (p) => parseFloat(getComputedStyle(el)[p === "margin-right" ? "marginRight" : "marginBottom"]) || 0;
-        const step = (v) => (e.metaKey ? Math.round(v) : Math.round(v / 4) * 4); // on the Tailwind scale; Cmd: to the pixel
-        ["x", "y"].forEach((a) => {
-            const d = a === "x" ? dx : dy;
-            if (Math.abs(d) < 0.5) return; // not dragged along this axis: nothing to write
-            const N = a === "x" ? "margin-left" : "margin-top", F = a === "x" ? "margin-right" : "margin-bottom";
-            const autoN = n.auto[a === "x" ? "l" : "t"], autoF = n.auto[a === "x" ? "r" : "b"];
-            // pushed from the far side (ml-auto, mx-auto, mt-auto): the auto side stays auto and the other side moves the opposite way;
-            // mx-auto becomes ml-auto plus a right margin
-            if (autoN) {
-                const v = step(n.f[a] - d), want = n.r0[a] + (n.f[a] - v);
-                setPx(el, F, v);
-                for (let i = 0; i < 2; i++) { const err = want - pageRect(el)[a]; if (Math.abs(err) <= 0.5) break; setPx(el, F, cur(F) - err); }
-                return;
-            }
-            const near = step(n.m[a] + d), dd = near - n.m[a], want = n.r0[a] + dd;
-            if (Math.abs(dd) < 0.5) return;
-            // sideways in the page flow nothing is pushed (blocks stack), and a right margin does nothing there: the left one alone
-            const pair = !autoF && !(a === "x" && n.lay === "page flow");
-            if (a === "y" && n.lay === "page flow") {
-                // down the page a margin collapses with the neighbour's: the gap is the larger of two positive margins, the sum of a
-                // positive and a negative one. So the margins are solved for the gaps wanted above and below, not just added to.
-                setPx(el, N, solveCollapse(collapse(n.side.above, n.m.y) + dd, n.side.above));
-                if (pair) setPx(el, F, solveCollapse(collapse(n.f.y, n.side.below) - dd, n.side.below));
-            } else {
-                setPx(el, N, near);
-                if (pair) setPx(el, F, n.f[a] - dd);
-            }
-            // collapsing margins (page flow) and boxes that are centred or spread out don't add up simply: corrected on the real layout,
-            // the near margin until the element is where it should be, the far one until nothing after it was pushed
-            for (let i = 0; i < 3; i++) {
-                const err = want - pageRect(el)[a];
-                if (Math.abs(err) > 0.5) setPx(el, N, cur(N) + err);
-                const push = pair ? pushed(n, el, a) : 0;
-                if (Math.abs(push) > 0.5) setPx(el, F, used(F) - push);
-                if (Math.abs(err) <= 0.5 && Math.abs(push) <= 0.5) break;
-            }
-        });
-        // the far half of a pair that changes nothing (a right margin in a column, a bottom one that sets no height) is left off
-        ["margin-right", "margin-bottom"].forEach((p) => {
-            const v = el.style.getPropertyValue(p);
-            if (!v || v === n.inl0[p]) return;
-            const look = () => [el, ...n.others.map((o) => o.el), el.parentElement].map(pageRect), before = look();
-            restoreProp(el, n, p);
-            if (!look().every((q, i) => sameRect(q, before[i]))) el.style.setProperty(p, v);
-        });
-        // Moving must not resize: an auto-width block narrows as its margin grows, a stretched flex item shrinks. Where the size changed
-        // it is pinned to what it was; if something else still resizes it (flex-grow), the far margin gives the difference back.
-        let kept = "";
-        const rs = pageRect(el);
-        if (Math.abs(rs.w - n.r0.w) > 0.5) {
-            el.style.setProperty("width", n.w0);
-            const again = pageRect(el).w;
-            if (Math.abs(again - n.r0.w) > 0.5) {
-                restoreProp(el, n, "width");
-                setPx(el, "margin-right", (parseFloat(getComputedStyle(el).marginRight) || 0) - (n.r0.w - pageRect(el).w));
-            } else kept = `width kept ${Math.round(n.r0.w)}px`;
-        }
-        if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) { el.style.setProperty("height", n.h0); if (Math.abs(pageRect(el).h - n.r0.h) > 0.5) restoreProp(el, n, "height"); else kept = kept || `height kept ${Math.round(n.r0.h)}px`; }
-        if (kept) said.push(kept);
-        // what it shows: each margin as an orange measuring line with its number (as Figma shows distances), and the lines it snapped to
-        guideLayer.innerHTML = "";
-        const r = pageRect(el), cs = getComputedStyle(el), ml = parseFloat(cs.marginLeft) || 0, mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0, mb = parseFloat(cs.marginBottom) || 0;
-        const isAutoNow = (p, fromClass) => { const v = el.style.getPropertyValue(p); return v ? v === "auto" : fromClass; };
-        const auto = isAutoNow("margin-left", n.auto.l), autoT = isAutoNow("margin-top", n.auto.t);
-        const tag = (x, y, text) => { const b = guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:${ORANGE};color:#fff;font:600 ${px(10)}px/1 system-ui,sans-serif;padding:${px(2)}px ${px(4)}px;border-radius:${px(3)}px;white-space:nowrap;`)); b.textContent = text; return b; };
-        // a margin as a line across its length with a tick at each end, through the middle of the element's side, and its number on it;
-        // a negative margin runs over the element's own edge and its number has a minus
-        const t = px(1), cap = px(6);
-        const measure = (a, from, len, at, v) => {
-            const css = (x, y, w, h) => guideLayer.appendChild(mk(`position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${ORANGE};`));
-            const label = `${v < 0 ? "−" : ""}${Math.round(Math.abs(v))}`;
-            if (a === "x") { css(from, at - t / 2, len, t); css(from - t / 2, at - cap / 2, t, cap); css(from + len - t / 2, at - cap / 2, t, cap); tag(from + len / 2, at - px(12), label); }
-            else { css(at - t / 2, from, t, len); css(at - cap / 2, from - t / 2, cap, t); css(at - cap / 2, from + len - t / 2, cap, t); tag(at + px(8), from + len / 2, label).style.transform = "translate(0,-50%)"; }
-        };
-        const real = (p) => { const v = el.style.getPropertyValue(p); return v && v !== "auto"; };
-        const cy = r.y + r.h / 2, cx = r.x + r.w / 2;
-        if (Math.abs(ml) >= 1 && !auto) measure("x", ml > 0 ? r.x - ml : r.x, Math.abs(ml), cy, ml);
-        if (Math.abs(mr) >= 1 && real("margin-right")) measure("x", mr > 0 ? r.x + r.w : r.x + r.w + mr, Math.abs(mr), cy, mr);
-        if (Math.abs(mt) >= 1 && !autoT) measure("y", mt > 0 ? r.y - mt : r.y, Math.abs(mt), cx, mt);
-        if (Math.abs(mb) >= 1 && real("margin-bottom")) measure("y", mb > 0 ? r.y + r.h : r.y + r.h + mb, Math.abs(mb), cx, mb);
-        lines.forEach((l) => guideLayer.appendChild(mk(l.a === "x"
-            ? `position:absolute;left:${l.at}px;top:${n.box.y}px;width:${px(1)}px;height:${n.box.h}px;background:${RED};`
-            : `position:absolute;top:${l.at}px;left:${n.box.x}px;height:${px(1)}px;width:${n.box.w}px;background:${RED};`)));
-        dropHint.style.display = "none"; // the numbers on the lines say it all
-        ghostBox.style.display = "none"; dropBox.style.display = "none"; insertLine.style.display = "none";
-    }
 
+    // ── Absolute children that line up: offer a clean layout (the host fits one: packages/core/layout-infer.js) ──────
+    function layoutHint(c) {
+        if (!c || c === document.body) return;
+        const all = kidsOf(c, null).filter((k) => getComputedStyle(k).display !== "none");
+        const kids = all.filter(isAbs);
+        if (kids.length < 3 || kids.length > 14 || kids.length !== all.length) return; // three or more, and nothing in the flow beside them
+        post({ type: "layoutHint", container: pathOf(c), box: laneOf(c, null).box, kids: kids.map((k) => ({ path: pathOf(k), ...pageRect(k) })) });
+    }
+    /** Turn a box of absolutely placed children into the row, column or grid the host fitted: pixels in, classes out, for every size. */
+    function applyLayout(m) {
+        const box = elAt(m.container), kids = (m.kids || []).map(elAt), L = m.layout;
+        if (!box || !L || kids.some((k) => !k)) return;
+        const JUSTIFY = { end: "flex-end", center: "center", between: "space-between", around: "space-around", evenly: "space-evenly" }, ITEMS = { start: "flex-start", center: "center", end: "flex-end" };
+        const set = (el, p, v) => el.style.setProperty(p, v);
+        const before = (el, props) => ({ pre: sourcesOf(el, props), inl: inlineOf(el, props) });
+        const boxProps = L.kind === "grid" ? ["display", "grid-template-columns", "column-gap", "row-gap"] : ["display", "flex-direction", "gap", "justify-content", "align-items"];
+        const b = before(box, boxProps);
+        if (L.kind === "grid") { set(box, "display", "grid"); set(box, "grid-template-columns", `repeat(${L.cols}, minmax(0, 1fr))`); if (L.gapX) set(box, "column-gap", `${L.gapX}px`); if (L.gapY) set(box, "row-gap", `${L.gapY}px`); }
+        else {
+            set(box, "display", "flex");
+            if (L.kind === "col") set(box, "flex-direction", "column");
+            if (L.gap) set(box, "gap", `${L.gap}px`);
+            if (JUSTIFY[L.justify]) set(box, "justify-content", JUSTIFY[L.justify]);
+            if (ITEMS[L.items]) set(box, "align-items", ITEMS[L.items]);
+        }
+        const boxItem = gestureItem(box, b.pre, boxProps); boxItem.structural = true;
+        const items = [boxItem];
+        kids.forEach((k, i) => {
+            const push = L.push === i ? [L.kind === "col" ? "margin-top" : "margin-left"] : [];
+            const pre = sourcesOf(k, push);
+            push.forEach((p) => set(k, p, "auto"));
+            const it = gestureItem(k, pre, push, ["position", "left", "top", "right", "bottom"]); it.structural = true;
+            items.push(it);
+        });
+        setSelection([box]);
+        askConvert(items);
+    }
 
     // ── Dropping into another slot or container: the element takes on the spacing there ──────────────────
     // Margins and alignment that belonged to its old place are cleaned off, it gets the rhythm its new neighbours use (their
@@ -1107,15 +1017,27 @@ export function agentMain() {
                 if (wasLast && median(cs.slice(0, -1).map((c) => f(c.marginBottom))) > 0) want(kids[kids.length - 1], "margin-bottom", 0);
             }
         }
-        // 4. dropped near the middle or the end of a column: centred, or pushed there
-        if (!e.metaKey && (lay === "page flow" || lay === "flex column") && isFinite(g.sx)) {
-            const r = pageRect(el), tmp = { el };
-            nudgeStart(tmp);
-            const n = tmp.nudge;
+        // 4. dropped on the start, centre or end of a flex row or column (the guide said so): aligned there, not nudged
+        if (g.align && g.align.container === par && (lay === "flex row" || lay === "flex column")) {
+            const cross = g.align.cross, Z = cross === "x" ? "w" : "h", n = laneOf(par, el), r = pageRect(el);
+            const word = { start: "flex-start", centre: "center", end: "flex-end" }[g.align.k];
+            const goal = g.align.k === "start" ? n.box[cross] : g.align.k === "centre" ? n.box[cross] + (n.box[Z] - r[Z]) / 2 : n.box[cross] + n.box[Z] - r[Z];
+            if (Math.abs(r[cross] - goal) > 1) { // not there already
+                const was = inlineOf(el, ["align-self"]);
+                el.style.setProperty("align-self", word);
+                const ok = Math.abs(pageRect(el)[cross] - goal) <= 1.5;
+                if (was["align-self"]) el.style.setProperty("align-self", was["align-self"]); else el.style.removeProperty("align-self");
+                tidyStyle(el);
+                if (ok) of(el).set["align-self"] = word;
+            }
+        }
+        // ... and in the page flow, near the middle or the end: centred or pushed there with auto margins
+        if (!e.metaKey && lay === "page flow" && isFinite(g.sx)) {
+            const r = pageRect(el), n = laneOf(par, el);
             if (r.w < n.box.w - 1) {
                 const at = g.rect.x + (e.clientX - g.sx), hit = containerLine(n, "x", at, r.w);
                 if (hit && (hit.k === "centre" || hit.k === "end")) {
-                    const props = lay === "flex column" ? { "align-self": hit.k === "centre" ? "center" : "flex-end" } : hit.k === "centre" ? { "margin-left": "auto", "margin-right": "auto" } : { "margin-left": "auto" };
+                    const props = hit.k === "centre" ? { "margin-left": "auto", "margin-right": "auto" } : { "margin-left": "auto" };
                     const was = inlineOf(el, Object.keys(props));
                     Object.entries(props).forEach(([k, v]) => el.style.setProperty(k, v));
                     const ok = Math.abs(pageRect(el).x - (at + hit.d)) <= 2;
@@ -1134,82 +1056,222 @@ export function agentMain() {
         return work.map(({ k, p, props, pre }) => gestureItem(k, pre, props, p.clear));
     }
 
-    /**
-     * When does a margin drag become a block drag (reorder, or move into another container)? From what the drag looks like:
-     *  - area: how much of its original place the dragged box has left (60% or more);
-     *  - speed: a fast drag past that point means "put it somewhere else";
-     *  - holding still: resting 300ms over another place (beside another child, or in another container) once 60% is left;
-     *  - position: the pointer out of the parent, or a quick throw, at any time.
-     * Once a block drag it stays one until let go; let go in its own place, nothing changes.
-     */
-    const BLOCK = { area: 0.6, fast: 1, hold: 300, rest: 80, still: 4, flick: 2, flickMin: 60, out: 8 }; // share, screen px/ms, ms (to switch, and before the outline shows), px, px/ms, px, px
-    function wantsBlockDrag(g, e) {
-        if (g.block) return true;
-        if (!g.nudge) nudgeStart(g);
-        const n = g.nudge, now = performance.now(), tr = g.trail || (g.trail = []);
-        tr.push({ t: now, x: e.clientX, y: e.clientY });
-        while (tr.length > 1 && now - tr[0].t > 100) tr.shift();
-        const speed = Math.hypot(e.clientX - tr[0].x, e.clientY - tr[0].y) * zoom / Math.max(1, now - tr[0].t);
-        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
-        // how much of its place is left: the box where the pointer would put it against where it was
-        const r = n.r0, ox = Math.max(0, Math.min(r.x + r.w, r.x + dx + r.w) - Math.max(r.x, r.x + dx)), oy = Math.max(0, Math.min(r.y + r.h, r.y + dy + r.h) - Math.max(r.y, r.y + dy));
-        const left = r.w * r.h > 0 ? 1 - (ox * oy) / (r.w * r.h) : 1;
-        const o = n.outer, px0 = e.clientX + window.scrollX, py0 = e.clientY + window.scrollY, m = px(BLOCK.out);
-        const outside = px0 < o.x - m || px0 > o.x + o.w + m || py0 < o.y - m || py0 > o.y + o.h + m;
-        const thrown = speed > BLOCK.flick && Math.hypot(dx, dy) > BLOCK.flickMin;
-        // holding still: from where the pointer came to rest; a timer checks again when the time is up, since a still pointer sends nothing
-        if (!g.still || Math.hypot(e.clientX - g.still.x, e.clientY - g.still.y) > BLOCK.still) {
-            g.still = { x: e.clientX, y: e.clientY, t: now };
-            clearTimeout(g.holdTimer);
-            g.holdTimer = setTimeout(() => { if (gesture === g && !g.block && g.lastE) reorderGesture(g, g.lastE); }, BLOCK.rest + 10);
+    // ── Making room: the others slide apart while an element is dragged between slots ─────────────────────────────
+    // Web Animations only (the `translate` property, which composes with the page's own transforms), so nothing is written to the page
+    // and cancelling them puts everything back. A grid or a wrapping row has no single line to slide along: there the line marks the slot.
+    const room = { anims: [], shift: new Map(), slot: null };
+    /** The others slide back to their places (an element dragged out of the slots into free space). */
+    const relax = () => { room.shift.forEach((v, k) => slide(k, v.a, 0)); room.slot = null; };
+    const EASE = "cubic-bezier(.2,.8,.3,1)";
+    const slideAxis = (c) => {
+        const cs = getComputedStyle(c), l = layoutOf(c);
+        if (cs.display.includes("flex") && (cs.flexDirection.includes("reverse") || cs.flexWrap !== "nowrap")) return null;
+        return l === "flex row" ? "x" : l === "flex column" || l === "page flow" ? "y" : null;
+    };
+    /** The space between neighbours along `a`: a flex box's gap, else what is measured between its children. */
+    function spacing(c, a, kids) {
+        if (layoutOf(c) !== "page flow") { const v = parseFloat(getComputedStyle(c)[a === "x" ? "columnGap" : "rowGap"]); return isNaN(v) ? 0 : v; }
+        const Z = a === "x" ? "w" : "h", d = [];
+        for (let i = 1; i < kids.length; i++) { const p = pageRect(kids[i - 1]), q = pageRect(kids[i]); d.push(q[a] - (p[a] + p[Z])); }
+        return Math.max(0, median(d.filter((v) => v >= 0)));
+    }
+    function slide(k, a, to) {
+        const cur = room.shift.get(k) || { a, px: 0 };
+        if (Math.abs(cur.px - to) < 0.5) return;
+        const at = (v) => (a === "x" ? `${v}px 0` : `0 ${v}px`);
+        room.anims.push(k.animate([{ translate: at(cur.px) }, { translate: at(to) }], { duration: 170, easing: EASE, fill: "forwards" }));
+        room.shift.set(k, { a, px: to });
+    }
+    function closeRoom() {
+        room.anims.forEach((an) => an.cancel());
+        room.anims = []; room.shift.clear(); room.slot = null;
+    }
+    function makeRoom(g, t, held) {
+        const el = g.el, slot = held ? null : { c: t.container, ref: t.ref || null, before: Boolean(t.before) };
+        if (room.slot && slot && room.slot.c === slot.c && room.slot.ref === slot.ref && room.slot.before === slot.before) return;
+        if (!room.slot && !slot) return;
+        room.slot = slot || { c: null, ref: null, before: false };
+        const want = new Map(), old = el.parentElement, ao = slideAxis(old), r = pageRect(el);
+        const oldKids = kidsOf(old, null).filter(inFlow), i0 = oldKids.indexOf(el);
+        let So = 0;
+        if (ao && oldKids.length > 1) {
+            So = r[ao === "x" ? "w" : "h"] + spacing(old, ao, oldKids);
+            oldKids.forEach((k, i) => { if (k !== el && i > i0) want.set(k, { a: ao, px: -So }); }); // the others close the gap it leaves
         }
-        g.lastE = e;
-        let held = false;
-        g.holding = null;
-        if (left >= BLOCK.area) {
-            const t = dropTarget(g.el, e.clientX, e.clientY); // the margins moved only this element, so what is under the pointer is real
-            if (!sameSlot(g.el, t) && staysInGroup(g.el, t.container)) {
-                const time = now - g.still.t;
-                held = time >= BLOCK.hold;
-                if (time >= BLOCK.rest) g.holding = { t, share: Math.min(1, time / BLOCK.hold) };
+        if (slot) {
+            const c = t.container, at = slideAxis(c);
+            if (at) {
+                const kids = kidsOf(c, el).filter(inFlow), j = t.ref ? kids.indexOf(t.ref) + (t.before ? 0 : 1) : kids.length;
+                const St = c === old && at === ao ? So : r[at === "x" ? "w" : "h"] + spacing(c, at, kids);
+                kids.forEach((k, p) => { if (p >= j) { const w = want.get(k); want.set(k, { a: at, px: (w ? w.px : 0) + St }); } }); // and open the slot it goes to
             }
         }
-        g.block = outside || thrown || (left >= BLOCK.area && (speed > BLOCK.fast || held));
-        clearTimeout(g.tick);
-        if (g.block) { clearTimeout(g.holdTimer); g.holding = null; }
-        else if (g.holding) g.tick = setTimeout(() => { if (gesture === g && !g.block) reorderGesture(g, g.lastE); }, 60); // the outline fills in
-        return g.block;
+        want.forEach((v, k) => slide(k, v.a, v.px));
+        room.shift.forEach((v, k) => { if (!want.has(k)) slide(k, v.a, 0); });
     }
-    /** Resting over another place: its outline fills in over the hold time, so the switch is seen coming (and avoided by moving on). */
-    function showHolding(g) {
-        const h = g.holding;
-        if (!h) return;
-        const cr = pageRect(h.t.container), tag = h.t.container === document.body ? "page" : h.t.container.tagName.toLowerCase();
-        Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px`, opacity: String(0.25 + 0.75 * h.share) });
-        dropHint.textContent = `Hold to move into ${tag} · ${Math.round(h.share * 100)}%`;
-        Object.assign(dropHint.style, { display: "block", left: `${cr.x}px`, top: `${Math.max(0, cr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+
+    // ── Free drag: the element follows the pointer to the pixel, and the drop is read as what it means ──────────────
+    // Over empty space inside its own box the real element moves (the `translate` property, nothing is written while dragging), and the
+    // drop is measured against what a layout can say: back in its slot, aligned to the start, centre or end of the box (self-*, or auto
+    // margins in the page flow), pushed to the end of the row or column (ml-auto), and only if none of those is near, an exact offset
+    // from its slot (relative + left/top). A guide and a label say what the drop will mean; within 6px it is pulled onto it (Cmd: never).
+    // Over another child it is a drag to a slot instead (below), and out of the box it moves to the box it lands in.
+    const FLOW_PROPS = ["position", "left", "top", "align-self", "margin-left", "margin-right", "margin-top"];
+    // the sizes Tailwind's spacing scale has a name for, in px: an offset within 2px of one takes it (left-6), anywhere else it stays exact (left-[52px])
+    const SCALE_PX = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 384];
+    const onScale = (v) => { const a = Math.abs(v), t = SCALE_PX.reduce((b, x) => (Math.abs(x - a) < Math.abs(b - a) ? x : b), 0); return (Math.abs(t - a) <= 2 ? t : Math.round(a)) * (v < 0 ? -1 : 1); };
+    const sameRect = (p, q) => Math.abs(p.x - q.x) < 1 && Math.abs(p.y - q.y) < 1 && Math.abs(p.w - q.w) < 1 && Math.abs(p.h - q.h) < 1;
+    /** What the drop could mean on each axis, as the offset from its place that each would put the element at: slot, aligned, pushed. */
+    function intentsFor(g) {
+        const lane = g.lane, r0 = g.rect, lay = lane.lay, b = lane.box;
+        const row = lay === "flex row", col = lay === "flex column", blk = lay === "page flow";
+        const mainA = row ? "x" : col || blk ? "y" : null, crossA = row ? "y" : col || blk ? "x" : null;
+        const out = { x: [{ k: "slot", off: 0 }], y: [{ k: "slot", off: 0 }] };
+        if (crossA) {
+            const Z = crossA === "x" ? "w" : "h", free = b[Z] - r0[Z];
+            if (free >= 2) {
+                const word = { start: crossA === "x" ? "Left" : "Top", centre: "Center", end: crossA === "x" ? "Right" : "Bottom" };
+                [["start", 0], ["centre", free / 2], ["end", free]].forEach(([k, at]) => {
+                    if (blk && k === "start") return; // the page flow's own start needs no class
+                    out[crossA].push({ k, off: b[crossA] + at - r0[crossA], line: b[crossA] + (k === "start" ? 0 : k === "centre" ? b[Z] / 2 : b[Z]), word: `Align ${word[k].toLowerCase()}`, cross: true });
+                });
+            }
+        }
+        if (mainA && g.last) { const Z = mainA === "x" ? "w" : "h"; out[mainA].push({ k: "push", off: b[mainA] + b[Z] - r0[mainA] - r0[Z], line: b[mainA] + b[Z], word: "Push to end" }); }
+        return { out, mainA, crossA };
     }
+    function freeMove(g, e, dx, dy) {
+        const el = g.el, { out, mainA, crossA } = intentsFor(g), chosen = {}, lines = [];
+        g.stick = g.stick || {};
+        ["x", "y"].forEach((a) => {
+            const d = a === "x" ? dx : dy;
+            if (e.metaKey || Math.abs(d) < 1) { g.stick[a] = null; if (Math.abs(d) < 1) chosen[a] = { k: "slot", off: 0 }; return; }
+            const reach = g.stick[a] ? px(10) : px(6);
+            let best = null;
+            out[a].forEach((c) => {
+                const dist = Math.abs(d - c.off);
+                if (dist > reach || (c.k !== "slot" && Math.abs(c.off) < 1)) return; // already there: that is the slot
+                if (!best || dist < best.dist - 0.01 || (g.stick[a] === c.k && dist <= best.dist + px(4))) best = { ...c, dist };
+            });
+            g.stick[a] = best ? best.k : null;
+            if (!best) return;
+            chosen[a] = best;
+            if (a === "x") dx = Math.round(best.off); else dy = Math.round(best.off);
+            if (best.line !== undefined) lines.push({ a: a === crossA && best.cross ? crossA : mainA, at: best.line, word: best.word });
+        });
+        g.fi = { dx, dy, chosen, mainA, crossA };
+        g.ghost = { x: g.rect.x + dx, y: g.rect.y + dy };
+        el.style.setProperty("translate", `${dx}px ${dy}px`);
+        // the guides, and a label that says what letting go will do
+        const b = g.lane.box;
+        lines.forEach((l) => {
+            guideLayer.appendChild(mk(l.a === "x"
+                ? `position:absolute;left:${l.at - px(0.5)}px;top:${b.y}px;width:${px(1)}px;height:${b.h}px;background:${RED};`
+                : `position:absolute;top:${l.at - px(0.5)}px;left:${b.x}px;height:${px(1)}px;width:${b.w}px;background:${RED};`));
+        });
+        const parts = ["x", "y"].map((a) => chosen[a]).filter((c) => c && c.k !== "slot").map((c) => c.word);
+        const free = ["x", "y"].filter((a) => !chosen[a] && Math.abs(a === "x" ? dx : dy) >= 1);
+        if (free.length) parts.push(free.length === 2 ? `Offset ${Math.round(dx)}, ${Math.round(dy)}` : `Offset ${free[0]} ${Math.round(free[0] === "x" ? dx : dy)}`);
+        const r = pageRect(el);
+        dropHint.textContent = parts.length ? parts.join(" · ") : "Back in its slot";
+        Object.assign(dropHint.style, { display: "block", left: `${r.x}px`, top: `${Math.max(0, r.y - px(24))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+    }
+    /** The drop as classes: each axis is written as the intent that was near, checked by measuring, or else as an exact offset. */
+    function freeDrop(g) {
+        const el = g.el, { dx, dy, chosen, mainA, crossA } = g.fi, lane = g.lane, r0 = g.rect, lay = lane.lay;
+        const f = (v) => parseFloat(v) || 0, d = { x: dx, y: dy }, written = {};
+        const others = () => lane.others.every((o) => sameRect(pageRect(o.el), o.r));
+        const keep = inlineOf(el, FLOW_PROPS);
+        const tryProps = (props, axis, target) => { // apply them and measure: the element lands on the target and nothing else moves
+            const was = inlineOf(el, Object.keys(props));
+            Object.entries(props).forEach(([k, v]) => el.style.setProperty(k, v));
+            const ok = Math.abs(pageRect(el)[axis] - target) <= 1.5 && others();
+            if (!ok) Object.keys(props).forEach((k) => { if (was[k]) el.style.setProperty(k, was[k]); else el.style.removeProperty(k); });
+            return ok;
+        };
+        ["x", "y"].forEach((a) => {
+            const c = chosen[a];
+            if (!c || c.k === "slot") { if (c) written[a] = true; return; }
+            let props = null;
+            if (c.k === "push") props = { [a === "x" ? "margin-left" : "margin-top"]: "auto" };
+            else if (lay === "page flow") props = c.k === "centre" ? { "margin-left": "auto", "margin-right": "auto" } : { "margin-left": "auto" };
+            else props = { "align-self": { start: "flex-start", centre: "center", end: "flex-end" }[c.k] };
+            if (tryProps(props, a, r0[a] + d[a])) written[a] = true;
+        });
+        // what no intent was near (or failed its check) is an exact offset from its slot
+        const cs = getComputedStyle(el), rel = cs.position === "relative";
+        const move = ["x", "y"].filter((a) => !written[a] && Math.abs(d[a]) >= 1);
+        if (move.length) {
+            if (cs.position === "static") el.style.setProperty("position", "relative");
+            else if (!rel) return [];
+            move.forEach((a) => { const prop = a === "x" ? "left" : "top", was = rel ? f(cs[prop]) : 0, v = was + (g.metaDrop ? Math.round(d[a]) : onScale(d[a])); el.style.setProperty(prop, `${v}px`); });
+            if (!others()) { FLOW_PROPS.forEach((p) => { if (keep[p]) el.style.setProperty(p, keep[p]); else el.style.removeProperty(p); }); tidyStyle(el); return []; }
+        }
+        const props = FLOW_PROPS.filter((p) => el.style.getPropertyValue(p) !== keep[p]);
+        tidyStyle(el);
+        return props.length ? [gestureItem(el, g.pre, props)] : [];
+    }
+
     function reorderGesture(g, e) {
-        if (canNudge(g.el) && !wantsBlockDrag(g, e)) { nudgeGesture(g, e); showHolding(g); redraw(); return; }
         dropBox.style.opacity = "";
-        restoreNudge(g); // the drop place is worked out on the layout as it really is, not the one the nudge had shifted
+        guideLayer.innerHTML = "";
+        const el = g.el, par = el.parentElement;
+        if (!g.lane) { g.lane = laneOf(par, el); g.pre = sourcesOf(el, FLOW_PROPS); g.last = kidsOf(par, null).filter(inFlow).slice(-1)[0] === el; }
         const t = dropTarget(g.el, e.clientX, e.clientY);
         // an element in a group stays in it: a drop outside the group changes nothing (ungroup to take it out)
         const held = !staysInGroup(g.el, t.container);
+        // over empty space in its own box it is placed freely; over another child, or out of the box, it is dragged to a slot
+        const ax = e.clientX + window.scrollX, ay = e.clientY + window.scrollY;
+        const overChild = g.lane.others.some((o) => ax >= o.r.x && ax <= o.r.x + o.r.w && ay >= o.r.y && ay <= o.r.y + o.r.h);
+        g.free = !held && !overChild && t.container === par;
+        if (g.free) {
+            relax(); g.align = null; g.same = true; g.target = null;
+            ghostBox.style.display = "none"; dropBox.style.display = "none"; insertLine.style.display = "none";
+            let dx = Math.round(e.clientX - g.sx), dy = Math.round(e.clientY - g.sy);
+            if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+            g.metaDrop = e.metaKey;
+            freeMove(g, e, dx, dy);
+            redraw();
+            return;
+        }
+        g.fi = null;
         g.same = held || sameSlot(g.el, t);
         g.target = t.ref || t.container;
         g.pos = t.ref ? (t.before ? "before" : "after") : "inside";
-        // the box that follows the pointer
-        const gx = g.rect.x + (e.clientX - g.sx), gy = g.rect.y + (e.clientY - g.sy);
-        Object.assign(ghostBox.style, { display: "block", left: `${gx}px`, top: `${gy}px`, width: `${g.rect.w}px`, height: `${g.rect.h}px` });
+        // the box that follows the pointer, pulled onto the start, centre or end of a flex row or column when it comes near one
+        let gx = g.rect.x + (e.clientX - g.sx), gy = g.rect.y + (e.clientY - g.sy);
+        g.align = null;
+        const lc = layoutOf(t.container);
+        if (!held && !e.metaKey && (lc === "flex row" || lc === "flex column")) {
+            const cross = lc === "flex row" ? "y" : "x", Z = cross === "x" ? "w" : "h", n = laneOf(t.container, g.el);
+            if (n.box[Z] - g.rect[Z] >= 2) {
+                const hit = containerLine(n, cross, cross === "x" ? gx : gy, g.rect[Z], g.align0 ? px(10) : px(6));
+                g.align0 = hit && (hit.k === "start" || hit.k === "centre" || hit.k === "end") ? hit : null;
+                if (g.align0) {
+                    g.align = { k: g.align0.k, cross, container: t.container };
+                    if (cross === "x") gx += g.align0.d; else gy += g.align0.d;
+                    const word = { start: cross === "x" ? "Left" : "Top", centre: "Center", end: cross === "x" ? "Right" : "Bottom" }[g.align0.k];
+                    guideLayer.appendChild(mk(cross === "x"
+                        ? `position:absolute;left:${g.align0.at - px(0.5)}px;top:${n.box.y}px;width:${px(1)}px;height:${n.box.h}px;background:${RED};`
+                        : `position:absolute;top:${g.align0.at - px(0.5)}px;left:${n.box.x}px;height:${px(1)}px;width:${n.box.w}px;background:${RED};`));
+                    const lb = guideLayer.appendChild(mk(`position:absolute;${cross === "x" ? `left:${g.align0.at + px(4)}px;top:${n.box.y + n.box.h - px(4)}px;transform:translate(0,-100%)` : `left:${n.box.x + n.box.w - px(4)}px;top:${g.align0.at - px(3)}px;transform:translate(-100%,-100%)`};background:${RED};color:#fff;font:600 ${px(10)}px/1 system-ui,sans-serif;padding:${px(2)}px ${px(5)}px;border-radius:${px(3)}px;white-space:nowrap;`));
+                    lb.textContent = word;
+                }
+            } else g.align0 = null;
+        } else g.align0 = null;
+        g.ghost = { x: gx, y: gy };
+        ghostBox.style.display = "none";
+        el.style.setProperty("translate", `${gx - g.rect.x}px ${gy - g.rect.y}px`); // the real element follows the pointer
+        makeRoom(g, t, held);
         // the container it would land in
         const cr = pageRect(held ? groupAround(g.el) : t.container); // held in a group: the group it stays in is outlined
         Object.assign(dropBox.style, { display: "block", left: `${cr.x}px`, top: `${cr.y}px`, width: `${cr.w}px`, height: `${cr.h}px`, borderWidth: `${px(1.5)}px` });
         const tag = t.container === document.body ? "page" : t.container.tagName.toLowerCase();
-        dropHint.textContent = held ? "In a group · ungroup to take it out" : g.same ? "Back where it was" : `${t.ref ? "Insert in" : "Drop into"} ${tag} · ${layoutOf(t.container)}`;
+        dropHint.textContent = held ? "In a group · ungroup to take it out" : g.same ? (g.align ? `Align ${g.align.k === "centre" ? "center" : g.align.k}` : "Same slot · Alt-drag to place freely") : `${t.ref ? "Insert in" : "Drop into"} ${tag} · ${layoutOf(t.container)}`;
         Object.assign(dropHint.style, { display: "block", left: `${cr.x}px`, top: `${Math.max(0, cr.y - px(22))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
-        if (!t.ref || g.same) { insertLine.style.display = "none"; return; } // no line where letting go changes nothing
-        // the line sits in the gap between the two children it goes between, and never outside the container
+        redraw();
+        if (!t.ref || g.same || slideAxis(t.container)) { insertLine.style.display = "none"; return; } // where the others slide apart the gap is the marker
+        // a grid or a wrapping row: the line sits in the gap between the two children it goes between, and never outside the container
         const r = pageRect(t.ref), th = px(2.5);
         const kids = kidsOf(t.container, g.el).filter(inFlow), i = kids.indexOf(t.ref), nb = kids[t.before ? i - 1 : i + 1];
         const nr = nb ? pageRect(nb) : null;
@@ -1404,36 +1466,31 @@ export function agentMain() {
             else if (!g.shift) post({ type: "frameClick" }); // a click on the empty part of the design: the frame itself
             return;
         }
-        if (g.type === "reorder") { clearTimeout(g.holdTimer); clearTimeout(g.tick); dropBox.style.opacity = ""; }
-        if (g.type === "reorder" && g.moved && g.nudge && g.nudge.active) {
-            const el = g.el, n = g.nudge;
-            // a value that changes nothing is not kept: each written margin (the far one of a pair across a row that something else sets
-            // the height of, a pinned width that was already that) is taken off and kept off if nothing on the page moved
-            const look = () => [el, ...n.others.map((o) => o.el), el.parentElement].map(pageRect);
-            ["margin-right", "margin-bottom", "width", "height", "margin-left", "margin-top"].forEach((p) => {
-                const v = el.style.getPropertyValue(p);
-                if (v === n.inl0[p]) return;
-                const before = look();
-                restoreProp(el, n, p);
-                if (!look().every((r, i) => sameRect(r, before[i]))) el.style.setProperty(p, v);
-            });
-            const props = NUDGE_PROPS.filter((p) => el.style.getPropertyValue(p) !== n.inl0[p]); // what the nudge wrote
-            tidyStyle(el);
-            if (!props.length) return redraw(); // back where it was
-            return askConvert([gestureItem(el, n.pre, props)]);
+        if (g.type === "reorder") { g.el.style.removeProperty("translate"); tidyStyle(g.el); dropBox.style.opacity = ""; closeRoom(); dropHint.style.display = "none"; }
+        if (g.type === "reorder" && g.moved && g.free && g.fi) {
+            const items = freeDrop(g);
+            guideLayer.innerHTML = "";
+            if (items.length) return askConvert(items);
+            redraw(); return;
         }
-        if (g.type === "reorder" && g.moved && g.same) { redraw(); return; } // a block drag that ended in its own slot: nothing moves
+        if (g.type === "reorder" && g.moved && g.same) {
+            // let go in its own slot: nothing moves, unless it was dropped on the start, centre or end of a flex box (then it is aligned there)
+            if (g.align) { const items = dropSmart(g, e, g.el.parentElement, false, false); if (items.length) return askConvert(items); }
+            redraw(); return;
+        }
         if (g.type === "reorder" && g.moved && g.target) {
             const was = g.el.parentElement, wasKids = was ? kidsOf(was, null).filter(inFlow) : [];
             const wasFirst = wasKids[0] === g.el, wasLast = wasKids[wasKids.length - 1] === g.el;
             if (g.pos === "before") g.target.before(g.el); else if (g.pos === "after") g.target.after(g.el); else g.target.appendChild(g.el);
             setSelection([g.el]);
+            // it settles into its slot from where it was let go
+            if (g.ghost) { const fin = pageRect(g.el); g.el.animate([{ translate: `${g.ghost.x - fin.x}px ${g.ghost.y - fin.y}px` }, { translate: "0 0" }], { duration: 170, easing: EASE }); }
             const items = was ? dropSmart(g, e, was, wasFirst, wasLast) : [];
             return items.length ? askConvert(items) : changed();
         }
         if (g.type === "pan") return;
         if (g.type === "move" && g.freeOnMove) return post({ type: "selected", info: describe(primary()) }); // Alt-click: nothing freed
-        if (g.moved && g.type === "move") return askConvert(g.items.map((i) => gestureItem(i.el, i.pre, g.freed ? FREE_PROPS : ["left", "top"])));
+        if (g.moved && g.type === "move") { askConvert(g.items.map((i) => gestureItem(i.el, i.pre, g.freed ? FREE_PROPS : ["left", "top"]))); if (!g.freed) layoutHint(g.container); return; }
         if (g.moved && g.type === "resize") {
             // a size or position the resize rewrote without changing it (a corner dragged sideways, the top-left of a box resized from
             // its bottom-right) is dropped, not saved as a class
@@ -1972,6 +2029,7 @@ export function agentMain() {
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
+        if (m.cmd === "applyLayout") { applyLayout(m); return; }
         if (m.cmd === "freePosition") {
             const el = elAt(m.path);
             if (!el) return;

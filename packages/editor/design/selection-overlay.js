@@ -40,8 +40,9 @@ function handles(it, W, H, z) {
         add(`rot-${name}`, `left:${fx * 100}%;top:${fy * 100}%;width:24px;height:24px;transform:translate(${tx}, ${ty});`, rotateCursor(CORNER_TURN[name] + it.rot));
     });
     // corner radius: a dot just inside each corner, further in the rounder the corner is (11px from the corner when square)
-    if (Math.min(W, H) >= 40) {
-        const inset = Math.min(it.r0 * z + 11, Math.min(W, H) / 2);
+    // (never closer than 14px to the middle of the box: a small or very round box would have the dots over the place a drag starts from)
+    if (Math.min(W, H) >= 56) {
+        const inset = Math.min(it.r0 * z + 11, Math.max(11, Math.min(W, H) / 2 - 14));
         Object.entries(CORNERS).forEach(([name, [fx, fy]]) => add(`rad-${name}`, `left:${round(fx ? W - inset : inset)}px;top:${round(fy ? H - inset : inset)}px;transform:translate(-50%, -50%);`, radiusCursor, "sd"));
     }
     // resizing: the whole length of each edge, then a square on each corner
