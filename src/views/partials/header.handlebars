@@ -7,7 +7,7 @@
             <div id="toggleLogoContainer" class="flex items-center gap-4">
                 <!-- Sidebar Toggle Button -->
                 <button type="button" id="sidebarToggle"
-                    class="order-2 size-8 flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 hover:text-gray-500 focus:outline-hidden focus:text-gray-500"
+                    class="{{#if (eq activePage 'category')}}order-first{{else}}order-2{{/if}} size-8 flex justify-center items-center gap-x-2 border border-gray-400 rounded-xl text-gray-800 hover:text-gray-500 focus:outline-hidden focus:text-gray-500"
                     aria-label="Toggle sidebar" onclick="toggleSidebar()">
                     <span class="sr-only">Toggle Sidebar</span>
                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
