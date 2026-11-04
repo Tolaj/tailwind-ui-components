@@ -1,4 +1,5 @@
 import { buildPreviewDocument, parseComponentSource } from "../playground/component-source.js";
+import { DEVICES, deviceParts } from "./device-frame.js";
 
 // ── The prototype viewer: pages shown one at a time, full screen, as a visitor would see them ───────────────────────────────
 // No editor state in here: the editor's Preview (a fallback when the app has no prototype page) and the /prototype page both use it.
@@ -16,12 +17,7 @@ const SCALES = [
     ["fill", "Fill screen", "", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9.5V8h1.5M14.5 8H16v1.5M16 14.5V16h-1.5M9.5 16H8v-1.5"/>'],
 ];
 export const SCALE_NAMES = SCALES.map((s) => s[0]);
-// A phone and a tablet are shown in a frame (bezel, notch or camera, side buttons) at their real screen size: the page is built at that
-// width and height, so its own responsive styles and its screen-high sections behave as on the device. Desktop has no frame.
-const DEVICES = {
-    mobile: { w: 390, h: 844, bz: 14, r: 56, screenR: 44, ring: "#cdbfd8", notch: true },
-    tablet: { w: 768, h: 1024, bz: 22, r: 42, screenR: 22, ring: "#d4d4d8", notch: false },
-};
+// (The phone and tablet frames are drawn by device-frame.js, shared with the gallery.)
 const DEVICE_W = { desktop: 1280, tablet: 768, mobile: 390 }; // the page is built at that width (its own responsive styles apply), as the editor's page sizes
 const ICON = {
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -136,19 +132,13 @@ export function createPresenter(o) {
         const availW = stage.clientWidth, availH = stage.clientHeight;
         const dev = DEVICES[mode];
         if (dev) { // a phone or a tablet in its frame, centred, scaled down only when the window is smaller than it
-            const sW = dev.w + 2 * dev.bz, sH = dev.h + 2 * dev.bz;
-            const k = Math.min(1, (availW - 24) / sW, (availH - 24) / sH), W = sW * k, H = sH * k;
-            shell.style.cssText = `position:absolute;left:0;top:0;width:${sW}px;height:${sH}px;transform:scale(${k});transform-origin:0 0;background:#161618;border-radius:${dev.r}px;box-shadow:0 0 0 3px ${dev.ring},inset 0 0 0 2px #2b2b2f,0 28px 70px rgba(0,0,0,.55);`;
-            screen.style.cssText = `position:absolute;left:${dev.bz}px;top:${dev.bz}px;width:${dev.w}px;height:${dev.h}px;border-radius:${dev.screenR}px;overflow:hidden;background:#fff;`;
-            frame.style.cssText = `position:absolute;left:0;top:0;width:${dev.w}px;height:${dev.h}px;border:0;background:#fff;`;
-            notch.style.cssText = dev.notch ? `display:block;position:absolute;z-index:2;pointer-events:none;top:${dev.bz}px;left:${sW / 2 - 63}px;width:126px;height:30px;background:#161618;border-radius:0 0 20px 20px;box-shadow:inset 0 -1px 0 #2b2b2f;` : "display:none";
-            cam.style.cssText = dev.notch ? `display:block;position:absolute;z-index:3;pointer-events:none;top:${dev.bz + 9}px;left:${sW / 2 + 30}px;width:11px;height:11px;border-radius:50%;background:#0b1220;box-shadow:inset 0 0 0 2px #2a3344;` : `display:block;position:absolute;pointer-events:none;top:${dev.bz / 2 - 3}px;left:${sW / 2 - 3}px;width:6px;height:6px;border-radius:50%;background:#2a3344;`;
-            // the side buttons: a mute switch and two volume keys on the left, power on the right (a phone only)
-            side.style.cssText = dev.notch ? `display:block;position:absolute;left:-8px;right:-8px;top:0;bottom:0;pointer-events:none;background:
-                linear-gradient(${dev.ring},${dev.ring}) 0 100px/4px 26px no-repeat,
-                linear-gradient(${dev.ring},${dev.ring}) 0 160px/4px 52px no-repeat,
-                linear-gradient(${dev.ring},${dev.ring}) 0 226px/4px 52px no-repeat,
-                linear-gradient(${dev.ring},${dev.ring}) ${sW + 11}px 190px/4px 88px no-repeat;` : "display:none";
+            const d = deviceParts(dev), k = Math.min(1, (availW - 24) / d.w, (availH - 24) / d.h), W = d.w * k, H = d.h * k;
+            shell.style.cssText = d.shell + `transform:scale(${k});`;
+            screen.style.cssText = d.screen;
+            frame.style.cssText = d.frame;
+            notch.style.cssText = d.notch;
+            cam.style.cssText = d.cam;
+            side.style.cssText = d.side;
             wrap.style.cssText = `position:relative;flex:none;width:${W}px;height:${H}px;margin:${(availH - H) / 2}px 0 0 ${(availW - W) / 2}px;`;
             stage.style.overflowX = "hidden";
             q("[data-scale] span").textContent = `${Math.round(k * 100)}%`;

@@ -1,6 +1,8 @@
 // Category page specific functionality
 // Previews are drawn from each component's own code (the Code panel holds it), read by the browser
 
+import { DEVICES, buildDeviceFrame } from '@windcraft/editor/design/device-frame.js';
+
 (function () {
     'use strict';
 
@@ -53,7 +55,7 @@
 
     function getState(id) {
         if (!componentStates[id]) {
-            componentStates[id] = { isMobile: false, isDark: false };
+            componentStates[id] = { device: 'desktop', isDark: false };
         }
         return componentStates[id];
     }
@@ -105,7 +107,7 @@
 
     // ─── Build iframe HTML (with optional dark mode baked in) ─────────────────
 
-    function buildIframeHTML(html, isDark) {
+    function buildIframeHTML(html, isDark, width = 390) {
         const darkStyle = isDark
             ? `<style>${getDarkCSS('body')}</style>`
             : '';
@@ -114,7 +116,7 @@
             <!DOCTYPE html>
             <html>
             <head>
-                <meta name="viewport" content="width=390, initial-scale=1.0">
+                <meta name="viewport" content="width=${width}, initial-scale=1.0">
                 <script src="https://cdn.tailwindcss.com"><\/script>
                 <style>body { margin: 0; padding: 0; ${isDark ? 'background:#111827; color:#f9fafb;' : ''} }<\/style>                
                 ${darkStyle}
@@ -149,92 +151,79 @@
         }
     };
 
-    // ─── View Size Toggle (Desktop default) ───────────────────────────────────
+    // ─── Device: Desktop (default), Tablet or Mobile ──────────────────────────
+    // Tablet and Mobile show the component in a device frame at the device's real screen size (device-frame.js, as in the prototype).
 
+    const tabletIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><rect x="5" y="3" width="14" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/><path stroke-linecap="round" d="M11 18h2"/></svg>`;
+    const DEVICE_ICON = { desktop: desktopIcon, tablet: tabletIcon, mobile: mobileIcon };
+    const DEVICE_NAME = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' };
+
+    const closeSizeMenus = () => document.querySelectorAll('[id^="size-menu-"]').forEach((m) => m.classList.add('hidden'));
+    document.addEventListener('click', (e) => { if (!e.target.closest('[id^="size-menu-"]') && !e.target.closest('[id^="size-btn-"]')) closeSizeMenus(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSizeMenus(); });
+
+    // the button opens a small menu of the three devices
     window.toggleViewSize = function (id) {
+        const menu = document.getElementById(`size-menu-${id}`);
+        if (!menu) return;
+        const open = menu.classList.contains('hidden');
+        closeSizeMenus();
+        menu.classList.toggle('hidden', !open);
+    };
+
+    window.addEventListener('resize', () => Object.values(componentStates).forEach((st) => st.fit && st.fit()));
+
+    window.setViewDevice = function (id, device) {
         const preview = document.getElementById(`preview-${id}`);
         const btn = document.getElementById(`size-btn-${id}`);
-        if (!preview || !btn) return;
+        if (!preview || !btn || !DEVICE_ICON[device]) return;
+        closeSizeMenus();
 
         const state = getState(id);
-        state.isMobile = !state.isMobile;
+        if (state.device === device) return;
+        const was = state.device;
+        state.device = device;
 
-        if (state.isMobile) {
-            const inner = document.getElementById(`preview-inner-${id}`);
-            const html = inner ? inner.innerHTML : '';
+        if (device !== 'desktop') {
+            // the component's markup: from the desktop preview the first time, kept for switching between devices
+            if (was === 'desktop') {
+                const inner = document.getElementById(`preview-inner-${id}`);
+                state.html = inner ? inner.innerHTML : '';
+            }
+            const html = state.html || '';
 
+            const frame = buildDeviceFrame(device, 1, { shadow: '0 8px 24px rgba(0,0,0,0.22)' }); // a light shadow: it stays inside the card
             const iframe = document.createElement('iframe');
             iframe.id = `preview-iframe-${id}`;
-            iframe.style.cssText = `
-    width: 100%;
-    height: 600px;
-    border: none;
-    display: block;
-    border-radius: 34px;
-    background: white;
-    overflow: hidden;
-`;
+            iframe.style.cssText = frame.parts.frame;
+            frame.screen.appendChild(iframe);
 
-            // Reset preview container — no dark bg, just white wrapper
-            // Phone frame wrapper
-            const phoneFrame = document.createElement('div');
-            phoneFrame.style.cssText = `
-    width: 390px;
-    background: #1a1a1a;
-    border-radius: 44px;
-    padding: 10px;
-    margin: 16px auto;
-    box-shadow: 0 0 0 1px #333, 0 20px 60px rgba(0,0,0,0.4);
-`;
-            // Notch
-            const notch = document.createElement('div');
-            notch.style.cssText = `
-    width: 80px;
-    height: 20px;
-    background: #1a1a1a;
-    border-radius: 0 0 14px 14px;
-    margin: 0 auto 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-`;
-            notch.innerHTML = `
-    <div style="width:7px;height:7px;background:#333;border-radius:50%;"></div>
-    <div style="width:32px;height:5px;background:#333;border-radius:4px;"></div>
-`;
-
-
-            // Home bar
-            const homeBar = document.createElement('div');
-            homeBar.style.cssText = `
-    width: 80px;
-    height: 4px;
-    background: #444;
-    border-radius: 4px;
-    margin: 6px auto 0;
-`;
-
-            phoneFrame.appendChild(notch);
-            phoneFrame.appendChild(iframe);
-            phoneFrame.appendChild(homeBar);
-
-            preview.classList.remove('bg-gray-900', 'text-white');
+            // the whole device is scaled down to the card's width and to the screen's height (a phone is 872 pixels high: it must not
+            // stretch the page); the card keeps its own background and clips anything that would spill out of it
+            preview.classList.remove('bg-gray-900', 'text-white', 'bg-white');
             preview.classList.add('bg-gray-100');
-            preview.style.overflow = 'visible';
+            preview.style.background = '';
+            preview.style.overflow = 'hidden';
             preview.innerHTML = '';
-            preview.appendChild(phoneFrame);
+            preview.appendChild(frame.root);
+            const fit = () => {
+                const maxH = Math.max(480, Math.min(window.innerHeight - 140, 780));
+                const k = Math.min(1, (preview.clientWidth - 32) / frame.parts.w, maxH / frame.parts.h);
+                frame.root.style.width = `${frame.parts.w * k}px`;
+                frame.root.style.height = `${frame.parts.h * k}px`;
+                frame.root.firstElementChild.style.transform = `scale(${k})`;
+            };
+            state.fit = fit;
+            fit();
 
-            // Write iframe HTML with dark styles baked in if dark mode active
+            // the page inside is built at the device's width, so its own responsive styles apply; dark styles baked in when dark mode is on
             iframe.contentDocument.open();
-            iframe.contentDocument.write(buildIframeHTML(html, state.isDark));
+            iframe.contentDocument.write(buildIframeHTML(html, state.isDark, frame.dev.w));
             iframe.contentDocument.close();
-
-            btn.innerHTML = desktopIcon;
-            btn.title = 'Switch to desktop view';
-
         } else {
             // Restore desktop preview div
+            state.fit = null;
+            preview.style.background = '';
             preview.classList.remove('bg-gray-900', 'text-white', 'bg-gray-100');
             preview.classList.add('bg-white');
             preview.style.overflow = 'hidden';
@@ -250,10 +239,15 @@
             }
 
             renderComponent(id);
-
-            btn.innerHTML = mobileIcon;
-            btn.title = 'Switch to mobile view';
         }
+
+        btn.innerHTML = DEVICE_ICON[device];
+        btn.title = `${DEVICE_NAME[device]} view (change the device)`;
+        document.querySelectorAll(`#size-menu-${id} [data-device]`).forEach((b) => {
+            const on = b.dataset.device === device;
+            b.querySelector('[data-tick]').style.visibility = on ? 'visible' : 'hidden';
+            b.classList.toggle('bg-gray-100', on);
+        });
     };
 
     // ─── Theme Toggle (Light default) ─────────────────────────────────────────
@@ -266,8 +260,8 @@
         const state = getState(id);
         state.isDark = !state.isDark;
 
-        if (state.isMobile) {
-            // In mobile mode: rebuild iframe with dark/light styles baked in
+        if (state.device !== 'desktop') {
+            // In a device frame: rebuild iframe with dark/light styles baked in
             const iframe = document.getElementById(`preview-iframe-${id}`);
             if (iframe) {
                 const html = iframe.contentDocument.body
@@ -279,7 +273,7 @@
                 preview.classList.add('bg-white');
 
                 iframe.contentDocument.open();
-                iframe.contentDocument.write(buildIframeHTML(html, state.isDark));
+                iframe.contentDocument.write(buildIframeHTML(html, state.isDark, DEVICES[state.device].w));
                 iframe.contentDocument.close();
             }
         } else {
