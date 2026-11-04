@@ -20,7 +20,8 @@ export function agentMain() {
     const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
-    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    const gapLayer = mk("position:absolute;left:0;top:0;");
+    overlay.append(hoverBox, gapLayer, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -162,6 +163,7 @@ export function agentMain() {
         const data = JSON.stringify({ items, handles, label, bbox, at });
         if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
         place(hoverBox, tool === "move" && hov && hov !== document.body && !sels.includes(hov) ? hov : null); // not the page itself
+        drawGapHandles();
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -957,6 +959,72 @@ export function agentMain() {
         askConvert(items);
     }
 
+    // ── Gap handles: the spacing between a box's children, dragged as one value ─────────────────────────────────────
+    // With a flex row or column, or a grid, selected, each gap between its children is a handle (as in Figma). Dragging one changes the
+    // box's gap (gap-4 -> gap-6, column-gap / row-gap in a grid), live, on the Tailwind scale (Cmd: to the pixel). Only where the spacing
+    // really is the gap: a row spaced by margins or justify-between has no handles, since a gap would be added on top.
+    let gapList = [], gapHot = -1;
+    function gapHandlesOf(el) {
+        const cs = getComputedStyle(el), out = [];
+        if (!/flex|grid/.test(cs.display)) return out;
+        const kids = kidsOf(el, null).filter(inFlow);
+        if (kids.length < 2 || kids.length > 24) return out;
+        const rects = kids.map(pageRect), f = (v) => parseFloat(v) || 0, near = (a, b) => Math.abs(a - b) <= 1;
+        if (cs.display.includes("flex")) {
+            if (cs.flexWrap !== "nowrap" || cs.flexDirection.includes("reverse")) return out;
+            const row = cs.flexDirection.startsWith("row"), A = row ? "x" : "y", Z = row ? "w" : "h", C = row ? "y" : "x", CZ = row ? "h" : "w", gap = f(row ? cs.columnGap : cs.rowGap);
+            if (gap < 1) return out;
+            for (let i = 0; i + 1 < rects.length; i++) if (!near(rects[i + 1][A] - (rects[i][A] + rects[i][Z]), gap)) return [];
+            const c0 = Math.min(...rects.map((r) => r[C])), c1 = Math.max(...rects.map((r) => r[C] + r[CZ]));
+            rects.slice(0, -1).forEach((a, i) => out.push({ i, axis: A, prop: "gap", gap, r: row ? { x: a.x + a.w, y: c0, w: gap, h: c1 - c0 } : { x: c0, y: a.y + a.h, w: c1 - c0, h: gap } }));
+            return out;
+        }
+        // a grid: the columns are the distinct left edges, the rows the distinct top edges
+        const uniq = (v) => { const o = []; v.slice().sort((p, q) => p - q).forEach((x) => { if (!o.length || x - o[o.length - 1] > 1) o.push(x); }); return o; };
+        const xs = uniq(rects.map((r) => r.x)), ys = uniq(rects.map((r) => r.y));
+        const x0 = Math.min(...rects.map((r) => r.x)), x1 = Math.max(...rects.map((r) => r.x + r.w)), y0 = Math.min(...rects.map((r) => r.y)), y1 = Math.max(...rects.map((r) => r.y + r.h));
+        const cg = f(cs.columnGap), rg = f(cs.rowGap);
+        xs.slice(0, -1).forEach((x, i) => { const end = Math.max(...rects.filter((r) => near(r.x, x)).map((r) => r.x + r.w)), gp = xs[i + 1] - end; if (cg >= 1 && near(gp, cg)) out.push({ i: out.length, axis: "x", prop: "column-gap", gap: cg, r: { x: end, y: y0, w: gp, h: y1 - y0 } }); });
+        ys.slice(0, -1).forEach((y, i) => { const end = Math.max(...rects.filter((r) => near(r.y, y)).map((r) => r.y + r.h)), gp = ys[i + 1] - end; if (rg >= 1 && near(gp, rg)) out.push({ i: out.length, axis: "y", prop: "row-gap", gap: rg, r: { x: x0, y: end, w: x1 - x0, h: gp } }); });
+        return out;
+    }
+    /** The zone of a handle: its gap, and at least 8px across so a narrow gap can be grabbed. */
+    function gapZone(h) {
+        const r = h.r, min = px(8);
+        return h.axis === "x" ? { x: r.x + r.w / 2 - Math.max(r.w, min) / 2, y: r.y, w: Math.max(r.w, min), h: r.h } : { x: r.x, y: r.y + r.h / 2 - Math.max(r.h, min) / 2, w: r.w, h: Math.max(r.h, min) };
+    }
+    function gapAt(e) {
+        const x = e.clientX + window.scrollX, y = e.clientY + window.scrollY;
+        return gapList.find((h) => { const z = gapZone(h); return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h; }) || null;
+    }
+    function drawGapHandles() {
+        gapLayer.innerHTML = "";
+        gapList = [];
+        const el = primary();
+        if (!el || sels.length !== 1 || el === document.body || tool !== "move" || editing || isLocked(el)) return;
+        if (gesture && gesture.type !== "gap") return;
+        gapList = gapHandlesOf(el);
+        gapList.forEach((h) => {
+            const z = gapZone(h), hot = gapHot === h.i || (gesture && gesture.type === "gap" && gesture.h.axis === h.axis && gesture.h.i === h.i);
+            gapLayer.appendChild(mk(`position:absolute;left:${z.x}px;top:${z.y}px;width:${z.w}px;height:${z.h}px;background:${hot ? "rgba(242,72,34,.32)" : "rgba(242,72,34,.13)"};border-radius:${px(2)}px;box-sizing:border-box;`));
+            // a grip line down the middle of the gap
+            gapLayer.appendChild(mk(h.axis === "x"
+                ? `position:absolute;left:${z.x + z.w / 2 - px(0.5)}px;top:${z.y + z.h / 2 - px(10)}px;width:${px(1)}px;height:${px(20)}px;background:${RED};`
+                : `position:absolute;left:${z.x + z.w / 2 - px(10)}px;top:${z.y + z.h / 2 - px(0.5)}px;width:${px(20)}px;height:${px(1)}px;background:${RED};`));
+        });
+    }
+    function gapGesture(g, e) {
+        const d = g.h.axis === "x" ? e.clientX - g.sx : e.clientY - g.sy;
+        const raw = Math.max(0, g.start + d), v = e.metaKey ? Math.round(raw) : onScale(raw);
+        g.el.style.setProperty(g.h.prop, `${v}px`);
+        g.v = v;
+        guideLayer.innerHTML = "";
+        const z = gapZone(gapHandlesOf(g.el).find((h) => h.axis === g.h.axis && h.i === g.h.i) || g.h);
+        dropHint.textContent = `${g.h.prop === "gap" ? "Gap" : g.h.prop === "column-gap" ? "Column gap" : "Row gap"} ${v}`;
+        Object.assign(dropHint.style, { display: "block", left: `${z.x}px`, top: `${Math.max(0, z.y - px(24))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
+        redraw();
+    }
+
     // ── Dropping into another slot or container: the element takes on the spacing there ──────────────────
     // Margins and alignment that belonged to its old place are cleaned off, it gets the rhythm its new neighbours use (their
     // margin-top, or margin-bottom), the neighbour it left behind loses the spacing it only had for it, and dropped near the
@@ -1422,6 +1490,13 @@ export function agentMain() {
             gesture = { type: "draw", kind: tool, sx: e.clientX, sy: e.clientY, container: containerAt(e.clientX, e.clientY), moved: false };
             return;
         }
+        const gh = tool === "move" && sels.length === 1 ? gapAt(e) : null;
+        if (gh) { // a gap between the children of the selected box
+            const el = sels[0];
+            const props = gh.prop === "gap" ? ["column-gap", "row-gap"] : [gh.prop]; // the shorthand has no source of its own: its two halves do
+            gesture = { type: "gap", el, h: gh, props, start: gh.gap, pre: sourcesOf(el, props), inl0: inlineOf(el, props), sx: e.clientX, sy: e.clientY, moved: false };
+            return;
+        }
         const t = targetOf(e);
         if (t === document.body) {
             gesture = { type: "marquee", sx: e.clientX, sy: e.clientY, shift: e.shiftKey, hits: [], moved: false };
@@ -1439,7 +1514,13 @@ export function agentMain() {
     function onMove(e) {
         const g = gesture;
         if (!g) {
-            if (!editing && tool === "move") { hov = targetOf(e); redraw(); }
+            if (!editing && tool === "move") {
+                const gh = sels.length === 1 ? gapAt(e) : null;
+                const hot = gh ? gh.i : -1;
+                if (hot !== gapHot || gh) root.style.cursor = gh ? (gh.axis === "x" ? "col-resize" : "row-resize") : CURSOR[tool] || "default";
+                gapHot = hot;
+                hov = gh ? null : targetOf(e); redraw();
+            }
             hoverFrame(!editing && tool === "move" && hov === document.body);
             return;
         }
@@ -1451,6 +1532,7 @@ export function agentMain() {
             Object.assign(draftBox.style, { display: "block", left: `${x0}px`, top: `${y0}px`, width: `${Math.abs(e.clientX - g.sx)}px`, height: `${Math.abs(e.clientY - g.sy)}px` });
         } else if (g.type === "move") { moveGesture(g, e); redraw(); }
         else if (g.type === "reorder") reorderGesture(g, e);
+        else if (g.type === "gap") gapGesture(g, e);
         else if (g.type === "resize") { resizeGesture(g, e); if (g.guide) showGuides(g.guide.box, g.targets, g.guide.keysX, g.guide.keysY, false, g.guide.want); else guideLayer.innerHTML = ""; redraw(); }
         else if (g.type === "rotate") { rotateGesture(g, e); redraw(); }
         else if (g.type === "radius") { g.at = { x: e.clientX, y: e.clientY }; radiusGesture(g, e); redraw(); }
@@ -1473,6 +1555,12 @@ export function agentMain() {
             if (!g.el.getAttribute("style")) g.el.removeAttribute("style");
             redraw();
             return post({ type: "radius", path: pathOf(g.el), value: g.r });
+        }
+        if (g.type === "gap") {
+            dropHint.style.display = "none";
+            if (!g.moved) return redraw();
+            if (g.v === g.start) { g.props.forEach((p) => { if (g.inl0[p]) g.el.style.setProperty(p, g.inl0[p]); else g.el.style.removeProperty(p); }); g.el.style.removeProperty(g.h.prop); tidyStyle(g.el); return redraw(); } // back where it was
+            return askConvert([gestureItem(g.el, g.pre, g.props)]);
         }
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") {

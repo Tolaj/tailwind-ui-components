@@ -109,3 +109,12 @@ test("turning a box into a layout takes the absolute classes off at every size",
     assert.equal(r.classes, "h-16");
     assert.equal(dropGroup("a md:hover:left-2 left-4 top-1", "left"), "a top-1");
 });
+
+test("both halves of a gap, equal, are one gap class", () => {
+    const pre = { "column-gap": { source: "tailwind", token: "gap-4" }, "row-gap": { source: "tailwind", token: "gap-4" } };
+    const r = compileItem(item("flex gap-4", { "column-gap": "32px", "row-gap": "32px" }, { pre }), { tw: true, width: W.lg, mode: "all" });
+    assert.equal(r.classes, "flex gap-8");
+    assert.equal(r.tokens["column-gap"], "gap-8"); assert.equal(r.tokens["row-gap"], "gap-8");
+    const g = compileItem(item("grid gap-x-4", { "column-gap": "24px" }, { pre: { "column-gap": { source: "tailwind", token: "gap-x-4" } } }), { tw: true, width: W.lg, mode: "all" });
+    assert.equal(g.classes, "grid gap-x-6");
+});
