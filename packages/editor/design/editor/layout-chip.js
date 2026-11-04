@@ -1,5 +1,6 @@
 import { $, send } from "./base.js";
 import { fitLayouts } from "@windcraft/core/layout-infer.js";
+import { step } from "./docs.js";
 
 // ── "These line up": offer the layout ─────────────────────────────────────────────────────────────────────────────────
 // After an absolutely placed element is dropped among others, the frame sends where they all are (agent.js layoutHint). If a row,
@@ -25,7 +26,7 @@ const WORDS = {
 };
 /** A layout in a few words: "Row · gap 16 · centered". */
 export function describeLayout(L) {
-    const head = L.kind === "grid" ? `Grid, ${L.cols} columns` : L.kind === "col" ? "Column" : "Row";
+    const head = L.kind === "grid" ? `Grid, ${L.cols} columns${L.fit ? " sized to content" : ""}` : L.kind === "col" ? "Column" : "Row";
     const parts = [head];
     if (L.kind === "grid") { if (L.gapX || L.gapY) parts.push(L.gapX === L.gapY ? `gap ${L.gapX}` : `gap ${L.gapX} × ${L.gapY}`); }
     else {
@@ -40,6 +41,7 @@ export function describeLayout(L) {
 /** `m`: { container, box, kids: [{ path, x, y, w, h }] } from the frame. */
 export function suggestLayout(m) {
     hide();
+    if (m.flow) return restructure(m);
     const best = fitLayouts(m.box, m.kids, { tol: 1.5, drag: 24 })[0];
     if (!best) return;
     const scope = $("scopeBar"); // the layout is for every size: the "which size" bar has nothing to add
@@ -57,4 +59,37 @@ export function suggestLayout(m) {
     });
     timer = setTimeout(hide, 12000);
     if (!wired) { wired = true; document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); }); }
+}
+
+// ── A child of a row, column or grid dropped somewhere else in it ───────────────────────────────────────────────────────
+// The drop says where everything should end up. Of the layouts that put every other child where it is and this one within reach of
+// where it was let go, those that are not the box's present layout are the ways to read the drop; the cheapest is applied, the
+// others are one click away, and Undo goes back to the exact position. None fits: the drop stays an exact offset.
+const KIND = { "flex row": "row", "flex column": "col", grid: "grid" };
+function restructure(m) {
+    const now = KIND[m.current];
+    const seen = new Set();
+    // a drop is imprecise: the cleanest structure within reach wins over one that happens to match the exact pixels (an uneven gap)
+    const options = fitLayouts(m.box, m.kids, { tol: 1.5, drag: 40 })
+        .filter((c) => (c.outlier === null || c.outlier === m.moved) && c.kind !== now)
+        .sort((p, q) => p.cost - q.cost || p.err - q.err)
+        .filter((c) => { const k = `${c.kind}${c.cols || ""}${c.fit ? "f" : ""}${c.justify}${c.items}`; if (seen.has(k)) return false; seen.add(k); return true; })
+        .slice(0, 3);
+    if (!options.length) { send({ cmd: "keepOffset" }); return; }
+    const apply = (L) => send({ cmd: "applyLayout", container: m.container, kids: m.kids.map((k) => k.path), layout: L, flow: true });
+    apply(options[0]);
+    showApplied(m, options, 0, apply);
+}
+function showApplied(m, options, at, apply) {
+    const scope = $("scopeBar");
+    if (scope) scope.style.display = "none";
+    const el = ensureBar();
+    const alts = options.map((o, i) => i === at ? "" : `<button type="button" data-alt="${i}" class="rounded-full bg-neutral-700 px-2.5 py-1 hover:bg-neutral-600">${describeLayout(o)}</button>`).join("");
+    el.innerHTML = `<span class="text-neutral-300">Made it</span><span class="font-medium">${describeLayout(options[at])}</span>${alts ? `<span class="text-neutral-400">or</span>${alts}` : ""}` +
+        `<button type="button" data-undo class="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-900">Keep exact position</button>`;
+    el.style.display = "flex";
+    el.querySelectorAll("[data-alt]").forEach((b) => b.addEventListener("click", () => { const i = Number(b.dataset.alt); apply(options[i]); showApplied(m, options, i, apply); }));
+    el.querySelector("[data-undo]").addEventListener("click", () => { hide(); step(-1); });
+    clearTimeout(timer);
+    timer = setTimeout(hide, 12000);
 }

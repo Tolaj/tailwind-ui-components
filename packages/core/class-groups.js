@@ -62,6 +62,7 @@ export const GROUPS = {
     flexWrap: E("flex-(?:wrap|nowrap|wrap-reverse)"),
     justify: E("justify-(?:start|center|end|between|around|evenly|stretch|normal)"),
     items: E("items-(?:start|center|end|stretch|baseline)"),
+    alignContent: E("content-(?:start|center|end|between|around|evenly|stretch|normal)"),
     content: E("content-(?:start|center|end|between|around|evenly|stretch)"),
     self: E("self-(?:auto|start|center|end|stretch|baseline)"),
     grow: E("grow|grow-0"),

@@ -62,3 +62,14 @@ test("property: layouts are recovered from their own placements (400 random)", (
         assert.ok(ok);
     }
 });
+
+test("fixed-width children dropped as A B / C are a content-sized 2-column grid, not a pixel offset", () => {
+    const box = { x: 40, y: 40, w: 1200, h: 300 };
+    const w = 144, h = 96;
+    // A and B in the first row, C let go about where the second row would start, a few pixels off
+    const rects = [{ x: 40, y: 40, w, h }, { x: 40 + w + 16, y: 40, w, h }, { x: 43, y: 40 + h + 12, w, h }];
+    const fit = fitLayouts(box, rects, { tol: 1.5, drag: 40 }).filter((c) => c.kind === "grid" && c.fit && c.cols === 2 && c.gapX === 16 && c.gapY === 16);
+    assert.ok(fit.length, "a fitted grid exists");
+    assert.equal(fit[0].outlier, 2); // C settles into its cell
+    assert.ok(Math.hypot(fit[0].snap.x - 43, fit[0].snap.y - 152) < 8);
+});

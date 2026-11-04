@@ -929,24 +929,46 @@ export function agentMain() {
         if (kids.length < 3 || kids.length > 14 || kids.length !== all.length) return; // three or more, and nothing in the flow beside them
         post({ type: "layoutHint", container: pathOf(c), box: laneOf(c, null).box, kids: kids.map((k) => ({ path: pathOf(k), ...pageRect(k) })) });
     }
+    // A child of a row, column or grid let go somewhere else in it: the drop is a demonstration. The host fits the structure that puts
+    // everything where it now is (a 2-column grid, a column, ...); until it answers, the exact offset waits unconverted.
+    let flowPending = null;
+    function flowHint(g, items) {
+        const par = g.el.parentElement;
+        if (!par || !/flex|grid/.test(getComputedStyle(par).display)) return false;
+        const kids = kidsOf(par, null).filter(inFlow), i = kids.indexOf(g.el);
+        if (i < 0 || kids.length < 2 || kids.length > 12) return false;
+        flowPending = { items, el: g.el, timer: setTimeout(keepOffset, 800) };
+        post({ type: "layoutHint", flow: true, moved: i, current: layoutOf(par), container: pathOf(par), box: laneOf(par, null).box, kids: kids.map((k) => ({ path: pathOf(k), ...pageRect(k) })) });
+        return true;
+    }
+    function keepOffset() {
+        if (!flowPending) return;
+        const f = flowPending; clearTimeout(f.timer); flowPending = null;
+        askConvert(f.items);
+    }
     /** Turn a box of absolutely placed children into the row, column or grid the host fitted: pixels in, classes out, for every size. */
     function applyLayout(m) {
         const box = elAt(m.container), kids = (m.kids || []).map(elAt), L = m.layout;
+        if (flowPending) { // the offset the drop wrote gives way to the structure
+            const f = flowPending; clearTimeout(f.timer); flowPending = null;
+            if (box && L) { ["position", "left", "top"].forEach((p) => f.el.style.removeProperty(p)); tidyStyle(f.el); } else askConvert(f.items);
+        }
         if (!box || !L || kids.some((k) => !k)) return;
         const JUSTIFY = { end: "flex-end", center: "center", between: "space-between", around: "space-around", evenly: "space-evenly" }, ITEMS = { start: "flex-start", center: "center", end: "flex-end" };
         const set = (el, p, v) => el.style.setProperty(p, v);
         const before = (el, props) => ({ pre: sourcesOf(el, props), inl: inlineOf(el, props) });
-        const boxProps = L.kind === "grid" ? ["display", "grid-template-columns", "column-gap", "row-gap"] : ["display", "flex-direction", "gap", "justify-content", "align-items"];
+        const boxProps = L.kind === "grid" ? ["display", "grid-template-columns", "column-gap", "row-gap", "justify-content", "align-content"] : ["display", "flex-direction", "gap", "justify-content", "align-items"];
         const b = before(box, boxProps);
-        if (L.kind === "grid") { set(box, "display", "grid"); set(box, "grid-template-columns", `repeat(${L.cols}, minmax(0, 1fr))`); if (L.gapX) set(box, "column-gap", `${L.gapX}px`); if (L.gapY) set(box, "row-gap", `${L.gapY}px`); }
+        if (L.kind === "grid") { set(box, "display", "grid"); set(box, "grid-template-columns", L.fit ? `repeat(${L.cols}, auto)` : `repeat(${L.cols}, minmax(0, 1fr))`); if (L.fit) { set(box, "justify-content", "start"); set(box, "align-content", "start"); } if (L.gapX) set(box, "column-gap", `${L.gapX}px`); if (L.gapY) set(box, "row-gap", `${L.gapY}px`); }
         else {
             set(box, "display", "flex");
             if (L.kind === "col") set(box, "flex-direction", "column");
+            else if (getComputedStyle(box).flexDirection.startsWith("column")) set(box, "flex-direction", "row");
             if (L.gap) set(box, "gap", `${L.gap}px`);
             if (JUSTIFY[L.justify]) set(box, "justify-content", JUSTIFY[L.justify]);
             if (ITEMS[L.items]) set(box, "align-items", ITEMS[L.items]);
         }
-        const boxItem = gestureItem(box, b.pre, boxProps); boxItem.structural = true;
+        const boxItem = gestureItem(box, b.pre, boxProps, L.kind === "grid" ? (L.fit ? ["flexDir", "flexWrap", "items"] : ["flexDir", "flexWrap", "justify", "items"]) : ["gridCols"]); boxItem.structural = true;
         const items = [boxItem];
         kids.forEach((k, i) => {
             const push = L.push === i ? [L.kind === "col" ? "margin-top" : "margin-left"] : [];
@@ -1606,6 +1628,7 @@ export function agentMain() {
         if (g.type === "reorder" && g.moved && g.free && g.fi) {
             const items = freeDrop(g);
             guideLayer.innerHTML = "";
+            if (items.length && !g.metaDrop && items.some((i) => i.values.left !== undefined || i.values.top !== undefined) && flowHint(g, items)) return redraw();
             if (items.length) return askConvert(items);
             redraw(); return;
         }
@@ -2166,6 +2189,7 @@ export function agentMain() {
         if (m.cmd === "duplicateSel") { duplicate(); return; }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
         if (m.cmd === "applyLayout") { applyLayout(m); return; }
+        if (m.cmd === "keepOffset") { keepOffset(); return; }
         if (m.cmd === "freePosition") {
             const el = elAt(m.path);
             if (!el) return;

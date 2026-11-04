@@ -92,8 +92,9 @@ export function compileItem(it0, { tw, width, mode = "device", picked = "", stat
         if (!tw && pre.source !== "tailwind") continue;
         const group = groupOf(prop);
         if (!group) continue;
-        const cols = prop === "grid-template-columns" && /^repeat\((\d+)/.exec(value);
-        const tv = cols ? cols[1] : /^-?[\d.]+px$/.test(value) ? fromPx(group, Math.round(parseFloat(value))) : twValue(prop, value, false);
+        const auto = prop === "grid-template-columns" && /^repeat\((\d+),\s*auto\)$/.exec(value);
+        const cols = !auto && prop === "grid-template-columns" && /^repeat\((\d+)/.exec(value);
+        const tv = auto ? `[repeat(${auto[1]},auto)]` : cols ? cols[1] : /^-?[\d.]+px$/.test(value) ? fromPx(group, Math.round(parseFloat(value))) : twValue(prop, value, false);
         if (tv === null) continue;
         const built = GROUPS[group].build(tv);
         if (!GROUPS[group].re.test(built)) continue;

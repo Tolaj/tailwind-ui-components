@@ -22,6 +22,7 @@ function costOf(c) {
     if (c.gap || c.gapX || c.gapY) n += c.kind === "grid" && c.gapX !== c.gapY ? 2 : 1;
     // a gap off Tailwind's scale is an arbitrary value (gap-[150px]): costlier, which is what makes justify-between win over it
     if ([c.gap, c.gapX, c.gapY].some((g) => g && !GAPS.includes(Math.round(g)))) n += 1;
+    if (c.fit) n += 2; // grid-cols-[repeat(N,auto)] and justify-start
     if (c.justify && c.justify !== "start") n += 1;
     if (c.items && c.items !== "stretch") n += 1;
     if (c.push !== undefined && c.push !== null) n += 1; // ml-auto
@@ -133,6 +134,14 @@ export const GAPS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 
 /** Where each child (given its size) sits in a candidate layout inside `box`: [{ x, y }]. */
 export function layoutRects(c, box, sizes) {
     const n = sizes.length;
+    if (c.kind === "grid" && c.fit) { // columns as wide as their widest child (grid-cols-[repeat(N,auto)]), packed at the start
+        const rows = Math.ceil(n / c.cols), colW = [], rowH = [];
+        for (let j = 0; j < c.cols; j++) colW.push(Math.max(0, ...sizes.filter((_, i) => i % c.cols === j).map((s) => s.w)));
+        for (let r = 0; r < rows; r++) rowH.push(Math.max(...sizes.slice(r * c.cols, r * c.cols + c.cols).map((s) => s.h)));
+        const colX = []; let x = box.x; for (let j = 0; j < c.cols; j++) { colX.push(x); x += colW[j] + c.gapX; }
+        const rowY = []; let y = box.y; for (let r = 0; r < rows; r++) { rowY.push(y); y += rowH[r] + c.gapY; }
+        return sizes.map((_, i) => ({ x: colX[i % c.cols], y: rowY[Math.floor(i / c.cols)] }));
+    }
     if (c.kind === "grid") {
         const cw = (box.w - c.gapX * (c.cols - 1)) / c.cols, rows = Math.ceil(n / c.cols), rowH = [];
         for (let r = 0; r < rows; r++) rowH.push(Math.max(...sizes.slice(r * c.cols, r * c.cols + c.cols).map((s) => s.h)));
@@ -173,7 +182,7 @@ export function fitLayouts(box, rects, { tol = 1.5, drag = 40 } = {}) {
         for (const items of ["stretch", "start", "center", "end"]) for (const justify of ["between", "around", "evenly"]) cands.push({ kind, justify, items, gap: 0 });
         for (const p of Array.from({ length: n - 1 }, (_, i) => i + 1)) for (const items of ["stretch", "start", "center", "end"]) for (const gap of gaps) cands.push({ kind, justify: "start", items, gap, push: p });
     }
-    for (let cols = 2; cols <= Math.min(6, n - 1); cols++) for (const gx of GAPS) for (const gy of GAPS) cands.push({ kind: "grid", cols, gapX: gx, gapY: gy, gap: gx === gy ? gx : 0, items: "stretch", justify: null });
+    for (let cols = 2; cols <= Math.min(6, n - 1); cols++) for (const gx of GAPS) for (const gy of GAPS) for (const fit of [false, true]) cands.push({ kind: "grid", cols, gapX: gx, gapY: gy, gap: gx === gy ? gx : 0, items: "stretch", justify: null, fit });
     const out = [];
     for (const c of cands) {
         const pred = layoutRects(c, box, sizes);
