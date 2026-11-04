@@ -988,6 +988,20 @@ export function agentMain() {
         ys.slice(0, -1).forEach((y, i) => { const end = Math.max(...rects.filter((r) => near(r.y, y)).map((r) => r.y + r.h)), gp = ys[i + 1] - end; if (rg >= 1 && near(gp, rg)) out.push({ i: out.length, axis: "y", prop: "row-gap", gap: rg, r: { x: x0, y: end, w: x1 - x0, h: gp } }); });
         return out;
     }
+    /** The padding of a box as four handles: dragging one changes that side (Alt: the opposite side too). Only sides that have padding. */
+    function padHandlesOf(el) {
+        const cs = getComputedStyle(el), r = pageRect(el), f = (v) => parseFloat(v) || 0, out = [];
+        const b = { t: f(cs.borderTopWidth), r: f(cs.borderRightWidth), b: f(cs.borderBottomWidth), l: f(cs.borderLeftWidth) };
+        const p = { t: f(cs.paddingTop), r: f(cs.paddingRight), b: f(cs.paddingBottom), l: f(cs.paddingLeft) };
+        const ix0 = r.x + b.l + p.l, ix1 = r.x + r.w - b.r - p.r, iy0 = r.y + b.t + p.t, iy1 = r.y + r.h - b.b - p.b;
+        if (ix1 - ix0 < 4 || iy1 - iy0 < 4) return out;
+        const add = (k, prop, side, sign, val, rect, axis) => { if (val >= 1) out.push({ i: 100 + out.length, kind: "pad", axis, prop, opp: { l: "padding-right", r: "padding-left", t: "padding-bottom", b: "padding-top" }[side], sign, gap: val, r: rect }); };
+        add("l", "padding-left", "l", 1, p.l, { x: r.x + b.l, y: iy0, w: p.l, h: iy1 - iy0 }, "x");
+        add("r", "padding-right", "r", -1, p.r, { x: r.x + r.w - b.r - p.r, y: iy0, w: p.r, h: iy1 - iy0 }, "x");
+        add("t", "padding-top", "t", 1, p.t, { x: ix0, y: r.y + b.t, w: ix1 - ix0, h: p.t }, "y");
+        add("b", "padding-bottom", "b", -1, p.b, { x: ix0, y: r.y + r.h - b.b - p.b, w: ix1 - ix0, h: p.b }, "y");
+        return out;
+    }
     /** The zone of a handle: its gap, and at least 8px across so a narrow gap can be grabbed. */
     function gapZone(h) {
         const r = h.r, min = px(8);
@@ -1003,10 +1017,11 @@ export function agentMain() {
         const el = primary();
         if (!el || sels.length !== 1 || el === document.body || tool !== "move" || editing || isLocked(el)) return;
         if (gesture && gesture.type !== "gap") return;
-        gapList = gapHandlesOf(el);
+        gapList = [...gapHandlesOf(el), ...(el.parentElement ? padHandlesOf(el) : [])];
         gapList.forEach((h) => {
-            const z = gapZone(h), hot = gapHot === h.i || (gesture && gesture.type === "gap" && gesture.h.axis === h.axis && gesture.h.i === h.i);
-            gapLayer.appendChild(mk(`position:absolute;left:${z.x}px;top:${z.y}px;width:${z.w}px;height:${z.h}px;background:${hot ? "rgba(242,72,34,.32)" : "rgba(242,72,34,.13)"};border-radius:${px(2)}px;box-sizing:border-box;`));
+            const z = gapZone(h), hot = gapHot === h.i || (gesture && gesture.type === "gap" && gesture.h.i === h.i);
+            gapLayer.appendChild(mk(`position:absolute;left:${z.x}px;top:${z.y}px;width:${z.w}px;height:${z.h}px;background:${hot ? "rgba(242,72,34,.32)" : h.kind === "pad" ? "rgba(242,72,34,.07)" : "rgba(242,72,34,.13)"};border-radius:${px(2)}px;box-sizing:border-box;`));
+            if (h.kind === "pad" && !hot) return;
             // a grip line down the middle of the gap
             gapLayer.appendChild(mk(h.axis === "x"
                 ? `position:absolute;left:${z.x + z.w / 2 - px(0.5)}px;top:${z.y + z.h / 2 - px(10)}px;width:${px(1)}px;height:${px(20)}px;background:${RED};`
@@ -1014,13 +1029,19 @@ export function agentMain() {
         });
     }
     function gapGesture(g, e) {
-        const d = g.h.axis === "x" ? e.clientX - g.sx : e.clientY - g.sy;
+        const d = (g.h.axis === "x" ? e.clientX - g.sx : e.clientY - g.sy) * (g.h.sign || 1);
         const raw = Math.max(0, g.start + d), v = e.metaKey ? Math.round(raw) : onScale(raw);
+        const pad = g.h.kind === "pad";
         g.el.style.setProperty(g.h.prop, `${v}px`);
+        // Alt: the opposite side too; otherwise it keeps what it had
+        if (pad) { if (e.altKey) g.el.style.setProperty(g.h.opp, `${v}px`); else if (g.inl0[g.h.opp]) g.el.style.setProperty(g.h.opp, g.inl0[g.h.opp]); else g.el.style.removeProperty(g.h.opp); }
         g.v = v;
+        g.pair = pad && e.altKey;
         guideLayer.innerHTML = "";
-        const z = gapZone(gapHandlesOf(g.el).find((h) => h.axis === g.h.axis && h.i === g.h.i) || g.h);
-        dropHint.textContent = `${g.h.prop === "gap" ? "Gap" : g.h.prop === "column-gap" ? "Column gap" : "Row gap"} ${v}`;
+        const now = pad ? padHandlesOf(g.el) : gapHandlesOf(g.el);
+        const z = gapZone(now.find((h) => h.prop === g.h.prop && h.axis === g.h.axis) || g.h);
+        const word = pad ? (g.pair ? `${g.h.axis === "x" ? "Horizontal" : "Vertical"} padding` : { "padding-left": "Padding left", "padding-right": "Padding right", "padding-top": "Padding top", "padding-bottom": "Padding bottom" }[g.h.prop]) : g.h.prop === "gap" ? "Gap" : g.h.prop === "column-gap" ? "Column gap" : "Row gap";
+        dropHint.textContent = `${word} ${v}`;
         Object.assign(dropHint.style, { display: "block", left: `${z.x}px`, top: `${Math.max(0, z.y - px(24))}px`, fontSize: `${px(11)}px`, padding: `${px(4)}px ${px(7)}px` });
         redraw();
     }
@@ -1503,7 +1524,7 @@ export function agentMain() {
         const gh = tool === "move" && sels.length === 1 ? gapAt(e) : null;
         if (gh) { // a gap between the children of the selected box
             const el = sels[0];
-            const props = gh.prop === "gap" ? ["column-gap", "row-gap"] : [gh.prop]; // the shorthand has no source of its own: its two halves do
+            const props = gh.kind === "pad" ? [gh.prop, gh.opp] : gh.prop === "gap" ? ["column-gap", "row-gap"] : [gh.prop]; // the shorthand has no source of its own: its two halves do (a side's padding: its opposite too, for Alt)
             gesture = { type: "gap", el, h: gh, props, start: gh.gap, pre: sourcesOf(el, props), inl0: inlineOf(el, props), sx: e.clientX, sy: e.clientY, moved: false };
             return;
         }
@@ -1569,8 +1590,11 @@ export function agentMain() {
         if (g.type === "gap") {
             dropHint.style.display = "none";
             if (!g.moved) return redraw();
-            if (g.v === g.start) { g.props.forEach((p) => { if (g.inl0[p]) g.el.style.setProperty(p, g.inl0[p]); else g.el.style.removeProperty(p); }); g.el.style.removeProperty(g.h.prop); tidyStyle(g.el); return redraw(); } // back where it was
-            return askConvert([gestureItem(g.el, g.pre, g.props)]);
+            if (g.v === g.start && !g.pair) { g.props.forEach((p) => { if (g.inl0[p]) g.el.style.setProperty(p, g.inl0[p]); else g.el.style.removeProperty(p); }); g.el.style.removeProperty(g.h.prop); tidyStyle(g.el); return redraw(); } // back where it was
+            // what changed: the one side (both with Alt), or for a gap its halves
+            const props = g.h.kind === "pad" ? g.props.filter((p) => g.el.style.getPropertyValue(p) !== g.inl0[p]) : g.props;
+            if (!props.length) return redraw();
+            return askConvert([gestureItem(g.el, g.pre, props)]);
         }
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") {

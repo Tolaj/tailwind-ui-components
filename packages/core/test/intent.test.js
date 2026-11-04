@@ -118,3 +118,10 @@ test("both halves of a gap, equal, are one gap class", () => {
     const g = compileItem(item("grid gap-x-4", { "column-gap": "24px" }, { pre: { "column-gap": { source: "tailwind", token: "gap-x-4" } } }), { tw: true, width: W.lg, mode: "all" });
     assert.equal(g.classes, "grid gap-x-6");
 });
+
+test("equal padding on both sides of an axis is px-/py-", () => {
+    const pre = { "padding-left": { source: "tailwind", token: "p-6" }, "padding-right": { source: "tailwind", token: "p-6" } };
+    const r = compileItem(item("p-6", { "padding-left": "36px", "padding-right": "36px" }, { pre }), { tw: true, width: W.lg, mode: "all" });
+    assert.equal(r.classes, "p-6 px-9");
+    assert.equal(r.tokens["padding-left"], "px-9");
+});

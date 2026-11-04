@@ -38,7 +38,7 @@ const WORDS = {
 const LENGTHS = {
     width: "w", height: "h", "min-width": "minW", "max-width": "maxW", "min-height": "minH", "max-height": "maxH",
     gap: "gap", "column-gap": "gapX", "row-gap": "gapY", top: "top", right: "right", bottom: "bottom", left: "left",
-    "padding-top": "pt", "padding-right": "pr", "padding-bottom": "pb", "padding-left": "pl",
+    "padding-top": "pt", "padding-right": "pr", "padding-bottom": "pb", "padding-left": "pl", "padding-inline": "px", "padding-block": "py",
     "margin-top": "mt", "margin-right": "mr", "margin-bottom": "mb", "margin-left": "ml",
     "font-size": "fontSize", "line-height": "leading", "letter-spacing": "tracking", "border-radius": "radius", "z-index": "z",
 };

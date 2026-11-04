@@ -68,13 +68,15 @@ const NEUTRAL = { left: "0", top: "0", right: "0", bottom: "0", ml: "0", mr: "0"
  *  - state: the panel's state chip ("hover"), "" for none. picked: its breakpoint chip.
  */
 export function compileItem(it0, { tw, width, mode = "device", picked = "", state = "" }) {
-    // both halves of a gap, equal, are the one `gap` (gap-4), not gap-x-4 gap-y-4
-    let it = it0, halves = null;
-    const cg = it0.values["column-gap"], rg = it0.values["row-gap"];
-    if (cg !== undefined && cg === rg) {
-        const { "column-gap": a, "row-gap": b, ...rest } = it0.values;
-        it = { ...it0, values: { ...rest, gap: cg }, pre: { ...it0.pre, gap: it0.pre["column-gap"] || it0.pre["row-gap"] } };
-        halves = ["column-gap", "row-gap"];
+    // both halves of a gap or of the padding on an axis, equal, are one class (gap-4, px-4), not two
+    let it = it0;
+    const pairs = [];
+    for (const [a, b, one] of [["column-gap", "row-gap", "gap"], ["padding-left", "padding-right", "padding-inline"], ["padding-top", "padding-bottom", "padding-block"]]) {
+        if (it.values[a] !== undefined && it.values[a] === it.values[b]) {
+            const { [a]: va, [b]: vb, ...rest } = it.values;
+            it = { ...it, values: { ...rest, [one]: va }, pre: { ...it.pre, [one]: it.pre[a] || it.pre[b] } };
+            pairs.push([a, b, one]);
+        }
     }
     // taking an element out of the flow (absolute, fixed), or turning a box into a row or grid, is not a per-device edit: on the other devices it would leave the flow with
     // no place to stand. Its position and size are written for every size, as for a new shape.
@@ -121,7 +123,7 @@ export function compileItem(it0, { tw, width, mode = "device", picked = "", stat
         const next = structural ? dropGroup(classes, g) : setGroup(classes, g, "", "");
         if (next !== null && next !== classes) { classes = next; cleared = true; }
     });
-    if (halves && tokens.gap) { halves.forEach((h) => { tokens[h] = tokens.gap; }); delete tokens.gap; }
+    pairs.forEach(([a, b, one]) => { if (tokens[one]) { tokens[a] = tokens[b] = tokens[one]; delete tokens[one]; } });
     return { path: it.path, classes, tokens, cleared, pins, scope, structural };
 }
 
