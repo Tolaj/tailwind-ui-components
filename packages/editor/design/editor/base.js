@@ -6,6 +6,11 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&a
 
 export const data = config.data;
 
+// A two-finger swipe across the editor must never be taken for the browser's Back gesture (it leaves the design behind): the page
+// does not chain a scroll that ran out to the browser's own navigation.
+document.documentElement.style.overscrollBehavior = "none";
+if (document.body) document.body.style.overscrollBehavior = "none";
+
 export const S = {};
 S.parsed = parseComponentSource(data.htmlCode);
 S.mode = "edit";

@@ -28,7 +28,7 @@ export function agentMain() {
     // pointing hand over it. Everything inherits the cursor set on <html> (arrow, grab, crosshair...); text being typed keeps its I-beam.
     const cursorStyle = document.createElement("style");
     cursorStyle.setAttribute("data-wc-agent-style", "");
-    cursorStyle.textContent = "html * { cursor: inherit !important; } [contenteditable=true], [contenteditable=true] * { cursor: text !important; }";
+    cursorStyle.textContent = "html, body { overscroll-behavior: none; } html * { cursor: inherit !important; } [contenteditable=true], [contenteditable=true] * { cursor: text !important; }";
     document.head.appendChild(cursorStyle);
     root.style.cursor = "default"; // the Move tool is active from the start
 
@@ -59,7 +59,7 @@ export function agentMain() {
         rect: { tag: "div", cls: "absolute bg-neutral-300 rounded-md", w: 160, h: 100 },
         ellipse: { tag: "div", cls: "absolute bg-neutral-300 rounded-full", w: 120, h: 120 },
         line: { tag: "div", cls: "absolute bg-neutral-900 text-neutral-900", w: 160, h: 2 },
-        arrow: { tag: "div", cls: "absolute bg-neutral-900 text-neutral-900", w: 160, h: 2, html: '<i class="pointer-events-none" style="position:absolute;right:0;top:50%;transform:translateY(-50%);border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:9px solid currentColor"></i>' },
+        arrow: { tag: "div", cls: "absolute bg-neutral-900 text-neutral-900", w: 160, h: 2, html: '<i class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 border-y-[5px] border-y-transparent border-l-[9px] border-l-current"></i>' },
         text: { tag: "p", cls: "absolute text-base text-neutral-900 whitespace-nowrap", text: "Text", auto: true },
         image: { tag: "img", cls: "absolute object-cover rounded-md bg-neutral-200", w: 240, h: 160, attrs: { src: PLACEHOLDER, alt: "Image" } },
         button: { tag: "button", cls: "absolute rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white whitespace-nowrap", text: "Button", auto: true },
@@ -626,7 +626,10 @@ export function agentMain() {
             const mx = g.sx + dx / 2 + window.scrollX - o.x, my = g.sy + dy / 2 + window.scrollY - o.y;
             const line = createAt(g.kind, g.container, mx - len / 2, my - 1, len, 2);
             const deg = Math.round(Math.atan2(dy, dx) * 1800 / Math.PI) / 10;
-            if (deg) line.style.transform = `rotate(${deg}deg)`;
+            if (deg) { // the turn is a class like any other (rotate-45, rotate-[33.7deg]), not an inline style
+                const step = [0, 1, 2, 3, 6, 12, 45, 90, 180].includes(Math.abs(deg));
+                line.classList.add(step ? `${deg < 0 ? "-" : ""}rotate-${Math.abs(deg)}` : `rotate-[${deg}deg]`);
+            }
             setSelection([line]);
             setTool("move");
             return askConvert([gestureItem(line, {}, ["position", "left", "top", "width", "height"])]);
