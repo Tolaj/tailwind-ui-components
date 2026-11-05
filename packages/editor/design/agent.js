@@ -157,6 +157,7 @@ export function agentMain() {
         if (el && el !== document.body && gesture && gesture.moved) {
             const g = geomOf(el);
             if (gesture.type === "radius") { label = `Radius ${gesture.r}`; at = gesture.at; }
+            else if (gesture.type === "rotate") { label = `${gesture.deg === undefined ? "" : gesture.deg + "°"}`; at = gesture.at; }
             else label = sels.length > 1 ? `${sels.length} selected` : `${g.w} × ${g.h}`;
         }
         const bbox = el && el !== document.body && alive(el) ? pageRect(el) : null;
@@ -1324,6 +1325,8 @@ export function agentMain() {
         const a = Math.atan2(e.clientY + window.scrollY - g.cy, e.clientX + window.scrollX - g.cx) * 180 / Math.PI;
         let rot = g.start + (a - g.a0);
         if (e.shiftKey) rot = Math.round(rot / 15) * 15;
+        g.deg = Math.round((((rot + 180) % 360 + 360) % 360 - 180) * 10) / 10; // the angle shown while turning, -180 to 180
+        g.at = { x: e.clientX, y: e.clientY };
         g.el.style.transform = rot % 360 === 0 ? "" : `rotate(${Math.round(rot * 10) / 10}deg)`;
         if (!g.el.style.transform) g.el.style.removeProperty("transform");
     }
