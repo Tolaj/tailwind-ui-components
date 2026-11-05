@@ -18,7 +18,7 @@ function hexToHsv(hex) {
     return { h: (h * 60 + 360) % 360, s: max ? d / max : 0, v: max };
 }
 
-const W = 232, H = 268, GAP = 12;
+const DEFAULT_W = 232, DEFAULT_H = 268, GAP = 12;
 let box = null, state = null;
 
 function build() {
@@ -69,7 +69,7 @@ function paint() {
 function emit() { const hex = paint(); if (hex !== state.last) { state.last = hex; state.onInput(hex); } }
 
 /** Beside `near` (the selection), on whichever side has room inside `bounds`; failing that, where it covers the least of it. */
-function place(near, bounds, from) {
+export function placeBeside(near, bounds, from, W = DEFAULT_W, H = DEFAULT_H) {
     const fits = (x, y) => x >= bounds.left && y >= bounds.top && x + W <= bounds.right && y + H <= bounds.bottom;
     const midY = clamp(near.top, bounds.top, bounds.bottom - H), midX = clamp(near.left, bounds.left, bounds.right - W);
     const spots = [[near.right + GAP, midY], [near.left - GAP - W, midY], [midX, near.bottom + GAP], [midX, near.top - GAP - H]];
@@ -90,7 +90,7 @@ export function openColorPicker({ value, near, bounds, opener, onInput, onClose 
     state = { ...(hexToHsv(value) || { h: 0, s: 0, v: 0 }), last: null, opener, onInput, onClose };
     state.last = hsvToHex(state.h, state.s, state.v);
     paint();
-    const [x, y] = place(near || opener.getBoundingClientRect(), bounds || { left: 0, top: 0, right: innerWidth, bottom: innerHeight }, opener && opener.getBoundingClientRect());
+    const [x, y] = placeBeside(near || opener.getBoundingClientRect(), bounds || { left: 0, top: 0, right: innerWidth, bottom: innerHeight }, opener && opener.getBoundingClientRect());
     Object.assign(box.style, { left: `${x}px`, top: `${y}px`, display: "block" });
 }
 

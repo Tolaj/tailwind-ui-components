@@ -6,6 +6,7 @@ import { canvas, heightOfDoc, positions, view, widthOf } from "./plane.js";
 import { setDevice, setProp, setProps } from "./inspector.js";
 import { cmd } from "./frame-messages.js";
 import { setPanel, setPanelTab } from "./color-ui.js";
+import { closeColorPicker, placeBeside } from "../color-picker.js";
 
 // ── The floating toolbar, frame handles and the side panel ───────────────────
  // which of the bar's panels is open: border, radius or spacing
@@ -48,6 +49,16 @@ export function placeFloat() {
     ftb.classList.toggle("popdown", top < 270); // a panel opens upward, unless the bar is too close to the top of the canvas
     ftb.style.left = `${Math.round(left)}px`;
     ftb.style.top = `${Math.round(top)}px`;
+    // a panel of the bar (padding, margin, radius, border) opens beside the element, as the colour picker does, not over the design
+    const pop = ftb.querySelector(".ftpop");
+    if (pop && st.kind !== "frame") {
+        const cr = canvas.getBoundingClientRect(), fr = ftb.getBoundingClientRect();
+        const near = { left: cr.left + a.x, top: cr.top + a.y, right: cr.left + a.x + a.w, bottom: cr.top + a.y + a.h };
+        const [x, y] = placeBeside(near, cr, null, pop.offsetWidth, pop.offsetHeight);
+        pop.style.left = `${Math.round(x - fr.left)}px`;
+        pop.style.top = `${Math.round(y - fr.top)}px`;
+        pop.style.bottom = "auto";
+    }
 }
 
 // the frame's handles, in screen pixels like the element selection (a handle must be 9px at any zoom)
@@ -164,8 +175,8 @@ export const FLOAT_ACTIONS = {
         // every corner: one rounded-* class, or inline radius where a corner comes from CSS
         setProps(["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"], n, "radius", ["radiusTL", "radiusTR", "radiusBR", "radiusBL"]);
     },
-    more() { S.ftMenu = !S.ftMenu; S.ftPop = null; renderFloat(true); },
-    pop(key) { S.ftPop = S.ftPop === key ? null : key; S.ftMenu = false; renderFloat(true); },
+    more() { closeColorPicker(); S.ftMenu = !S.ftMenu; S.ftPop = null; renderFloat(true); },
+    pop(key) { closeColorPicker(); S.ftPop = S.ftPop === key ? null : key; S.ftMenu = false; renderFloat(true); },
     side(key, btn) { S.ftSides[key] = !btn.classList.contains("on"); renderFloat(true); },
     bstyle(kind) {
         const c = S.selected.computed || {};

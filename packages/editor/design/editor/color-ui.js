@@ -68,13 +68,20 @@ export function setPanel(open) {
 /** Registers this part's listeners and does its first draw (called once, in order, by editor.js). */
 export function init() {
     document.addEventListener("click", (e) => {
-        const t = e.target.closest && e.target.closest('input[type="color"]');
+        let t = e.target.closest && e.target.closest('input[type="color"]');
         if (!t || !(ftb.contains(t) || insp.contains(t)) || !S.selected) return;
         const sel = fieldSelector(t);
         if (!sel) return;
         e.preventDefault(); // not the browser's picker
-        const opener = t.closest("label") || t;
+        let opener = t.closest("label") || t;
         if (colorPickerOpener() === opener) return closeColorPicker(); // the same swatch again: done
+        // one panel at a time: the bar's padding / radius panel (or its menu) closes when a colour is picked
+        if (ftb.contains(t) && (S.ftPop || S.ftMenu)) {
+            S.ftPop = null; S.ftMenu = false; renderFloat(true);
+            const again = document.querySelector(sel);
+            if (!again) return;
+            t = again; opener = t.closest("label") || t;
+        }
         const feed = (type, hex) => { const f = document.querySelector(sel); if (f) { f.value = hex; f.dispatchEvent(new Event(type, { bubbles: true })); } };
         // from the Properties panel: just left of the panel, level with the swatch; from the floating bar: beside the selection
         const fromPanel = insp.contains(t);
