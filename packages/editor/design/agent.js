@@ -20,7 +20,8 @@ export function agentMain() {
     const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
-    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    const kidLayer = mk("position:absolute;left:0;top:0;");
+    overlay.append(kidLayer, hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -162,6 +163,20 @@ export function agentMain() {
         const data = JSON.stringify({ items, handles, label, bbox, at });
         if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
         place(hoverBox, tool === "move" && hov && hov !== document.body && !sels.includes(hov) ? hov : null); // not the page itself
+        drawKids();
+    }
+
+    // the box selected shows what it holds: its children, dashed (the one under the pointer is outlined solid by the hover box)
+    function drawKids() {
+        kidLayer.textContent = "";
+        const el = sels.length === 1 ? sels[0] : null;
+        if (!el || el === document.body || tool !== "move" || editing || gesture) return;
+        realKids(el).slice(0, 60).forEach((k) => {
+            if (k === hov || getComputedStyle(k).display === "none") return;
+            const r = pageRect(k);
+            if (r.w < 2 || r.h < 2) return;
+            kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed ${BLUE};opacity:.45;box-sizing:border-box;pointer-events:none;`));
+        });
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -534,6 +549,7 @@ export function agentMain() {
         if (t && t.nodeType !== 1) t = t.parentElement;
         if (!t || overlay.contains(t) || t === root) return document.body;
         while (t && t !== document.body && isLocked(t)) t = t.parentElement;
+        if (e.metaKey || e.ctrlKey) return t || document.body; // Cmd/Ctrl: the deepest, whatever the level
         return pickable(t || document.body);
     };
     // ── Groups ── A group (Ctrl+G) is a box made around a few elements, marked data-wc-group so it is saved with the design. On the page
@@ -543,12 +559,29 @@ export function agentMain() {
     const groupAround = (el) => (el && el.parentElement ? el.parentElement.closest("[data-wc-group]") : null);
     /** May `el` be put inside `parent`? Only within the group it is in, if it is in one. */
     const staysInGroup = (el, parent) => { const gp = groupAround(el); return !gp || (!!parent && gp.contains(parent)); };
-    /** What a click on `t` picks: the outermost group around it that has not been gone into, or else `t` itself. */
+    /** The elements of the design inside `el` that can be picked (not the editor's own overlay, scripts or styles). */
+    const realKids = (el) => [...el.children].filter((c) => c !== overlay && !/^(script|style|link|meta)$/i.test(c.tagName));
+    /** Where a click starts picking: the body, or what is inside it when the page is one wrapper in a wrapper (a click would only ever pick the wrapper). */
+    function topScope() {
+        let c = document.body;
+        for (let k = 0; k < 6; k++) { const kids = realKids(c); if (kids.length !== 1 || !realKids(kids[0]).length) break; c = kids[0]; }
+        return c;
+    }
+    /** What a click on `t` picks, as in Figma: the top level of the design first, a double-click goes one level in, and from there a click
+     *  picks at that level (the box selected, or the one gone into, and what sits beside it). Cmd/Ctrl-click picks the deepest. */
     function pickable(t) {
         if (!t || t === document.body) return t;
-        const chain = [];
-        for (let p = t; p && p !== document.body; p = p.parentElement) if (p.hasAttribute && p.hasAttribute("data-wc-group")) chain.unshift(p);
-        for (const gp of chain) if (!(inside && gp.contains(inside))) return gp;
+        const sv = t.closest && t.closest("svg"); // an icon or chart is one thing: its paths are never picked on their own
+        if (sv && sv !== t) t = sv;
+        const top = topScope();
+        if (t === top || !top.contains(t)) return t === top ? document.body : t; // the page's own wrapper is the page: nothing there to pick
+        // from the selection outwards, the first box that holds `t` is the level: what is picked is that box's child under the pointer
+        // (so the cards beside a selected card, or the sections around it, can each be picked with one click)
+        const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
+        let from = top;
+        if (inside && inside !== t && inside.contains(t) && top.contains(inside)) from = inside;
+        else if (cur && cur !== document.body && top.contains(cur)) for (let a = cur.parentElement; a && top.contains(a); a = a.parentElement) if (a.contains(t) && a !== t) { from = a; break; }
+        while (t.parentElement && t.parentElement !== from) t = t.parentElement;
         return t;
     }
     const containerAt = (x, y) => {
@@ -1459,20 +1492,25 @@ export function agentMain() {
     document.addEventListener("mouseleave", dropHover);
 
     const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
+    /** Has words of its own (not only elements): a double-click edits it, rather than going into what is in it. */
+    const isTextual = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    /** The child of `box` that holds `el`. */
+    const childOf = (box, el) => { let c = el; while (c.parentElement && c.parentElement !== box) c = c.parentElement; return c; };
     document.addEventListener("dblclick", (e) => {
         e.preventDefault();
         const el = hitAt(e.clientX, e.clientY);
-        if (el === document.body || tool !== "move") return;
-        const pick = pickable(el);
-        if (pick !== el && pick.hasAttribute("data-wc-group")) { // into the group: what is in it under the pointer is picked
-            inside = pick;
-            let c = el;
-            while (c.parentElement && c.parentElement !== pick) c = c.parentElement;
-            setSelection([pickable(c)]);
+        if (el === document.body || tool !== "move" || isLocked(el)) return;
+        const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
+        if (cur && cur !== el && cur.contains(el) && !(el.closest("svg") === cur) && !isTextual(cur)) {
+            // into the selected box: the one of its children under the pointer is picked (and what sits beside it can be picked next)
+            const c = childOf(cur, el.closest("svg") || el);
+            inside = cur;
+            setSelection([c]);
             return;
         }
-        setSelection([el]);
-        startEdit(el, false);
+        const target = cur && cur.contains(el) && isTextual(cur) ? cur : cur === el ? el : pickable(el);
+        setSelection([target]);
+        if (isTextual(target) || !realKids(target).length) startEdit(target, false);
     }, true);
     document.addEventListener("selectionchange", () => { if (editing) postEditing(); });
     // while typing, keep the editor's copy of the markup (and so the Code panel) current instead of waiting for the edit to finish
@@ -1761,6 +1799,12 @@ export function agentMain() {
         const meta = e.metaKey || e.ctrlKey;
         const k = e.key.toLowerCase();
         if (e.code === "Space") { e.preventDefault(); post({ type: "space", down: true }); return; }
+        if (e.key === "Enter" && !meta && !e.altKey && tool === "move" && sels.length === 1) { // Figma: Enter goes into the box, Shift+Enter back out to what holds it
+            const cur = sels[0];
+            if (e.shiftKey) { const par = cur.parentElement; if (par && par !== document.body && topScope().contains(par) && par !== topScope()) { e.preventDefault(); inside = par.parentElement && par.parentElement !== document.body ? par.parentElement : null; setSelection([par]); } return; }
+            const kid = !isTextual(cur) && realKids(cur).find((c) => getComputedStyle(c).display !== "none");
+            if (kid) { e.preventDefault(); inside = cur; setSelection([kid]); return; }
+        }
         if (meta && k === "g") { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
         if (meta && (e.code === "BracketRight" || e.code === "BracketLeft")) { e.preventDefault(); reorder(e.code === "BracketRight" ? (e.shiftKey ? "front" : "forward") : (e.shiftKey ? "back" : "backward")); return; }
         if (meta && e.shiftKey && k === "l") { e.preventDefault(); toggleLockSelection(); return; }
