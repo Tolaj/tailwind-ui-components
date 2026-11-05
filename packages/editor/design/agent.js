@@ -167,16 +167,15 @@ export function agentMain() {
     }
 
     // the box selected shows what it holds: its children, dashed (the one under the pointer is outlined solid by the hover box)
+    let kidsKey = "";
     function drawKids() {
-        kidLayer.textContent = "";
         const el = sels.length === 1 ? sels[0] : null;
-        if (!el || el === document.body || tool !== "move" || editing || gesture) return;
-        realKids(el).slice(0, 60).forEach((k) => {
-            if (k === hov || getComputedStyle(k).display === "none") return;
-            const r = pageRect(k);
-            if (r.w < 2 || r.h < 2) return;
-            kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed ${BLUE};opacity:.45;box-sizing:border-box;pointer-events:none;`));
-        });
+        const list = !el || el === document.body || tool !== "move" || editing || gesture ? [] : realKids(el).slice(0, 60).filter((k) => k !== hov).map(pageRect).filter((r) => r.w >= 2 && r.h >= 2);
+        const key = list.map((r) => `${r.x},${r.y},${r.w},${r.h}`).join("|"); // redrawn on every pointer move: only rebuilt when something changed
+        if (key === kidsKey) return;
+        kidsKey = key;
+        kidLayer.textContent = "";
+        list.forEach((r) => kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed ${BLUE};opacity:.45;box-sizing:border-box;pointer-events:none;`)));
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
