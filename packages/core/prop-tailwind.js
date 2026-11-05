@@ -112,7 +112,7 @@ export function twValue(prop, raw, scale) {
         return null;
     }
     if (prop === "border-top-width") { const n = v.replace(/px$/, ""); return /^(0|1|2|4|8)$/.test(n) ? n : /^\d+(\.\d+)?(px)?$/.test(v) ? `${n}px` : null; }
-    if (prop === "opacity") { const n = Number(v); return !Number.isFinite(n) ? null : n <= 1 && !scale ? String(Math.round(n * 100)) : String(Math.round(n)); }
+    if (prop === "opacity") { const n = Number(v); return !Number.isFinite(n) ? null : n <= 1 ? String(Math.round(n * 100)) : String(Math.round(n)); } // the panel sends a fraction (0.9), a typed class number is above 1
     if (prop === "grid-template-columns") return /^\d+$/.test(v) || v === "none" ? v : null;
     if (prop === "aspect-ratio") {
         // 16 / 9 -> video, 1 / 1 -> square, any other two whole numbers -> [w/h]

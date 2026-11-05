@@ -15,6 +15,7 @@ const OPEN_AT_START = ["geom", "css-layout", "css-size", "css-spacing", "css-typ
 export const panelStore = createStore({
     tab: "design",
     bp: "",
+    all: false, // the All chip was clicked: edits are plain classes (bp is "" for that and for nothing picked)
     st: "",
     open: new Set(OPEN_AT_START),
     closed: /** @type {Set<string>} */ (new Set()),

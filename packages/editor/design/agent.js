@@ -1388,7 +1388,13 @@ export function agentMain() {
     function onMove(e) {
         const g = gesture;
         if (!g) {
-            if (!editing && tool === "move") { hov = targetOf(e); redraw(); }
+            if (!editing && tool === "move") {
+                hov = targetOf(e);
+                // over the box that is selected: the child under the pointer is outlined (a double-click goes into it)
+                const cur = sels.length === 1 ? sels[0] : null, raw = e.target && e.target.nodeType === 1 && !overlay.contains(e.target) ? e.target : null;
+                if (hov && cur && hov === cur && raw && raw !== cur && cur.contains(raw) && !isTextual(cur) && !e.metaKey && !e.ctrlKey) hov = childOf(cur, raw.closest("svg") || raw);
+                redraw();
+            }
             hoverFrame(!editing && tool === "move" && hov === document.body);
             return;
         }

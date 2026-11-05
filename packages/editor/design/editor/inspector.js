@@ -1,5 +1,5 @@
 import { panelStore, togglePalette, toggleSection } from "../panel-state.js";
-import { BREAKPOINT_WIDTH, setGroup, GROUPS } from "@windcraft/core/class-groups.js";
+import { BREAKPOINT_WIDTH, setGroup, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
 import { renderPanel } from "../panel.js";
 import { inspectorView, variant, val, srcOf, modeFor } from "../panel-model.js";
 import { checkTags } from "../code-view.js";
@@ -71,7 +71,7 @@ const panelActions = {
     setTab: (tab) => panelStore.set({ tab }),
     closePanel: () => setPanel(false),
     // a breakpoint picked: the frame goes to its width, so what is edited is what is seen; All sizes leaves the frame as it is
-    setBreakpoint: (bp) => { panelStore.set({ bp }); if (bp) setDevice(BREAKPOINT_WIDTH[bp]); },
+    setBreakpoint: (bp) => { panelStore.set({ bp, all: bp === "" }); if (bp) setDevice(BREAKPOINT_WIDTH[bp]); },
     // the state picked: classes are written for it, and the selected element shows it on the canvas (its hover look...)
     setState: (st) => { panelStore.set({ st }); send({ cmd: "previewState", state: st }); },
     setText: (text) => { if (S.selected) cmd({ cmd: "setText", path: S.selected.path, text }, "text"); },
@@ -205,6 +205,13 @@ export const pickerClosed = (t) => { liveSession++; t.blur(); };
 /** The variant picked in the panel ("md:hover:"), or "" for none. */
 const picked = () => (panelStore.get().bp || panelStore.get().st ? variant() : "");
 function newVariant() { return picked(); }
+/** "All" clicked on purpose: edits are plain classes for every size, not the md:/xl: class that gives the value at this width. */
+const allPlain = () => Boolean(panelStore.get().all) && !picked();
+/** One value for every size: the breakpoint classes of the group (sm:opacity-50, md:p-6) come off, so the plain one is what shows at every width. States (hover:) stay. */
+const everySize = (classes, group) => (!allPlain() || classes === null ? classes : classes.split(/\s+/).filter((t) => {
+    const v = parseToken(t).variant.split(":").filter(Boolean);
+    return !(v.length && v.every((x) => BREAKPOINT_WIDTH[x] !== undefined) && GROUPS[group].re.test(parseToken(t).base));
+}).join(" "));
 
 /**
  * A property edited in the panel is written where its value comes from: a Tailwind class is replaced (at the same md: / hover:
@@ -218,11 +225,11 @@ export function setProp(prop, raw, cssOverride, key) {
     const onTw = src.source === "tailwind";
     const winning = onTw ? variantOf(src.token) : "";
     // a breakpoint or state picked in the panel is where the edit goes; else the md:/xl: class that gives the value, where it is
-    const vp = picked() || winning;
+    const vp = picked() || (allPlain() ? "" : winning);
     const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, key, ...m }, key);
     if (v === "") {
         // the exact class that gives the value comes off (px-4 for padding-left), at the picked breakpoint / state if one is picked
-        const tok = picked() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
+        const tok = picked() || allPlain() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
         if (tok && tok.token) { const next = s.classes.split(/\s+/).filter((t) => t && t !== tok.token).join(" "); s.classes = next; return send({ route: "tw", classes: next }); }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
@@ -237,7 +244,7 @@ export function setProp(prop, raw, cssOverride, key) {
     // a md: or hover: value can only be a class (a style attribute has no breakpoints or states)
     const toTw = Boolean(picked()) || onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
     if (toTw && token) {
-        const next = setGroup(s.classes, group, tv, vp);
+        const next = everySize(setGroup(s.classes, group, tv, vp), group);
         // kept here at once, so an edit sent right after this one (a line style, then a width) builds on it
         if (next !== null) { s.classes = next; return send({ route: "tw", classes: next, token: vp + token, css }); }
     }
@@ -258,7 +265,7 @@ export function setProps(props, raw, group, clear = [], cssOverride, key) {
     const n = parseFloat(v);
     const css = cssOverride !== undefined ? cssOverride : px ? `${n}px` : CSS.supports(props[0], v) ? v : null;
     const own = srcs.find((x) => x.source === "tailwind");
-    const vp = picked() || (own && variantOf(own.token)) || "";
+    const vp = picked() || (allPlain() ? "" : (own && variantOf(own.token)) || "");
     const fromCss = srcs.some((x) => x.source === "inline" || x.source === "design");
     const tv = group ? (px ? fromPx(group, n) : twValue(props[0], v, false) ?? v) : null;
     let token = null;
@@ -266,7 +273,7 @@ export function setProps(props, raw, group, clear = [], cssOverride, key) {
     if ((!fromCss || picked()) && token && (own || picked() || modeFor(s) === "tailwind")) {
         let classes = s.classes;
         for (const k of clear) { const next = setGroup(classes, k, "", vp); if (next !== null) classes = next; }
-        const next = setGroup(classes, group, tv, vp);
+        const next = everySize(setGroup(classes, group, tv, vp), group);
         if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css, key }, key); }
     }
     cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token, key }, key);
