@@ -31,6 +31,8 @@ const WORDS = {
     "mix-blend-mode": ["mixBlend", same("mix-blend-")],
     "pointer-events": ["pointerEvents", same("pointer-events-")],
     "object-fit": ["objectFit", same("object-")],
+    visibility: ["visibility", pick({ visible: "visible", hidden: "invisible" })],
+    "user-select": ["userSelect", same("select-")],
     "box-shadow": ["shadow", (v) => (/^(sm|md|lg|xl|2xl|inner|none)$/.test(v) ? v : v === "default" || v === "shadow" ? "default" : null)], // the shadow group takes the size, not the class
 };
 
