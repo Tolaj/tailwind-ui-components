@@ -139,6 +139,13 @@ export const GROUPS = {
     mixBlend: E("mix-blend-(?:normal|multiply|screen|overlay|darken|lighten|difference)"),
     rotate: P("rotate", "\\d+", { neg: true }),
     scale: P("scale", "\\d+"),
+    // an outline: its style (outline = solid), width, colour and offset are four classes
+    outlineStyle: E("outline|outline-none|outline-dashed|outline-dotted|outline-double"),
+    outlineW: P("outline", "\\d+|\\[\\d+(?:\\.\\d+)?px\\]", { arb: false }),
+    outlineColor: C("outline"),
+    outlineOffset: P("outline-offset", "\\d+|\\[\\d+(?:\\.\\d+)?px\\]", { arb: false }),
+    flipX: E("-scale-x-100"), // a mirror image: the one scale class that works in Tailwind 3 and 4 alike
+    flipY: E("-scale-y-100"),
     translateX: P("translate-x", `${STEP}|full|\\d+/\\d+`, { neg: true }),
     translateY: P("translate-y", `${STEP}|full|\\d+/\\d+`, { neg: true }),
     // motion and interaction

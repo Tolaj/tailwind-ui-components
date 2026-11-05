@@ -77,9 +77,9 @@ export function agentMain() {
         return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height };
     };
     const rotationOf = (el) => {
-        const t = getComputedStyle(el).transform;
+        const cs = getComputedStyle(el), t = cs.transform;
         const m = t && t.match(/^matrix\(([^)]+)\)/);
-        if (!m) return 0;
+        if (!m) { const r = /^(-?[\d.]+)deg$/.exec(cs.rotate || ""); return r ? Math.round(Number(r[1]) * 10) / 10 : 0; } // Tailwind 4 turns with the rotate property
         const [a, b] = m[1].split(",").map(Number);
         return Math.round(Math.atan2(b, a) * 180 / Math.PI * 10) / 10;
     };
@@ -375,7 +375,14 @@ export function agentMain() {
             if (seq !== propSeq) return;
             const now = sourcesOf(el, props);
             const lost = props.some((p) => { const s = now[p] || {}; return s.source === "design" || s.source === "inline" || (s.source === "tailwind" && s.token !== m.token); });
-            if (!lost) return;
+            if (!lost) {
+                // a size typed in px that the class does not give (the design's theme has another scale: rounded-lg is 24px here): the same value as an arbitrary one
+                if (m.alt && /^-?[\d.]+px$/.test(m.css || "") && /^(?:border-.*-radius|padding-|margin-|font-size|line-height|letter-spacing|(?:row-|column-)?gap|border-.*-width)/.test(props[0])) {
+                    const want = parseFloat(m.css), got = parseFloat(getComputedStyle(el).getPropertyValue(props[0]));
+                    if (Number.isFinite(got) && Math.abs(got - want) > 0.6) { el.setAttribute("class", m.alt.classes); await settle([m.alt.token]); }
+                }
+                return;
+            }
             if (prevClass === null) el.removeAttribute("class"); else el.setAttribute("class", prevClass);
             if (prevStyle === null) el.removeAttribute("style"); else el.setAttribute("style", prevStyle);
             if (!css) {
@@ -496,6 +503,7 @@ export function agentMain() {
             tagOptions: tagOptions(el),
             added: made.has(el),
             count: sels.length,
+            others: sels.length > 1 && el === primary() ? sels.filter((o) => o !== el).map(pathOf) : [], // the rest of a multiple selection: a class change goes to all of them
             outer: el.outerHTML.slice(0, 20000),
         };
     };
@@ -1353,7 +1361,7 @@ export function agentMain() {
             gesture = { type: "radius", el, corner: hd.slice(4), c: { x: br.x + br.w / 2, y: br.y + br.h / 2 }, rot: g.rot, w: el.offsetWidth || br.w, h: el.offsetHeight || br.h, prev: el.style.borderRadius, r: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, sx: e.clientX, sy: e.clientY, moved: false };
         } else if (hd.startsWith("rot")) {
             const cx = br.x + br.w / 2, cy = br.y + br.h / 2;
-            gesture = { type: "rotate", el, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
+            gesture = { type: "rotate", el, prevTransform: el.style.transform, cx, cy, a0: Math.atan2(e.clientY + window.scrollY - cy, e.clientX + window.scrollX - cx) * 180 / Math.PI, start: g.rot, moved: false };
         } else {
             const cs0 = getComputedStyle(el);
             const ar = cs0.aspectRatio;
@@ -1431,6 +1439,12 @@ export function agentMain() {
             if (!g.el.getAttribute("style")) g.el.removeAttribute("style");
             redraw();
             return post({ type: "radius", path: pathOf(g.el), value: g.r });
+        }
+        if (g.type === "rotate") { // the turn becomes a class (rotate-45, rotate-[15deg]); the inline transform it used while turning goes
+            if (g.prevTransform) g.el.style.transform = g.prevTransform; else g.el.style.removeProperty("transform");
+            if (!g.el.getAttribute("style")) g.el.removeAttribute("style");
+            redraw();
+            return g.moved && g.deg !== undefined ? post({ type: "rotate", path: pathOf(g.el), value: g.deg }) : undefined;
         }
         if (g.type === "draw") return finishDraw(g, e);
         if (g.type === "marquee") {
@@ -2025,6 +2039,22 @@ export function agentMain() {
             const pre = sourcesOf(el, FREE_PROPS);
             freePosition(el, true);
             askConvert([gestureItem(el, pre, FREE_PROPS)]);
+            return;
+        }
+        if (m.cmd === "groupOn") { // one class change (a group's class at a breakpoint / state) on every element of a multiple selection
+            (m.paths || []).forEach((pa) => {
+                const el = elAt(pa);
+                if (!el) return;
+                let kept = (el.getAttribute("class") || "").split(/\s+/).filter(Boolean);
+                (m.ops || []).forEach((op) => {
+                    const re = new RegExp(op.re);
+                    kept = kept.filter((t) => { const i = t.lastIndexOf(":"); return !(t.slice(0, i + 1) === m.vp && re.test(t.slice(i + 1))); });
+                    if (op.token) kept.push(m.vp + op.token);
+                });
+                if (kept.length) el.setAttribute("class", kept.join(" ")); else el.removeAttribute("class");
+            });
+            changed(false, m.key);
+            if (primary() && alive(primary())) post({ type: "selected", info: describe(primary()) });
             return;
         }
         if (m.cmd === "autoLayout") { autoLayout(); return; }

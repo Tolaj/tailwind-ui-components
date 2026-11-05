@@ -183,7 +183,7 @@ export function BorderSection({ s, actions }) {
         : actions.setProps(corners, "0", "radius"));
     const add = (kind) => {
         if (kind === "border") addBorder();
-        if (kind === "outline") actions.setProp("outline", "2px solid #3b82f6");
+        if (kind === "outline") actions.setProp("outline", "2px solid blue-500");
         if (kind === "ring") actions.applyValue("ring", "2");
     };
     const items = [!on && ["border", "Border (1px)"], !outline && ["outline", "Outline"], !ring && ["ring", "Ring"]].filter(Boolean);
@@ -208,7 +208,7 @@ export function BorderSection({ s, actions }) {
             ${(sides || mixedW) && html`<div class="frow two2">${SIDES.map((d, i) => html`<${NumField} label=${["T", "R", "B", "L"][i]} title=${`border-${d}-width`} value=${num(comp(s, `border-${d}-width`))}
                 set=${has(s, `border-${d}-width`)} src=${srcKind(s, `border-${d}-width`)} onReset=${resetAll(s, actions, [`border-${d}-width`])} onCommit=${(t) => actions.setProps([`border-${d}-width`], t, ["borderT", "borderR", "borderB", "borderL"][i])} />`)}</div>`}`}
         ${outline && html`<${Sub}>Outline</${Sub}><div class="frow"><${PropField} s=${s} actions=${actions} p="outline" label="Outline" title="outline (width style colour)" />
-            <${Remove} title="Remove the outline" onClick=${() => (owns(s, "outline") ? actions.resetProp("outline") : actions.setProp("outline", "none"))} /></div>
+            <${Remove} title="Remove the outline" onClick=${() => (val(s, "outlineStyle") || val(s, "outlineW") || val(s, "outlineColor") ? actions.setProp("outline", "none") : owns(s, "outline") ? actions.resetProp("outline") : actions.setProp("outline", "none"))} /></div>
             <div class="frow"><${PropField} s=${s} actions=${actions} p="outline-offset" label="Offset" title="Gap between the element and its outline" /></div>`}
         ${ring && html`<${Sub}>Ring</${Sub}><div class="frow"><${TwField} s=${s} k="ring" label="Ring" title="A ring around the element (ring-*)" actions=${actions} />
             <${Remove} title="Remove the ring" onClick=${() => { actions.applyValue("ring", ""); actions.applyValue("ringColor", ""); }} /></div>

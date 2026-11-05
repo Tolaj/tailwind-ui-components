@@ -8,7 +8,7 @@ import { FLOAT_ACTIONS, ftb, renderFloat, renderSel } from "./frame-handles.js";
 import { handleKey, keyZoom, setSpace, setTool } from "./toolbar.js";
 import { applyView, fitTo, handleWheel, layout, positions, view } from "./plane.js";
 import { commit, updateChrome } from "./docs.js";
-import { convertGesture, renderInspector } from "./inspector.js";
+import { convertGesture, renderInspector, setRotation } from "./inspector.js";
 import { updateCodeHighlight } from "./code-panel.js";
 
 let pendingKey = "";
@@ -134,6 +134,9 @@ export function init() {
             renderLayers();
             renderInspector();
             renderFloat();
+        } else if (m.type === "rotate") {
+            // the rotate handle was let go: the angle is written like the panel's rotation field does
+            if (S.selected && pathKey(S.selected.path) === pathKey(m.path)) setRotation(m.value);
         } else if (m.type === "radius") {
             // a corner dot was dragged: apply the radius the same way the toolbar does (class in Tailwind mode, style otherwise)
             if (S.selected && pathKey(S.selected.path) === pathKey(m.path)) FLOAT_ACTIONS.radius(m.value);
@@ -164,7 +167,11 @@ export function init() {
         } else if (m.type === "selected") {
             // the same element reporting again (after an edit) keeps its open menu; a different one starts fresh
             const newSelection = !(S.selected && m.info && pathKey(S.selected.path) === pathKey(m.info.path));
-            if (newSelection) { S.ftMenu = false; S.ftPop = null; S.ftSides = {}; }
+            if (newSelection) {
+                S.ftMenu = false; S.ftPop = null; S.ftSides = {};
+                // a state (Hover, Focus...) belongs to the element it was picked for: the next one starts at its normal look. The screen size stays (it is the frame's).
+                if (panelStore.get().st) { panelStore.set({ st: "" }); send({ cmd: "previewState", state: "" }); }
+            }
             S.selected = m.info;
             S.frameSel = null;
             updateCodeHighlight(newSelection); // find it in the code, and scroll there when it is a different element

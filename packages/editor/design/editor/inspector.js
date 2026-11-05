@@ -1,5 +1,5 @@
 import { panelStore, togglePalette, toggleSection } from "../panel-state.js";
-import { BREAKPOINT_WIDTH, setGroup, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
+import { BREAKPOINT_WIDTH, setGroup, getGroup, GROUPS, parseToken } from "@windcraft/core/class-groups.js";
 import { renderPanel } from "../panel.js";
 import { inspectorView, variant, val, srcOf, modeFor } from "../panel-model.js";
 import { checkTags } from "../code-view.js";
@@ -76,6 +76,7 @@ const panelActions = {
     setState: (st) => { panelStore.set({ st }); send({ cmd: "previewState", state: st }); },
     setText: (text) => { if (S.selected) cmd({ cmd: "setText", path: S.selected.path, text }, "text"); },
     // position and layout (figma-sections.js)
+    setRotation: (deg) => setRotation(deg),
     setGeom: (key, text) => {
         if (!S.selected) return;
         const n = Number(text);
@@ -183,6 +184,7 @@ function applyValue(key, value, undoKey = "") {
     if (next === null) return renderInspector();
     if (next === S.selected.classes) return; // nothing to change (a class it doesn't have, taken off): no empty undo step
     S.selected.classes = next;
+    if (onAll([key], next, variant(), undoKey)) return;
     cmd({ cmd: "setClasses", path: S.selected.path, value: next }, undoKey);
 }
 
@@ -205,6 +207,28 @@ export const pickerClosed = (t) => { liveSession++; t.blur(); };
 /** The variant picked in the panel ("md:hover:"), or "" for none. */
 const picked = () => (panelStore.get().bp || panelStore.get().st ? variant() : "");
 function newVariant() { return picked(); }
+/**
+ * A multiple selection: the same class change goes to every element selected, in one undo step. `groups` are the class groups the
+ * edit touched and `next` the primary element's classes after it (where the new class is read from). True when it handled the edit.
+ */
+function onAll(groups, next, vp, key) {
+    const s = S.selected;
+    if (!s || !s.others || !s.others.length || next === null) return false;
+    const ops = groups.filter((g) => GROUPS[g]).map((g) => { const r = getGroup(next, g, vp); return { re: GROUPS[g].re.source, token: r ? parseToken(r.token).base : "" }; });
+    cmd({ cmd: "groupOn", paths: [s.path, ...s.others], ops, vp, key }, key);
+    return true;
+}
+/** The same edit written with an arbitrary value (rounded-[8px]), for when the design's theme gives the scale class another size. */
+function altFor(classes, group, css, vp, clear = []) {
+    const m = /^(-?\d*\.?\d+)px$/.exec(css || "");
+    if (!m || !GROUPS[group]) return null;
+    const tv = `[${Number(m[1])}px]`, built = GROUPS[group].build(tv);
+    if (!GROUPS[group].re.test(built)) return null;
+    let c = classes;
+    for (const k of clear) { const n = setGroup(c, k, "", vp); if (n !== null) c = n; }
+    const next = setGroup(c, group, tv, vp);
+    return next === null ? null : { classes: everySize(next, group), token: vp + built };
+}
 /** "All" clicked on purpose: edits are plain classes for every size, not the md:/xl: class that gives the value at this width. */
 const allPlain = () => Boolean(panelStore.get().all) && !picked();
 /** One value for every size: the breakpoint classes of the group (sm:opacity-50, md:p-6) come off, so the plain one is what shows at every width. States (hover:) stay. */
@@ -218,8 +242,37 @@ const everySize = (classes, group) => (!allPlain() || classes === null ? classes
  * variant), an inline style or the design's own CSS gets an inline style. A property nothing sets yet becomes a Tailwind class,
  * unless the element is styled only by its design's CSS. The frame checks the result and falls back to CSS when a class can't win.
  */
+/**
+ * The outline shorthand ("2px solid blue-500", "3px dashed #f00", "none") as the classes that make it on a Tailwind element:
+ * outline (style), outline-2 (width), outline-blue-500 (colour). Returns false when the value is not one it can read.
+ */
+function setOutline(v, key) {
+    const s = S.selected, vp = picked();
+    let classes = s.classes;
+    const put = (g, tv) => { const n = setGroup(classes, g, tv, vp); if (n !== null) classes = n; };
+    if (v === "" || v === "none") { ["outlineStyle", "outlineW", "outlineColor"].forEach((g) => put(g, "")); }
+    else {
+        let width = null, style = "solid", color = null;
+        for (const t of v.replace(/\s*,\s*/g, ",").match(/(?:rgba?|hsla?)\([^)]*\)|\S+/g) || []) {
+            if (/^\d*\.?\d+(px)?$/.test(t)) width = parseFloat(t);
+            else if (/^(solid|dashed|dotted|double)$/.test(t)) style = t;
+            else color = t;
+        }
+        if (width === null && !color && style === "solid" && !/solid/.test(v)) return false;
+        const wv = width === null ? "2" : [0, 1, 2, 4, 8].includes(width) ? String(width) : `[${width}px]`;
+        put("outlineStyle", style === "solid" ? "outline" : `outline-${style}`);
+        put("outlineW", wv);
+        if (color) put("outlineColor", /^(#|rgb|hsl)/.test(color) ? color : color);
+    }
+    if (classes === s.classes) return true;
+    s.classes = classes;
+    cmd({ cmd: "setClasses", path: s.path, value: classes }, key);
+    return true;
+}
+
 export function setProp(prop, raw, cssOverride, key) {
     if (!S.selected) return;
+    if (prop === "outline" && modeFor(S.selected) === "tailwind" && setOutline(String(raw ?? "").trim(), key)) return;
     const s = S.selected, src = srcOf(s, prop), v = String(raw ?? "").trim();
     const group = groupOf(prop);
     const onTw = src.source === "tailwind";
@@ -230,7 +283,7 @@ export function setProp(prop, raw, cssOverride, key) {
     if (v === "") {
         // the exact class that gives the value comes off (px-4 for padding-left), at the picked breakpoint / state if one is picked
         const tok = picked() || allPlain() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
-        if (tok && tok.token) { const next = s.classes.split(/\s+/).filter((t) => t && t !== tok.token).join(" "); s.classes = next; return send({ route: "tw", classes: next }); }
+        if (tok && tok.token) { const next = s.classes.split(/\s+/).filter((t) => t && t !== tok.token).join(" "); s.classes = next; if (group && onAll([group], next, vp, key)) return; return send({ route: "tw", classes: next }); }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();
     }
@@ -245,8 +298,9 @@ export function setProp(prop, raw, cssOverride, key) {
     const toTw = Boolean(picked()) || onTw || src.source === "tie" || (src.source !== "inline" && src.source !== "design" && modeFor(s) === "tailwind");
     if (toTw && token) {
         const next = everySize(setGroup(s.classes, group, tv, vp), group);
+        const alt = /\[/.test(token) ? null : altFor(s.classes, group, css, vp);
         // kept here at once, so an edit sent right after this one (a line style, then a width) builds on it
-        if (next !== null) { s.classes = next; return send({ route: "tw", classes: next, token: vp + token, css }); }
+        if (next !== null) { s.classes = next; if (onAll([group], next, vp, key)) return; return send({ route: "tw", classes: next, token: vp + token, css, alt }); }
     }
     if (css === null && !token) return renderInspector(); // neither valid CSS nor a Tailwind value: put the old value back
     send({ route: "css", css, token }); // a Tailwind value on a CSS row (red-500): the frame measures what it means
@@ -274,7 +328,8 @@ export function setProps(props, raw, group, clear = [], cssOverride, key) {
         let classes = s.classes;
         for (const k of clear) { const next = setGroup(classes, k, "", vp); if (next !== null) classes = next; }
         const next = everySize(setGroup(classes, group, tv, vp), group);
-        if (next !== null) { s.classes = next; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css, key }, key); }
+        const alt = /\[/.test(token) ? null : altFor(s.classes, group, css, vp, clear);
+        if (next !== null) { s.classes = next; if (onAll([...clear, group], next, vp, key)) return; return cmd({ cmd: "setProp", path: s.path, props, route: "tw", classes: next, token: vp + token, css, alt, key }, key); }
     }
     cmd({ cmd: "setProp", path: s.path, props, route: "css", css, token, key }, key);
 }
@@ -360,6 +415,14 @@ function arrange(kind) {
     // a grid's columns get the spacing as gap-x; down the columns the children's own margins still space them (gap-y)
     if (kind === "grid") { set("gap", ""); set("gapX", a.rowGap ? fromPx("gapX", a.rowGap) : ""); set("gapY", a.colGap ? fromPx("gapY", a.colGap) : ""); } else set("gap", gap ? fromPx("gap", gap) : "");
     setClassString(c);
+}
+
+/** The turn of the selected element, in degrees: a class (rotate-45, rotate-[15deg]) where it is Tailwind's, a rotate style otherwise; 0 takes it off. */
+export function setRotation(deg) {
+    if (!S.selected) return;
+    const n = Math.round(Number(deg) * 10) / 10;
+    if (!Number.isFinite(n)) return renderInspector();
+    setProp("rotate", n % 360 === 0 ? "" : `${n}deg`);
 }
 
 export function setDevice(w) {

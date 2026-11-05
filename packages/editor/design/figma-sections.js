@@ -4,7 +4,7 @@
 // the value comes from (setProp in editor/inspector.js):
 //   setProp · setProps · resetProp · setGeom · freePosition · align · arrange · group · ungroup · autoLayout · sizeItMyself
 import { html, useState } from "../vendor/preact-htm.js";
-import { srcOf, shownOf, ownsValue, styled, val, variant, PRESETS, OPTS } from "./panel-model.js";
+import { srcOf, shownOf, ownsValue, styled, val, variant, modeFor, PRESETS, OPTS } from "./panel-model.js";
 import { parseToken } from "@windcraft/core/class-groups.js";
 import { tokenFor } from "@windcraft/core/prop-tailwind.js";
 import { useUi } from "./panel-state.js";
@@ -156,8 +156,11 @@ export function PositionSection({ s, actions }) {
     const g = s.geom || {}, abs = Boolean(g.abs), count = s.count || 1, plan = alignPlan(s);
     const btn = (axis, where, icon, title) => html`<${IconBtn} icon=${icon} title=${plan[axis] ? title : `${title} (set by the parent's layout)`} faint=${!plan[axis]}
         on=${alignNow(s, axis) === where} onClick=${() => alignTo(s, actions, axis, where)} />`;
-    const flipped = (i) => { const v = comp(s, "scale").split(/\s+/); return parseFloat(v[i] ?? v[0]) < 0; };
+    const FLIP = ["flipX", "flipY"];
+    const flipped = (i) => { if (val(s, FLIP[i])) return true; const v = comp(s, "scale").split(/\s+/); return parseFloat(v[i] ?? v[0]) < 0; };
     const flip = (i) => {
+        // a Tailwind element is mirrored with -scale-x-100 / -scale-y-100; a CSS one with the scale property
+        if (modeFor(s) === "tailwind" || val(s, FLIP[i])) return actions.applyValue(FLIP[i], val(s, FLIP[i]) ? "" : i ? "-scale-y-100" : "-scale-x-100");
         const v = comp(s, "scale"), parts = v && v !== "none" ? v.split(/\s+/).map(Number) : [1, 1];
         const xy = [parts[0] ?? 1, parts[1] ?? parts[0] ?? 1];
         xy[i] = -xy[i];
@@ -185,9 +188,9 @@ export function PositionSection({ s, actions }) {
                 <${PropField} s=${s} actions=${actions} p="right" label="R" title="right" list="dl-right" /><${PropField} s=${s} actions=${actions} p="bottom" label="B" title="bottom" list="dl-bottom" /></div>`}
         <${Sub}>Rotation</${Sub}>
         <div class="frow">
-            <${NumField} label="∠" value=${String(rot)} set=${rot !== 0} title="Rotation in degrees" onCommit=${(t) => actions.setGeom("rot", t)}><span class="nfu">°</span></${NumField}>
+            <${NumField} label="∠" value=${String(rot)} set=${rot !== 0} title="Rotation in degrees" onCommit=${(t) => actions.setRotation(t)}><span class="nfu">°</span></${NumField}>
             <div class="ibg">
-                <${IconBtn} icon=${I.rot90} title="Rotate 90°" onClick=${() => actions.setGeom("rot", String((rot + 90) % 360))} />
+                <${IconBtn} icon=${I.rot90} title="Rotate 90°" onClick=${() => actions.setRotation((rot + 90) % 360)} />
                 <${IconBtn} icon=${I.flipH} title="Flip horizontally" on=${flipped(0)} onClick=${() => flip(0)} />
                 <${IconBtn} icon=${I.flipV} title="Flip vertically" on=${flipped(1)} onClick=${() => flip(1)} />
             </div>

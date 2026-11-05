@@ -88,6 +88,8 @@ export function groupOf(prop) {
     if (COLORS[prop]) return COLORS[prop];
     if (prop === "border-top-width") return "borderWidth";
     if (prop === "opacity") return "opacity";
+    if (prop === "rotate") return "rotate";
+    if (prop === "outline-offset") return "outlineOffset";
     if (prop === "grid-template-columns") return "gridCols";
     if (prop === "aspect-ratio") return "aspect";
     return null;
@@ -100,6 +102,14 @@ export function groupOf(prop) {
 export function twValue(prop, raw, scale) {
     const v = String(raw).trim();
     if (!v) return null;
+    if (prop === "outline-offset") { // Tailwind's steps are classes (outline-offset-2), any other size an arbitrary value
+        const m = /^(\d*\.?\d+)(px)?$/.exec(v);
+        return !m ? null : [0, 1, 2, 4, 8].includes(Number(m[1])) ? String(Number(m[1])) : `[${Number(m[1])}px]`;
+    }
+    if (prop === "rotate") { // degrees: Tailwind's own steps are classes (rotate-45), any other angle an arbitrary value (rotate-[15deg])
+        const m = /^(-?\d*\.?\d+)(deg)?$/.exec(v);
+        return !m ? null : [0, 1, 2, 3, 6, 12, 45, 90, 180].includes(Math.abs(Number(m[1]))) ? String(Number(m[1])) : `${Number(m[1])}deg`;
+    }
     if (WORDS[prop]) return WORDS[prop][1](v);
     if (LENGTHS[prop]) {
         if (LENGTH_WORDS.test(v) || /^\[.*\]$/.test(v)) return v;
