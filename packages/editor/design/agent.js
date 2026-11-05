@@ -572,12 +572,16 @@ export function agentMain() {
      *  picks at that level (the box selected, or the one gone into, and what sits beside it). Cmd/Ctrl-click picks the deepest. */
     function pickable(t) {
         if (!t || t === document.body) return t;
+        const sv = t.closest && t.closest("svg"); // an icon or chart is one thing: its paths are never picked on their own
+        if (sv && sv !== t) t = sv;
         const top = topScope();
+        if (t === top || !top.contains(t)) return t === top ? document.body : t; // the page's own wrapper is the page: nothing there to pick
+        // from the selection outwards, the first box that holds `t` is the level: what is picked is that box's child under the pointer
+        // (so the cards beside a selected card, or the sections around it, can each be picked with one click)
         const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
-        const scope = inside || (cur && cur !== document.body && cur.parentElement && top.contains(cur.parentElement) ? cur.parentElement : top);
-        let from = scope.contains(t) ? scope : top;
-        if (!from.contains(t)) return t;
-        if (t === from) return t;
+        let from = top;
+        if (inside && inside !== t && inside.contains(t) && top.contains(inside)) from = inside;
+        else if (cur && cur !== document.body && top.contains(cur)) for (let a = cur.parentElement; a && top.contains(a); a = a.parentElement) if (a.contains(t) && a !== t) { from = a; break; }
         while (t.parentElement && t.parentElement !== from) t = t.parentElement;
         return t;
     }
@@ -1724,21 +1728,25 @@ export function agentMain() {
     document.addEventListener("mouseleave", dropHover);
 
     const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
+    /** Has words of its own (not only elements): a double-click edits it, rather than going into what is in it. */
+    const isTextual = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    /** The child of `box` that holds `el`. */
+    const childOf = (box, el) => { let c = el; while (c.parentElement && c.parentElement !== box) c = c.parentElement; return c; };
     document.addEventListener("dblclick", (e) => {
         e.preventDefault();
         const el = hitAt(e.clientX, e.clientY);
-        if (el === document.body || tool !== "move") return;
-        const cur = sels.length === 1 ? sels[0] : null;
-        // into the selected box: the one of its children under the pointer is picked (and what sits beside it can be picked next)
-        if (cur && cur !== el && cur.contains(el)) {
-            let c = el;
-            while (c.parentElement && c.parentElement !== cur) c = c.parentElement;
+        if (el === document.body || tool !== "move" || isLocked(el)) return;
+        const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
+        if (cur && cur !== el && cur.contains(el) && !(el.closest("svg") === cur) && !isTextual(cur)) {
+            // into the selected box: the one of its children under the pointer is picked (and what sits beside it can be picked next)
+            const c = childOf(cur, el.closest("svg") || el);
             inside = cur;
             setSelection([c]);
             return;
         }
-        setSelection([el]);
-        startEdit(el, false);
+        const target = cur && cur.contains(el) && isTextual(cur) ? cur : cur === el ? el : pickable(el);
+        setSelection([target]);
+        if (isTextual(target) || !realKids(target).length) startEdit(target, false);
     }, true);
     document.addEventListener("selectionchange", () => { if (editing) postEditing(); });
     // while typing, keep the editor's copy of the markup (and so the Code panel) current instead of waiting for the edit to finish
@@ -2027,6 +2035,12 @@ export function agentMain() {
         const meta = e.metaKey || e.ctrlKey;
         const k = e.key.toLowerCase();
         if (e.code === "Space") { e.preventDefault(); post({ type: "space", down: true }); return; }
+        if (e.key === "Enter" && !meta && !e.altKey && tool === "move" && sels.length === 1) { // Figma: Enter goes into the box, Shift+Enter back out to what holds it
+            const cur = sels[0];
+            if (e.shiftKey) { const par = cur.parentElement; if (par && par !== document.body && topScope().contains(par) && par !== topScope()) { e.preventDefault(); inside = par.parentElement && par.parentElement !== document.body ? par.parentElement : null; setSelection([par]); } return; }
+            const kid = !isTextual(cur) && realKids(cur).find((c) => getComputedStyle(c).display !== "none");
+            if (kid) { e.preventDefault(); inside = cur; setSelection([kid]); return; }
+        }
         if (meta && k === "g") { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
         if (meta && (e.code === "BracketRight" || e.code === "BracketLeft")) { e.preventDefault(); reorder(e.code === "BracketRight" ? (e.shiftKey ? "front" : "forward") : (e.shiftKey ? "back" : "backward")); return; }
         if (meta && e.shiftKey && k === "l") { e.preventDefault(); toggleLockSelection(); return; }
