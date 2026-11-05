@@ -1,6 +1,7 @@
 import { $, send } from "./base.js";
-import { fitLayouts } from "@windcraft/core/layout-infer.js";
+import { fitLayouts, judgeLayouts } from "@windcraft/core/layout-infer.js";
 import { step } from "./docs.js";
+import { curWidth } from "./plane.js";
 
 // ── "These line up": offer the layout ─────────────────────────────────────────────────────────────────────────────────
 // After an absolutely placed element is dropped among others, the frame sends where they all are (agent.js layoutHint). If a row,
@@ -40,6 +41,7 @@ export function describeLayout(L) {
 
 /** `m`: { container, box, kids: [{ path, x, y, w, h }] } from the frame. */
 export function suggestLayout(m) {
+    if (m.flow === "probe") return probe(m);
     hide();
     if (m.flow) return restructure(m);
     const best = fitLayouts(m.box, m.kids, { tol: 1.5, drag: 24 })[0];
@@ -66,15 +68,27 @@ export function suggestLayout(m) {
 // where it was let go, those that are not the box's present layout are the ways to read the drop; the cheapest is applied, the
 // others are one click away, and Undo goes back to the exact position. None fits: the drop stays an exact offset.
 const KIND = { "flex row": "row", "flex column": "col", grid: "grid" };
-function restructure(m) {
+function readings(m) {
     const now = KIND[m.current];
     const seen = new Set();
+    const fits = fitLayouts(m.box, m.kids, { tol: 1.5, drag: 40 }).filter((c) => (c.outlier === null || c.outlier === m.moved) && c.kind !== now);
+    // among the readings of the drop, those that keep it true on more of the devices come first, then the cheapest
     // a drop is imprecise: the cleanest structure within reach wins over one that happens to match the exact pixels (an uneven gap)
-    const options = fitLayouts(m.box, m.kids, { tol: 1.5, drag: 40 })
-        .filter((c) => (c.outlier === null || c.outlier === m.moved) && c.kind !== now)
-        .sort((p, q) => p.cost - q.cost || p.err - q.err)
+    return judgeLayouts(fits, m.box, m.kids, { frameW: curWidth() })
+        .sort((p, q) => q.survives - p.survives || p.cost - q.cost || p.err - q.err)
         .filter((c) => { const k = `${c.kind}${c.cols || ""}${c.fit ? "f" : ""}${c.justify}${c.items}`; if (seen.has(k)) return false; seen.add(k); return true; })
         .slice(0, 3);
+}
+/** While the child is still being dragged: the box where the best reading would put it (or nothing, if none fits). */
+function probe(m) {
+    const best = readings(m)[0];
+    const k = m.kids[m.moved];
+    if (!best) return send({ cmd: "probeGhost", box: null });
+    const at = best.outlier === null ? k : best.snap;
+    send({ cmd: "probeGhost", box: { x: at.x, y: at.y, w: k.w, h: k.h }, label: describeLayout(best) });
+}
+function restructure(m) {
+    const options = readings(m);
     if (!options.length) { send({ cmd: "keepOffset" }); return; }
     const apply = (L) => send({ cmd: "applyLayout", container: m.container, kids: m.kids.map((k) => k.path), layout: L, flow: true });
     apply(options[0]);
@@ -85,7 +99,7 @@ function showApplied(m, options, at, apply) {
     if (scope) scope.style.display = "none";
     const el = ensureBar();
     const alts = options.map((o, i) => i === at ? "" : `<button type="button" data-alt="${i}" class="rounded-full bg-neutral-700 px-2.5 py-1 hover:bg-neutral-600">${describeLayout(o)}</button>`).join("");
-    el.innerHTML = `<span class="text-neutral-300">Made it</span><span class="font-medium">${describeLayout(options[at])}</span>${alts ? `<span class="text-neutral-400">or</span>${alts}` : ""}` +
+    el.innerHTML = `<span class="text-neutral-300">Made it</span><span class="font-medium">${describeLayout(options[at])}</span><span class="text-neutral-400">holds from ${options[at].need}px</span>${alts ? `<span class="text-neutral-400">or</span>${alts}` : ""}` +
         `<button type="button" data-undo class="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-900">Keep exact position</button>`;
     el.style.display = "flex";
     el.querySelectorAll("[data-alt]").forEach((b) => b.addEventListener("click", () => { const i = Number(b.dataset.alt); apply(options[i]); showApplied(m, options, i, apply); }));

@@ -21,7 +21,8 @@ export function agentMain() {
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
     const gapLayer = mk("position:absolute;left:0;top:0;");
-    overlay.append(hoverBox, gapLayer, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    const kidLayer = mk("position:absolute;left:0;top:0;");
+    overlay.append(kidLayer, hoverBox, gapLayer, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -164,6 +165,19 @@ export function agentMain() {
         if (data !== lastOverlay) { lastOverlay = data; post({ type: "overlay", items, handles, label, bbox, at }); }
         place(hoverBox, tool === "move" && hov && hov !== document.body && !sels.includes(hov) ? hov : null); // not the page itself
         drawGapHandles();
+        drawKids();
+    }
+    // the box selected shows what it holds: its children, dashed (the one under the pointer is outlined solid by the hover box)
+    function drawKids() {
+        kidLayer.textContent = "";
+        const el = sels.length === 1 ? sels[0] : null;
+        if (!el || el === document.body || tool !== "move" || editing || gesture) return;
+        realKids(el).slice(0, 60).forEach((k) => {
+            if (k === hov || getComputedStyle(k).display === "none") return;
+            const r = pageRect(k);
+            if (r.w < 2 || r.h < 2) return;
+            kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed ${BLUE};opacity:.45;box-sizing:border-box;pointer-events:none;`));
+        });
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -536,6 +550,7 @@ export function agentMain() {
         if (t && t.nodeType !== 1) t = t.parentElement;
         if (!t || overlay.contains(t) || t === root) return document.body;
         while (t && t !== document.body && isLocked(t)) t = t.parentElement;
+        if (e.metaKey || e.ctrlKey) return t || document.body; // Cmd/Ctrl: the deepest, whatever the level
         return pickable(t || document.body);
     };
     // ── Groups ── A group (Ctrl+G) is a box made around a few elements, marked data-wc-group so it is saved with the design. On the page
@@ -545,12 +560,25 @@ export function agentMain() {
     const groupAround = (el) => (el && el.parentElement ? el.parentElement.closest("[data-wc-group]") : null);
     /** May `el` be put inside `parent`? Only within the group it is in, if it is in one. */
     const staysInGroup = (el, parent) => { const gp = groupAround(el); return !gp || (!!parent && gp.contains(parent)); };
-    /** What a click on `t` picks: the outermost group around it that has not been gone into, or else `t` itself. */
+    /** The elements of the design inside `el` that can be picked (not the editor's own overlay, scripts or styles). */
+    const realKids = (el) => [...el.children].filter((c) => c !== overlay && !/^(script|style|link|meta)$/i.test(c.tagName));
+    /** Where a click starts picking: the body, or what is inside it when the page is one wrapper in a wrapper (a click would only ever pick the wrapper). */
+    function topScope() {
+        let c = document.body;
+        for (let k = 0; k < 6; k++) { const kids = realKids(c); if (kids.length !== 1 || !realKids(kids[0]).length) break; c = kids[0]; }
+        return c;
+    }
+    /** What a click on `t` picks, as in Figma: the top level of the design first, a double-click goes one level in, and from there a click
+     *  picks at that level (the box selected, or the one gone into, and what sits beside it). Cmd/Ctrl-click picks the deepest. */
     function pickable(t) {
         if (!t || t === document.body) return t;
-        const chain = [];
-        for (let p = t; p && p !== document.body; p = p.parentElement) if (p.hasAttribute && p.hasAttribute("data-wc-group")) chain.unshift(p);
-        for (const gp of chain) if (!(inside && gp.contains(inside))) return gp;
+        const top = topScope();
+        const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
+        const scope = inside || (cur && cur !== document.body && cur.parentElement && top.contains(cur.parentElement) ? cur.parentElement : top);
+        let from = scope.contains(t) ? scope : top;
+        if (!from.contains(t)) return t;
+        if (t === from) return t;
+        while (t.parentElement && t.parentElement !== from) t = t.parentElement;
         return t;
     }
     const containerAt = (x, y) => {
@@ -940,6 +968,26 @@ export function agentMain() {
         flowPending = { items, el: g.el, timer: setTimeout(keepOffset, 800) };
         post({ type: "layoutHint", flow: true, moved: i, current: layoutOf(par), container: pathOf(par), box: laneOf(par, null).box, kids: kids.map((k) => ({ path: pathOf(k), ...pageRect(k) })) });
         return true;
+    }
+    // While a child is dragged freely in a row, column or grid: where the structure the drop would be read as puts it, asked of the host a
+    // few times a second and drawn as a box (the drop box) with a short name for the structure.
+    let probeAt = 0;
+    function probeFlow(g) {
+        const now = Date.now();
+        if (now - probeAt < 90) return;
+        probeAt = now;
+        const par = g.el.parentElement;
+        if (!par || !/flex|grid/.test(getComputedStyle(par).display)) return;
+        const kids = kidsOf(par, null).filter(inFlow), i = kids.indexOf(g.el);
+        if (i < 0 || kids.length < 2 || kids.length > 12) return;
+        post({ type: "layoutHint", flow: "probe", moved: i, current: layoutOf(par), container: pathOf(par), box: laneOf(par, null).box, kids: kids.map((k) => ({ path: pathOf(k), ...pageRect(k) })) });
+    }
+    function showProbe(m) {
+        const g = gesture;
+        if (!m.box || !g || g.type !== "reorder" || !g.free) { dropBox.style.display = "none"; dropHint.style.display = "none"; return; }
+        Object.assign(dropBox.style, { display: "block", left: `${m.box.x}px`, top: `${m.box.y}px`, width: `${m.box.w}px`, height: `${m.box.h}px`, borderRadius: "6px", opacity: "1" });
+        dropHint.textContent = m.label;
+        Object.assign(dropHint.style, { display: "block", left: `${m.box.x + m.box.w + 8}px`, top: `${m.box.y}px`, padding: "4px 7px" });
     }
     function keepOffset() {
         if (!flowPending) return;
@@ -1357,6 +1405,7 @@ export function agentMain() {
             g.metaDrop = e.metaKey;
             freeMove(g, e, dx, dy);
             redraw();
+            if (!g.metaDrop) probeFlow(g);
             return;
         }
         g.fi = null;
@@ -1679,12 +1728,13 @@ export function agentMain() {
         e.preventDefault();
         const el = hitAt(e.clientX, e.clientY);
         if (el === document.body || tool !== "move") return;
-        const pick = pickable(el);
-        if (pick !== el && pick.hasAttribute("data-wc-group")) { // into the group: what is in it under the pointer is picked
-            inside = pick;
+        const cur = sels.length === 1 ? sels[0] : null;
+        // into the selected box: the one of its children under the pointer is picked (and what sits beside it can be picked next)
+        if (cur && cur !== el && cur.contains(el)) {
             let c = el;
-            while (c.parentElement && c.parentElement !== pick) c = c.parentElement;
-            setSelection([pickable(c)]);
+            while (c.parentElement && c.parentElement !== cur) c = c.parentElement;
+            inside = cur;
+            setSelection([c]);
             return;
         }
         setSelection([el]);
@@ -2189,6 +2239,7 @@ export function agentMain() {
         if (m.cmd === "duplicateSel") { duplicate(); return; }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
         if (m.cmd === "applyLayout") { applyLayout(m); return; }
+        if (m.cmd === "probeGhost") { showProbe(m); return; }
         if (m.cmd === "keepOffset") { keepOffset(); return; }
         if (m.cmd === "freePosition") {
             const el = elAt(m.path);

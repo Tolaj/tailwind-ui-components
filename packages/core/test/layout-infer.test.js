@@ -73,3 +73,16 @@ test("fixed-width children dropped as A B / C are a content-sized 2-column grid,
     assert.equal(fit[0].outlier, 2); // C settles into its cell
     assert.ok(Math.hypot(fit[0].snap.x - 43, fit[0].snap.y - 152) < 8);
 });
+
+test("judge: the drop's relations are kept; the reading that needs less width survives on more devices", async () => {
+    const { judgeLayouts, relationsOf } = await import("../layout-infer.js");
+    const box = { x: 0, y: 0, w: 1200, h: 300 }, w = 144, h = 96;
+    const rects = [{ x: 0, y: 0, w, h }, { x: w + 16, y: 0, w, h }, { x: 0, y: h + 16, w, h }];
+    assert.deepEqual(relationsOf(rects).map((r) => r.join()).sort(), ["0,1,right", "0,2,below", "1,2,below"].sort());
+    const fits = fitLayouts(box, rects, { tol: 1.5, drag: 0 });
+    const judged = judgeLayouts(fits, box, rects, { frameW: 1280 });
+    assert.ok(judged.length && judged.every((c) => c.holds));
+    assert.ok(judged.some((c) => c.kind === "grid" && c.fit && c.cols === 2 && c.need === 2 * w + 16));
+    assert.ok(!judged.some((c) => c.kind === "row"), "a row cannot keep C below A");
+    assert.equal(judged.find((c) => c.kind === "grid" && c.fit).survives, 2); // 768 and 1280 hold; at 375 the box is 295px, 304 are needed
+});

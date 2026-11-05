@@ -195,3 +195,48 @@ export function fitLayouts(box, rects, { tol = 1.5, drag = 40 } = {}) {
     out.forEach((c) => { c.cost = costOf(c); });
     return out.sort((p, q) => (p.outlier !== null) - (q.outlier !== null) || p.cost - q.cost || p.err - q.err);
 }
+
+// ── What the drop says, and which readings keep saying it at other widths ────────────────────────────────────────────
+// A drop is a set of relations ("C is below A", "B is right of A"), not a set of pixels. Any reading that reproduces them at this
+// width is a candidate (above); what tells the candidates apart is whether the relations still hold when the box is narrower or
+// wider, as on the other devices. A reading that must overflow or overlap at a width the page is used at does not keep them.
+
+/** For every pair, how the second sits against the first: "right" (beside it, further along) or "below" (under it). */
+export function relationsOf(rects, tol = 1.5) {
+    const out = [];
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i], b = rects[j];
+        const vOver = a.y < b.y + b.h - tol && b.y < a.y + a.h - tol, hOver = a.x < b.x + b.w - tol && b.x < a.x + a.w - tol;
+        if (vOver && b.x >= a.x + a.w - tol) out.push([i, j, "right"]);
+        else if (hOver && b.y >= a.y + a.h - tol) out.push([i, j, "below"]);
+        else if (!hOver && !vOver) out.push([i, j, b.y >= a.y + a.h - tol ? "below" : "right"]);
+    }
+    return out;
+}
+
+/** The narrowest box a layout keeps its children apart in, with them at their own sizes. */
+export function needWidth(c, sizes) {
+    const n = sizes.length, w = sizes.map((s) => s.w);
+    if (c.kind === "col") return Math.max(...w);
+    if (c.kind === "row") return w.reduce((t, v) => t + v, 0) + (c.justify === "start" || c.justify === "end" || c.justify === "center" ? (c.gap || 0) * (n - 1) : 0);
+    const col = (j) => Math.max(0, ...w.filter((_, i) => i % c.cols === j));
+    const cols = Array.from({ length: c.cols }, (_, j) => col(j));
+    return (c.fit ? cols.reduce((t, v) => t + v, 0) : Math.max(...cols) * c.cols) + c.gapX * (c.cols - 1);
+}
+
+/**
+ * Judge candidates by width. `frameW` is the width of the frame the drop was made in; the box is assumed to lose or gain what the
+ * frame does. Adds to each: `need` (narrowest box it holds in), `survives` (how many of `devices` it holds in), and `holds`
+ * (the relations of the drop are the layout's own at this width). Candidates that do not reproduce the relations are dropped.
+ */
+export function judgeLayouts(cands, box, rects, { frameW = box.w, devices = [375, 768, 1280], tol = 1.5 } = {}) {
+    const sizes = rects.map((r) => ({ w: r.w, h: r.h }));
+    return cands.map((c) => {
+        const snapped = layoutRects(c, box, sizes).map((p, i) => ({ ...p, ...sizes[i] }));
+        const want = relationsOf(rects.map((r, i) => (c.outlier === i ? snapped[i] : r)), tol), got = relationsOf(snapped, tol);
+        const holds = want.every(([i, j, rel]) => got.some(([p, q, r2]) => p === i && q === j && r2 === rel));
+        const need = Math.round(needWidth(c, sizes));
+        const survives = devices.filter((d) => box.w - (frameW - d) >= need).length;
+        return { ...c, holds, need, survives };
+    }).filter((c) => c.holds);
+}
