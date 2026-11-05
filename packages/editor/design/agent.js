@@ -561,20 +561,13 @@ export function agentMain() {
     const staysInGroup = (el, parent) => { const gp = groupAround(el); return !gp || (!!parent && gp.contains(parent)); };
     /** The elements of the design inside `el` that can be picked (not the editor's own overlay, scripts or styles). */
     const realKids = (el) => [...el.children].filter((c) => c !== overlay && !/^(script|style|link|meta)$/i.test(c.tagName));
-    /** Where a click starts picking: the body, or what is inside it when the page is one wrapper in a wrapper (a click would only ever pick the wrapper). */
-    function topScope() {
-        let c = document.body;
-        for (let k = 0; k < 6; k++) { const kids = realKids(c); if (kids.length !== 1 || !realKids(kids[0]).length) break; c = kids[0]; }
-        return c;
-    }
     /** What a click on `t` picks, as in Figma: the top level of the design first, a double-click goes one level in, and from there a click
      *  picks at that level (the box selected, or the one gone into, and what sits beside it). Cmd/Ctrl-click picks the deepest. */
     function pickable(t) {
         if (!t || t === document.body) return t;
         const sv = t.closest && t.closest("svg"); // an icon or chart is one thing: its paths are never picked on their own
         if (sv && sv !== t) t = sv;
-        const top = topScope();
-        if (t === top || !top.contains(t)) return t === top ? document.body : t; // the page's own wrapper is the page: nothing there to pick
+        const top = document.body; // the top level is what sits directly in the page, wrapper or not: the outermost box can always be picked
         // from the selection outwards, the first box that holds `t` is the level: what is picked is that box's child under the pointer
         // (so the cards beside a selected card, or the sections around it, can each be picked with one click)
         const cur = sels.length === 1 && alive(sels[0]) ? sels[0] : null;
@@ -1801,7 +1794,7 @@ export function agentMain() {
         if (e.code === "Space") { e.preventDefault(); post({ type: "space", down: true }); return; }
         if (e.key === "Enter" && !meta && !e.altKey && tool === "move" && sels.length === 1) { // Figma: Enter goes into the box, Shift+Enter back out to what holds it
             const cur = sels[0];
-            if (e.shiftKey) { const par = cur.parentElement; if (par && par !== document.body && topScope().contains(par) && par !== topScope()) { e.preventDefault(); inside = par.parentElement && par.parentElement !== document.body ? par.parentElement : null; setSelection([par]); } return; }
+            if (e.shiftKey) { const par = cur.parentElement; if (par && par !== document.body) { e.preventDefault(); inside = par.parentElement && par.parentElement !== document.body ? par.parentElement : null; setSelection([par]); } return; }
             const kid = !isTextual(cur) && realKids(cur).find((c) => getComputedStyle(c).display !== "none");
             if (kid) { e.preventDefault(); inside = cur; setSelection([kid]); return; }
         }
