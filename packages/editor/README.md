@@ -1,9 +1,13 @@
-# @windcraft/editor
+# windcraft-editor
+
+```bash
+npm install windcraft-editor
+```
 
 The Windcraft visual editor (HTML + Tailwind): canvas, layers, Properties panel, code panel and pages. It has no backend of its own: the page that mounts it gives it a **host** that loads and saves.
 
 ```js
-import { mountEditor } from "@windcraft/editor";
+import { mountEditor } from "@windcraft/editor/index.js";
 
 await mountEditor(document.getElementById("root"), {
     host,   // saving, projects, AI and the address: see design/host.js
@@ -18,7 +22,7 @@ await mountEditor(document.getElementById("root"), {
 | Run the demo | `npm run demo`, then open http://localhost:4000/editor/demo/ |
 | Windcraft's own host | `src/public/js/app-host.js` |
 
-The page must map `@windcraft/core/` and `@windcraft/editor/` to where they are served (an import map, as in `demo/index.html`, or a bundler). `mountEditor` loads Tailwind's play CDN (v3) unless you pass `tailwind: false`. One editor per page; it takes over the page's size, keys and zoom.
+The package carries `@windcraft/core` inside it (`core/`). The page must map `@windcraft/core/` to `<where you serve the package>/core/` and `@windcraft/editor/` to where you serve the package (an import map, as in `demo/index.html`, or a bundler). `mountEditor` loads Tailwind's play CDN (v3) unless you pass `tailwind: false`. One editor per page; it takes over the page's size, keys and zoom.
 
 The AI panel and "Generate" need `host.generate`; without a working one they show its error.
 
@@ -27,7 +31,7 @@ The AI panel and "Generate" need `host.generate`; without a working one they sho
 `embedEditor` puts the editor in an element of your page, isolated in an iframe (its own keys, zoom and styles), so several can share a page and it fills whatever size you give it. Leave out the parts you don't need with `ui`; keep the code box and the details form in your own page.
 
 ```js
-import { embedEditor } from "@windcraft/editor";
+import { embedEditor } from "@windcraft/editor/index.js";
 
 const ed = embedEditor(el, {
     host,                                    // saving, as above

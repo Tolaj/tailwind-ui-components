@@ -8,13 +8,14 @@
 **A visual design editor where every click writes real Tailwind HTML.**<br>
 Select, drag and style like Figma. Generate with AI. Hand the result to your codebase, or to a coding agent, as it is.
 
+[![npm](https://img.shields.io/npm/v/windcraft-editor?color=cb3837&logo=npm&logoColor=white)](https://www.npmjs.com/package/windcraft-editor)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3_%26_4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![MCP](https://img.shields.io/badge/MCP-server-8A2BE2)](#let-your-ai-tools-use-it-mcp)
+[![MCP](https://img.shields.io/badge/MCP-server-8A2BE2)](#features)
 [![Figma plugin](https://img.shields.io/badge/Figma-plugin-F24E1E?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1697363010304569719)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[**Try it live**](https://windcraft.swapniljadhav.com/) · [Watch the demo](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [Figma import](#bring-a-design-in-from-figma) · [MCP](#let-your-ai-tools-use-it-mcp) · [Embed the editor](#embed-the-editor-in-your-own-app)
+[**Try it live**](https://windcraft.swapniljadhav.com/) · [Watch the demo](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [MCP](#connect-claude-claude-code-or-cursor-mcp) · [Embed](#use-the-editor-in-your-own-app) · [Contribute](#contributing)
 
 <br>
 
@@ -26,69 +27,101 @@ Select, drag and style like Figma. Generate with AI. Hand the result to your cod
 
 <br>
 
-## What is Windcraft?
+## Why Windcraft?
 
-Most design tools end in a hand-off: a picture of the thing, rebuilt by someone in code. Most AI tools end in a block of output you can only fix by asking again.
+Most design tools end in a hand-off: a picture of the thing, rebuilt by someone in code. Most AI tools end in a block of output you can only fix by asking again. Windcraft skips both: every page is plain HTML with Tailwind classes, and every control reads and writes those classes. Make the padding bigger and `p-4` becomes `p-6`. Pick a colour and `bg-rose-500` changes.
 
-Windcraft skips both. **The design *is* the code.** Every page is plain HTML with Tailwind classes, and every control in the editor reads and writes those classes. Make the padding bigger and `p-4` becomes `p-6` in the code beside it. Pick a colour and `bg-rose-500` changes. Nothing is stored in a format only Windcraft understands, so what you design is what you ship.
+|  | Figma | AI design tools | **Windcraft** |
+|---|:---:|:---:|:---:|
+| Edit visually: select, drag, resize, align | ✅ | ⚠️ ask again | ✅ |
+| Describe it and have it drawn | ⚠️ some | ✅ | ✅ Claude or your own local model |
+| What you end up with | a file to rebuild | generated output | **HTML + Tailwind you ship** |
+| Start from a Figma design | native | varies | ✅ free plugin, editable code |
+| Edit the code, design follows | ❌ | varies | ✅ |
+| A coding agent can read and change it | ⚠️ limited | varies | ✅ over MCP |
+| Runs on your own server | ❌ | ❌ | ✅ |
 
-|  | Figma | AI design tools (Claude Design and similar) | **Windcraft** |
-|---|---|---|---|
-| Edit visually: select, drag, resize, align | Yes | Limited: mostly ask again | **Yes** |
-| Describe it and have it drawn for you | Some AI features | Yes | **Yes** (Claude or your own local model) |
-| What you end up with | A design file to rebuild | Generated output | **HTML + Tailwind: the code you ship** |
-| Start from a Figma design | Native | Varies | **Yes, a free plugin turns it into editable code** |
-| Edit the code and see the design follow | No | Varies | **Yes: the code panel and the canvas stay in step** |
-| A coding agent can read and change it | Limited | Varies | **Yes, over MCP** |
-| Runs on your own server | No | No | **Yes** |
+## See it
+
+<p align="center">
+  <img src="docs/media/editor.png" alt="The Windcraft editor: a selected card with its Tailwind properties on the right and the live code below" width="900">
+  <br><sub><b>Select a card</b> and the Properties panel shows its Tailwind values, while the code below highlights the exact element.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/selection.png" alt="Selecting a container shows its children as dashed outlines" width="100%">
+      <br><b>Selection like Figma.</b> Click picks the top box, double-click goes one level in. The box you picked shows what it holds as dashed outlines.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/code.png" alt="The code panel open beside the design" width="100%">
+      <br><b>Code and canvas in step.</b> Edit the HTML and the design follows. Edit the design and the code follows. Undo covers both.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/layers.png" alt="Layers panel listing every element of the page" width="55%">
+      <br><b>Layers and pages.</b> Every element in a tree, every page on one infinite canvas.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/responsive.png" alt="The same page at mobile width, the cards stacked in one column" width="55%">
+      <br><b>Responsive by design.</b> Switch to Tablet or Mobile, or drag to any width. Edits land in the right breakpoint (<code>md:p-8</code>).
+    </td>
+  </tr>
+</table>
 
 ## Features
 
-### A canvas that behaves like Figma
+| | |
+|---|---|
+| 🖱️ **Direct manipulation** | Move, hand, interact, frame, rectangle, oval, line, arrow, text. Drag, resize, rotate, snap with distance guides, nudge with arrow keys, duplicate, group, copy and paste, lock and hide. |
+| 🎛️ **Properties panel** | Every field is a Tailwind class, edited at its source. Breakpoints `sm` to `2xl` and states (`hover`, `focus`). Smart values: `16px` becomes `p-4`, an off-scale value becomes `rounded-[10px]`. Select many, change one field, one undo. |
+| 🧩 **Live code panel** | Docked left or below. Click an element and its code lights up. Edit text in place with a floating bar. Paste HTML from anywhere. |
+| 🎨 **Figma import** | A free plugin converts a selection to HTML + Tailwind **on your computer: no LLM, no network, no picture fallback**. Auto Layout becomes flex, text and vectors carry over. See [packages/figma](packages/figma/README.md). |
+| 🤖 **AI generation** | Describe a page. **Anthropic Claude** or any **OpenAI-compatible local model** (Ollama, LM Studio, vLLM) drafts it with your project's tokens and best-matching components. |
+| 🔌 **MCP server** | Claude, Claude Code and Cursor can read your design system and write pages straight into your projects. Tools: `get_design_guide`, `search_components`, `save_pages`, `apply_design_patch` and more. The **Connect** page walks you through it. |
+| 🗂️ **Projects and sharing** | One look per project (brand scale, gray, font, radius). Share link, full-screen prototype view, export to HTML, React, Vue or Svelte, version history, and a gallery of designs. |
 
-- **Selection that works the way you expect.** One click picks the top-level box, double-click goes one level in, `Cmd/Ctrl`-click picks the deepest element, `Enter` / `Shift+Enter` walk in and out. The box you selected shows what it holds as dashed outlines that stay visible on dark and light backgrounds alike.
-- **Pages on an infinite canvas.** Every page of a project sits on one plane, side by side, grouped into rows. Pan, zoom, rename, delete. Sections stack under their page. Nothing lands on top of anything else.
-- **Real tools.** Move, hand, interact (try the page: hover, focus, clicks), frame, rectangle, oval, line, arrow, text, and an Add menu of ready blocks.
-- **Direct manipulation.** Drag, resize and rotate with live size and angle readouts, snap to neighbours with distance guides, nudge with the arrow keys, duplicate, group, copy and paste, lock and hide layers.
-- **Responsive by design.** Switch the frame between Desktop, Tablet and Mobile, or drag it to any width.
+## Connect Claude, Claude Code or Cursor (MCP)
 
-### A Properties panel where every field is a Tailwind class
+Windcraft runs an [MCP](https://modelcontextprotocol.io) server, so your AI tools can read your design system and save pages into your projects. The server address is your Windcraft address plus `/mcp`:
 
-- **Edited at its source.** A value set by a class changes that class. A value set by an inline style or your own CSS changes there. The panel tells you which, instead of quietly adding a second rule that fights the first.
-- **Breakpoints and states.** Pick `sm` to `2xl`, `hover`, `focus` and friends and the edit lands in the right variant (`md:p-8`, `hover:bg-rose-600`). **All** writes one plain class for every size.
-- **Smart values.** `16px` becomes `p-4`. A value Tailwind has no step for becomes an arbitrary one (`rounded-[10px]`, `opacity-[0.33]`) that works in every Tailwind version, and the panel notices when your theme changes what a class means.
-- **Several elements at once.** Select many, change one field, and it is one undo step.
-- **Everything you reach for:** layout (block, flex, grid), size (fixed, hug, fill, aspect ratio), spacing, position, typography, backgrounds and gradients, borders, outline, shadows and blur, blend modes, rotation and flip, transitions, cursor and visibility, plus a free **Add class or CSS** box.
+```
+https://your-windcraft-address/mcp          e.g. https://windcraft.swapniljadhav.com/mcp
+```
 
-### Code and design stay in step
+**Claude on the web (claude.ai): no token**
+1. Open **Settings → Connectors → Add custom connector**.
+2. Paste the address above and press **Connect**.
+3. Sign in to Windcraft and press **Allow**.
+4. Ask Claude: *"Use my Windcraft projects to build a pricing page."*
 
-- **A live code panel** beside the canvas, docked left or below. Click an element and its code lights up. Edit the code and the design follows. Undo and redo cover both.
-- **Edit text in place** with a floating bar for size, weight, colour, alignment and links.
-- **Paste HTML and go.** A whole page from anywhere, a component from another project, or a design from Figma.
+**Claude Code: with an access token**
+1. In Windcraft open the **Connect** page (`/connect`), choose **Claude Code** and create an access token. It is shown once.
+2. Put it in your shell profile: `export TAILWIND_LIBRARY_TOKEN=<your token>`
+3. Add the server:
 
-### Bring a design in from Figma
+```bash
+claude mcp add --transport http tailwind-library https://your-windcraft-address/mcp \
+  --header "Authorization: Bearer ${TAILWIND_LIBRARY_TOKEN}"
+```
 
-A free Figma plugin converts a selection to HTML and Tailwind **on your own computer: no LLM, no network, no picture fallback.** Auto Layout becomes flex, gradients, strokes, shadows, masks and blend modes carry over, text keeps its font, size and spacing, vectors become inline SVG, and layers named like a button, nav or header become the matching real HTML elements. It does not paste a screenshot: you get code you can edit.
+**Cursor and any other MCP client:** add an HTTP (streamable) server with the address above and the header `Authorization: Bearer <your token>`:
 
-See [packages/figma](packages/figma/README.md) for exactly what converts and what does not yet.
+```json
+{
+  "mcpServers": {
+    "windcraft": {
+      "type": "http",
+      "url": "https://your-windcraft-address/mcp",
+      "headers": { "Authorization": "Bearer ${TAILWIND_LIBRARY_TOKEN}" }
+    }
+  }
+}
+```
 
-### Let your AI tools use it (MCP)
-
-Windcraft ships an [MCP](https://modelcontextprotocol.io) server, so Claude, Claude Code, Cursor and any other MCP client can **read your design system and write pages straight into your projects** instead of guessing at your style.
-
-Tools include `get_design_guide`, `search_components`, `get_component`, `save_design`, `save_pages`, `apply_design_patch`, `get_context`, `create_project` and more. The **Connect** page in the app walks through Claude on the web, Claude Code and Cursor, and has a button to test the connection.
-
-### AI generation that respects your look
-
-Describe a page and Windcraft drafts it with **Anthropic Claude** or **any OpenAI-compatible local model** (Ollama, LM Studio, vLLM). The prompt carries your project's tokens and your best-matching components, so the result looks like your product, not like a template. The editor has an AI tab for changing the selected element by asking.
-
-### Projects, themes and sharing
-
-- **One look per project.** A brand colour (with its full `brand-50` to `brand-950` scale), a gray palette, a font and a corner radius, applied to the canvas, the previews and the exports alike.
-- **Share link** and a full-screen **prototype view** that plays a project's pages one at a time.
-- **Export** a design as HTML, React, Vue or Svelte.
-- **Version history** with restore on every design.
-- A **gallery** of designs by category to browse, copy from and start with.
+The **Connect** page has a **Run test** button that checks the connection and says what to fix. Running it yourself? Claude on the web needs a public HTTPS address, so set `PUBLIC_URL` (see [Run the full app](#run-the-full-app)). The tools include `get_design_guide`, `search_components`, `get_component`, `save_design`, `save_pages` and `apply_design_patch`.
 
 ## Quick start
 
@@ -135,20 +168,37 @@ npm run build -w @windcraft/figma
 
 In **Figma desktop**: *Plugins → Development → Import plugin from manifest…* and choose `packages/figma/dist/manifest.json`. Or install the published plugin from the [Figma Community](https://www.figma.com/community/plugin/1697363010304569719).
 
-## Embed the editor in your own app
+## Use the editor in your own app
 
-The editor is its own package with **no backend of its own**. Give it a host that loads and saves, and mount it:
+The editor is on npm as [`windcraft-editor`](https://www.npmjs.com/package/windcraft-editor). It has no backend of its own: you give it a **host** that loads and saves.
+
+```bash
+npm install windcraft-editor
+```
+
+It is plain ES modules that run in the browser. Serve `node_modules/windcraft-editor` as static files (the editor's own code under `/editor/`, the core logic bundled inside it under `core/`) and tell the page where to find them with an import map:
+
+```html
+<script type="importmap">
+{ "imports": {
+    "@windcraft/core/": "/editor/core/",
+    "@windcraft/editor/": "/editor/"
+} }
+</script>
+```
 
 ```js
-import { mountEditor } from "@windcraft/editor";
+import { mountEditor } from "@windcraft/editor/index.js";
 
 await mountEditor(document.getElementById("root"), {
-    host,   // saving, projects, AI, delete: see packages/editor/design/host.js
+    host,   // how it loads and saves: see node_modules/windcraft-editor/design/host.js
     data,   // the design to open: { id, title, htmlCode, ... }
 });
 ```
 
-Need it inside a page section instead of owning the whole page? `embedEditor` puts it in an iframe with its own keys, zoom and styles, with a small API (`setHtml`, `getHtml`, `onChange`, `save`). See [packages/editor](packages/editor/README.md) and the working example in `packages/editor/demo`.
+For example, with Express: `app.use("/editor", express.static("node_modules/windcraft-editor"))`.
+
+To put it inside a section of a page instead of taking the whole page, use `embedEditor` (it runs in an iframe and gives you `setHtml`, `getHtml`, `onChange`, `save`). A complete working example is in [packages/editor/demo](packages/editor/demo) and the full reference in [packages/editor](packages/editor/README.md).
 
 ## How it is built
 
@@ -156,7 +206,7 @@ Windcraft is a monorepo of small packages around a Node app.
 
 | Package | What it does |
 |---|---|
-| [`@windcraft/editor`](packages/editor) | The visual editor: canvas, layers, Properties panel, code panel, pages. Host-agnostic. |
+| [`windcraft-editor`](packages/editor) | The visual editor (on npm): canvas, layers, Properties panel, code panel, pages. Host-agnostic. |
 | [`@windcraft/core`](packages/core) | The Tailwind brain: class groups, property-to-class mapping, board layout, themes. Pure functions, heavily tested. |
 | [`@windcraft/figma`](packages/figma) | The Figma to Tailwind converter and plugin. Fixed rules, no LLM. |
 | [`@windcraft/mcp`](packages/mcp) | The MCP protocol for Express, with nothing about what the tools do. |
@@ -176,13 +226,25 @@ npm run typecheck   # tsc over the whole repo
 - Figma converter: constraints, lists, image crop, and responsive output
 - Components and variants as first-class Windcraft components
 
+## Contributing
+
+Windcraft is MIT licensed and open to everyone. You do not need to ask first.
+
+1. **Fork** the repo and `npm install`.
+2. **Branch** (`git switch -c fix/thing`) and make your change.
+3. **Test:** `npm test` and `npm run typecheck`.
+4. **Open a pull request** into `main`.
+
+Good places to start:
+- Pick a [`good first issue`](https://github.com/Tolaj/windcraft/labels/good%20first%20issue) or a [`help wanted`](https://github.com/Tolaj/windcraft/labels/help%20wanted) issue.
+- `main` is protected, so every change comes in through a pull request.
+- [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the repo layout and the project's principles.
+- Found a bug or have an idea? [Open an issue](https://github.com/Tolaj/windcraft/issues/new). A screenshot or short recording helps a lot.
+- If you like it, a star helps other people find it.
+
 ## License
 
 [MIT](LICENSE) © 2026 Swapnil Jadhav. Use it, change it, host it, sell what you build with it. Third-party code keeps its own licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
-
-## Contributing
-
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, how the repo is laid out and what to run before you send one.
 
 <div align="center">
 <br>

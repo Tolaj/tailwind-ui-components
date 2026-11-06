@@ -36,3 +36,6 @@ packages/figma/dist/
 
 # data exports made by scripts (they hold users' code)
 /backups/
+
+# copied in by npm pack (packages/editor/scripts/bundle-core.mjs)
+packages/editor/core/
