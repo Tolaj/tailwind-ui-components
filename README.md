@@ -61,11 +61,11 @@ Most design tools end in a hand-off: a picture of the thing, rebuilt by someone 
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/media/layers.png" alt="Layers panel listing every element of the page" width="55%">
+      <img src="docs/media/layers.png" alt="Layers panel listing every element of the page" width="100%">
       <br><b>Layers and pages.</b> Every element in a tree, every page on one infinite canvas.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/media/responsive.png" alt="The same page at mobile width, the cards stacked in one column" width="55%">
+      <img src="docs/media/responsive.png" alt="The same page at mobile width, the cards stacked in one column" width="100%">
       <br><b>Responsive by design.</b> Switch to Tablet or Mobile, or drag to any width. Edits land in the right breakpoint (<code>md:p-8</code>).
     </td>
   </tr>
