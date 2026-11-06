@@ -97,7 +97,7 @@ Describe a page and Windcraft drafts it with **Anthropic Claude** or **any OpenA
 No install needed: **[open Windcraft live](https://windcraft.swapniljadhav.com/)**. To run the editor yourself, with no database:
 
 ```bash
-git clone https://github.com/Tolaj/tailwind-ui-components.git windcraft
+git clone https://github.com/Tolaj/windcraft.git
 cd windcraft
 npm install
 npm run demo
@@ -182,7 +182,7 @@ npm run typecheck   # tsc over the whole repo
 
 ## Contributing
 
-Issues and pull requests are welcome. Run `npm test` and `npm run typecheck` before you send one.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, how the repo is laid out and what to run before you send one.
 
 <div align="center">
 <br>
