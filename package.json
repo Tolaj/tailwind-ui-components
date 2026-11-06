@@ -15,7 +15,8 @@
     "spec:roundtrip": "node --env-file=.env scripts/spec-roundtrip.js",
     "dev": "nodemon src/server.js",
     "test-email": "node test-email.js",
-    "start": "node --env-file=.env src/server.js"
+    "start": "node --env-file=.env src/server.js",
+    "build:npm": "node scripts/build-npm.mjs"
   },
   "keywords": [],
   "author": "Swapnil Jadhav",

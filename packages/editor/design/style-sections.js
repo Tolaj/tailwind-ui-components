@@ -11,8 +11,8 @@ import { useUi } from "./panel-state.js";
 import { TextInput, ColorInput } from "./controls.js";
 import { GroupColor } from "./group-controls.js";
 import { I, IconBtn, NumField, FSection, Sub, PropField, PropSelect, TwField, TwSelect, num, owns, has, off, comp, srcKind, srcNote, atVariant } from "./figma-sections.js";
-import { twShown } from "@windcraft/core/prop-tailwind.js";
-import { brandScale, normalizeTheme } from "@windcraft/core/theme.js";
+import { twShown } from "../../core/prop-tailwind.js";
+import { brandScale, normalizeTheme } from "../../core/theme.js";
 import { data } from "./editor/base.js";
 import { PropRow } from "./prop-sections.js";
 

@@ -1,4 +1,4 @@
-import { themeHead } from "@windcraft/core/theme.js";
+import { themeHead } from "../../core/theme.js";
 const TAILWIND_RE = /tailwindcss|@tailwindcss\/browser/i;
 
 const isTailwindScript = (s) => s.src && TAILWIND_RE.test(s.src);

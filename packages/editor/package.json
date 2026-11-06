@@ -1,7 +1,7 @@
 {
-    "name": "windcraft-editor",
-    "version": "0.1.0",
-    "description": "Windcraft's visual HTML + Tailwind editor. Mount it in a page and give it a host that loads and saves designs. Includes @windcraft/core.",
+    "name": "@windcraft/editor",
+    "version": "0.1.1",
+    "description": "Windcraft's visual HTML + Tailwind editor (source). Published to npm as windcraft-editor by scripts/build-npm.mjs.",
     "keywords": [
         "tailwind",
         "tailwindcss",
@@ -28,24 +28,5 @@
         ".": "./index.js",
         "./*": "./*"
     },
-    "files": [
-        "index.js",
-        "embed.js",
-        "embed.html",
-        "embed-frame.js",
-        "template.js",
-        "styles.css",
-        "design",
-        "playground",
-        "vendor",
-        "core",
-        "README.md"
-    ],
-    "publishConfig": {
-        "access": "public"
-    },
-    "scripts": {
-        "prepack": "node scripts/bundle-core.mjs",
-        "postpack": "node scripts/bundle-core.mjs clean"
-    }
+    "private": true
 }

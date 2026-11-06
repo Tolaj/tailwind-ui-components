@@ -181,29 +181,26 @@ npm install windcraft-editor
 | **Package** | [`windcraft-editor`](https://www.npmjs.com/package/windcraft-editor) on npm, MIT licensed |
 | **Format** | Plain ES modules for the browser. No build step needed |
 | **Contains** | The editor, plus `core/` (class tables, layout, themes, exporters) |
-| **Needs from you** | A host (load and save) and an import map, below |
+| **Needs from you** | A host (load and save) and the package's files served, below |
 
-It is plain ES modules that run in the browser. Serve `node_modules/windcraft-editor` as static files (the editor's own code under `/editor/`, the core logic bundled inside it under `core/`) and tell the page where to find them with an import map:
+It is plain ES modules that run in the browser, so serve the package's files and, on a plain page, add one import-map line. A bundler (Vite, webpack) resolves `windcraft-editor` by itself.
 
 ```html
 <script type="importmap">
-{ "imports": {
-    "@windcraft/core/": "/editor/core/",
-    "@windcraft/editor/": "/editor/"
-} }
+{ "imports": { "windcraft-editor": "/windcraft-editor/editor/index.js" } }
 </script>
 ```
 
 ```js
-import { mountEditor } from "@windcraft/editor/index.js";
+import { mountEditor } from "windcraft-editor";
 
 await mountEditor(document.getElementById("root"), {
-    host,   // how it loads and saves: see node_modules/windcraft-editor/design/host.js
+    host,   // how it loads and saves: see node_modules/windcraft-editor/editor/design/host.js
     data,   // the design to open: { id, title, htmlCode, ... }
 });
 ```
 
-For example, with Express: `app.use("/editor", express.static("node_modules/windcraft-editor"))`.
+The import map points at wherever you serve the package. With Express: `app.use("/windcraft-editor", express.static("node_modules/windcraft-editor"))`. The editor also loads its own styles and iframe pages from there, so keep those files served.
 
 To put it inside a section of a page instead of taking the whole page, use `embedEditor` (it runs in an iframe and gives you `setHtml`, `getHtml`, `onChange`, `save`). A complete working example is in [packages/editor/demo](packages/editor/demo) and the full reference in [packages/editor](packages/editor/README.md).
 

@@ -5,8 +5,8 @@
 //   setProp · setProps · resetProp · setGeom · freePosition · align · arrange · group · ungroup · autoLayout · sizeItMyself
 import { html, useState } from "../vendor/preact-htm.js";
 import { srcOf, shownOf, ownsValue, styled, val, variant, modeFor, PRESETS, OPTS } from "./panel-model.js";
-import { parseToken } from "@windcraft/core/class-groups.js";
-import { tokenFor } from "@windcraft/core/prop-tailwind.js";
+import { parseToken } from "../../core/class-groups.js";
+import { tokenFor } from "../../core/prop-tailwind.js";
 import { useUi } from "./panel-state.js";
 import { TextInput } from "./controls.js";
 

@@ -1,11 +1,11 @@
-// @windcraft/editor: the visual editor as a package.
+// windcraft-editor: the visual editor as a package.
 //
-//   import { mountEditor } from "@windcraft/editor";
+//   import { mountEditor } from "windcraft-editor";
 //   await mountEditor(document.getElementById("root"), { host, data });
 //
 // `host` is what the editor needs from the app around it (design/host.js lists it): saving, projects, the AI and the page address.
-// `data` is the design to open (below). The page must map "@windcraft/core/" and "@windcraft/editor/" to where those packages are
-// served (an import map, or a bundler does it). One editor per page: it takes over the page's size and keyboard.
+// `data` is the design to open (below). The page must serve this package's files and, for a plain browser page, map "windcraft-editor"
+// to editor/index.js with an import map (a bundler does that itself). One editor per page: it takes over the page's size and keyboard.
 import { setHost } from "./design/host.js";
 import { config } from "./design/config.js";
 import { editorHtml } from "./template.js";

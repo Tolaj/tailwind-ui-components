@@ -47,10 +47,9 @@ Open an issue with the steps, what you expected, what happened, and your browser
 
 ## Releasing (maintainers)
 
-Only `windcraft-editor` is published to npm. It carries `packages/core` inside it: `npm pack` and `npm publish` copy core into the package (`packages/editor/scripts/bundle-core.mjs`) and remove the copy afterwards.
+Only `windcraft-editor` is published to npm. `scripts/build-npm.mjs` assembles it into `dist/npm` with `editor/` and `core/` side by side, which is the repo's own layout, so the editor's relative imports (`../../core/...`) work unchanged.
 
 1. Bump `version` in `packages/editor/package.json` and make sure `npm test` passes.
-2. Check the contents: `npm pack --dry-run -w windcraft-editor`.
-3. Publish: `npm publish -w windcraft-editor` (npm may ask for a one-time code or hold the release for approval on npmjs.com).
+2. Build and check: `npm run build:npm && npm pack --dry-run ./dist/npm`.
+3. Publish: `npm publish ./dist/npm` (npm may ask for a one-time code or hold the release for approval on npmjs.com).
 4. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, and create a GitHub release.
-
