@@ -4,7 +4,7 @@
     "description": "Windcraft's Figma plugin: reads a Figma design and turns it into a Windcraft design (no LLM). Not built yet beyond the Auto Layout spike.",
     "type": "module",
     "private": true,
-    "license": "UNLICENSED",
+    "license": "MIT",
     "devDependencies": {
         "esbuild": "^0.28.2"
     },

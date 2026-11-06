@@ -1,6 +1,6 @@
 # Third-party notices
 
-Windcraft's own code is proprietary (see `LICENSE`). This file covers third-party code that is **copied into
+Windcraft's own code is MIT licensed (see `LICENSE`). This file covers third-party code that is **copied into
 this repository** or **loaded by the pages**. Packages installed with npm keep their own licence files in `node_modules`;
 `npm run licenses` checks that every production dependency has a permissive licence.
 

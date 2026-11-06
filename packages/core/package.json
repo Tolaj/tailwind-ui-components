@@ -4,7 +4,7 @@
     "description": "Windcraft's design spec, Tailwind class tables and page helpers. Plain ES modules with no dependencies; they run in the browser and in Node.",
     "type": "module",
     "private": true,
-    "license": "UNLICENSED",
+    "license": "MIT",
     "exports": {
         "./*": "./*"
     }

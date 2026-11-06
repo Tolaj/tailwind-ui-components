@@ -19,7 +19,7 @@
   },
   "keywords": [],
   "author": "Swapnil Jadhav",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "bcrypt": "^6.0.0",

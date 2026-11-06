@@ -4,7 +4,7 @@
     "description": "Windcraft's visual HTML + Tailwind editor. Mount it in a page and give it a host that loads and saves designs.",
     "type": "module",
     "private": true,
-    "license": "UNLICENSED",
+    "license": "MIT",
     "main": "index.js",
     "exports": {
         ".": "./index.js",
