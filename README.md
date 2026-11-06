@@ -1,9 +1,7 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/logo-light.png">
-  <img src="docs/media/logo.png" alt="Windcraft" height="72">
-</picture>
+<img src="docs/media/logo.png#gh-light-mode-only" alt="Windcraft" height="72">
+<img src="docs/media/logo-light.png#gh-dark-mode-only" alt="Windcraft" height="72">
 
 ### Design in Tailwind. Keep it as code.
 
