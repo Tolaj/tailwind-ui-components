@@ -326,6 +326,49 @@ export async function renameFrame(key, name, previous) {
     }
 }
 
+/** The page and the sections hanging under it. */
+const withSections = (key) => [key, ...[...docs.values()].filter((d) => d.kind === "section" && d.parent === key).map((d) => d.key)];
+/**
+ * Deletes a page (and its sections) after asking. Saved ones go from the library first: if that fails nothing changes here. The page being
+ * edited hands over to a neighbour before it goes. A project keeps at least one page.
+ */
+export async function deletePage(key) {
+    const d = docs.get(key);
+    if (!d || docs.size < 2 || S.mode !== "edit") return;
+    const keys = withSections(key);
+    if (keys.length >= docs.size) return alert("A project keeps at least one page.");
+    const title = (key === S.curKey ? data.title : d.meta.title) || "Untitled page";
+    const extra = keys.length > 1 ? ` and its ${keys.length - 1} section${keys.length > 2 ? "s" : ""}` : "";
+    if (!confirm(`Delete "${title}"${extra}? This can't be undone.`)) return;
+    const saved = keys.map((k) => docs.get(k)).filter((x) => x && !(x.key === S.curKey ? S.isNew : x.isNew) && x.meta.id);
+    if (saved.length) {
+        if (!host.deleteComponent) return alert("This editor can't delete pages.");
+        try {
+            for (const x of saved) await host.deleteComponent(x.meta.id); // the page last: its sections go with it on the server
+        } catch (err) {
+            return alert(err.message || "Could not delete the page");
+        }
+    }
+    if (keys.includes(S.curKey)) { // hand over to a page that stays: the one after it, else the one before
+        const order = [...docs.keys()], at = order.indexOf(key);
+        const next = [...order.slice(at + 1), ...order.slice(0, at).reverse()].find((k) => !keys.includes(k));
+        activate(next);
+    }
+    keys.forEach((k) => {
+        const en = wraps.get(k);
+        if (en) { io.unobserve(en.wrap); en.wrap.remove(); wraps.delete(k); }
+        docs.delete(k);
+        pendingSave.delete(k);
+    });
+    refreshLabels();
+    renderDesigns();
+    renderLayers();
+    updateChrome();
+    layout();
+    S.viewTouched = true;
+    fitTo([S.curKey], Math.max(view.z, 0.5));
+}
+
 function clearSelection() {
     S.frameSel = null;
     S.selected = null;

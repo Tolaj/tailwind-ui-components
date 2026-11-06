@@ -65,7 +65,7 @@ test("layout: each group is its own row, in the order the groups first appear; s
         { id: "pricing", kind: "page", group: "Public site" },
         { id: "keys", kind: "page", group: "Customer area" },
         { id: "docs", kind: "page", group: "Public site" },
-        { id: "dragged", kind: "page", group: "Customer area", board: { x: -50, y: 7 } },
+        { id: "dragged", kind: "page", group: "Customer area", board: { x: -50, y: 5000 } },
         { id: "bill", kind: "page", group: "Customer area" },
         { id: "loose", kind: "page" },
     ]);
@@ -74,7 +74,7 @@ test("layout: each group is its own row, in the order the groups first appear; s
     assert.deepEqual(pos.docs, { x: 2 * (W + GAP_X), y: 0 }, "the third page of the group is in the same row, though another group's page came between");
     const second = H + ROW_GAP;
     assert.deepEqual(pos.keys, { x: 0, y: second });
-    assert.deepEqual(pos.dragged, { x: -50, y: 7 }, "a saved position wins");
+    assert.deepEqual(pos.dragged, { x: -50, y: 5000 }, "a saved position wins");
     assert.deepEqual(pos.bill, { x: 2 * (W + GAP_X), y: second }, "it still takes its place in the row, which keeps the others where they were");
     assert.deepEqual(pos.loose, { x: 0, y: 2 * second }, "pages with no group get a row of their own");
 });

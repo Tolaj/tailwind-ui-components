@@ -1,0 +1,33 @@
+<style>
+    #opening { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f5f5f5; color: #737373; font: 13px system-ui, sans-serif; text-align: center; padding: 0 24px; }
+    #opening i { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #d4d4d4; border-top-color: #262626; animation: pgspin .8s linear infinite; }
+    #opening.failed i { display: none; }
+    #opening a, #opening button { display: none; height: 28px; align-items: center; border-radius: 6px; padding: 0 12px; font: 600 12px system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+    #opening.failed a, #opening.failed button { display: inline-flex; }
+    #opening button { background: #0d99ff; color: #fff; border: 0; }
+    #opening a { background: #fff; color: #262626; border: 1px solid #d4d4d4; }
+    #opening .row { display: flex; gap: 8px; }
+    @keyframes pgspin { to { transform: rotate(360deg); } }
+</style>
+<div id="opening" role="status" aria-live="polite">
+    <i></i>
+    <span id="openingText">Opening the editor…</span>
+    <div class="row"><button id="openingRetry" type="button">Try again</button><a href="/projects">Back to projects</a></div>
+</div>
+<script>
+    // The design is there but the server wasn't ready with it: try again every couple of seconds, then offer a button.
+    (function () {
+        var key = "wc:opening:" + location.pathname, n = 0;
+        try { n = Number(sessionStorage.getItem(key) || 0); } catch (e) { /* storage unavailable */ }
+        var box = document.getElementById("opening");
+        document.getElementById("openingRetry").addEventListener("click", function () { try { sessionStorage.removeItem(key); } catch (e) { /* ignore */ } location.reload(); });
+        if (n >= 6) {
+            box.classList.add("failed");
+            document.getElementById("openingText").textContent = "The design could not be opened right now. Your work is safe: try again in a moment.";
+            try { sessionStorage.removeItem(key); } catch (e) { /* ignore */ }
+            return;
+        }
+        try { sessionStorage.setItem(key, String(n + 1)); } catch (e) { /* ignore */ }
+        setTimeout(function () { location.reload(); }, 2000);
+    })();
+</script>

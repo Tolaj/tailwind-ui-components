@@ -217,8 +217,11 @@ export const deleteComponent = async (req, res) => {
             });
         }
 
-        await Component.findByIdAndDelete(req.params.id);
-        await FigmaSource.deleteOne({ component: req.params.id }); // the Figma data kept with the page goes with it
+        // a page takes its sections with it (they hang under it on the canvas and would be left with nothing to hang from)
+        const sections = await Component.find({ parent: component._id, createdBy: component.createdBy }).select("_id").lean();
+        const gone = [component._id, ...sections.map((s) => s._id)];
+        await Component.deleteMany({ _id: { $in: gone } });
+        await FigmaSource.deleteMany({ component: { $in: gone } }); // the Figma data kept with the page goes with it
 
         res.status(200).json({
             success: true,

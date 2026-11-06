@@ -38,6 +38,7 @@ async function generate(body, onText) {
 export const appHost = {
     createComponent: (fields) => send("POST", "/api/components", fields),
     updateComponent: (id, fields) => send("PUT", `/api/components/${id}`, fields),
+    deleteComponent: (id) => send("DELETE", `/api/components/${id}`),
     createProject: async (name) => { const p = await send("POST", "/api/projects", { name }); return { id: p.id, name: p.name }; },
     saveLayout: async (projectId, positions) => {
         try { await fetch(`/api/projects/${projectId}/layout`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ positions }) }); } catch { /* the position stays on screen; the next drag saves it again */ }

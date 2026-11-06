@@ -23,6 +23,7 @@ const host = {
         write(all);
         return next;
     },
+    async deleteComponent(docId) { const all = read(); delete all[docId]; write(all); },
     async createProject(name) { return { id: id(), name }; },
     async saveLayout(projectId, positions) { (window.__layouts ||= []).push({ projectId, positions }); },
     saveLayoutOnExit() {},

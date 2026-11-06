@@ -40,8 +40,18 @@ document.body.append(root);
 let editor;
 try {
     editor = await mountEditor(root, { host: appHost, data, back, tailwind: false }); // the layout already loads Tailwind
+    try { sessionStorage.removeItem(`wc:opening:${location.pathname}`); } catch { /* storage unavailable */ }
 } catch (err) {
-    if (loader) loader.querySelector("span").textContent = "The editor could not open. Reload the page to try again.";
+    if (loader) {
+        // not a spinner that never ends: say what happened, with a way to try again
+        loader.querySelector("i").style.display = "none";
+        loader.querySelector("span").textContent = "The editor could not open. Your work is safe: try again.";
+        const retry = document.createElement("button");
+        retry.textContent = "Try again";
+        retry.style.cssText = "height:28px;border:0;border-radius:6px;padding:0 12px;background:#0d99ff;color:#fff;font:600 12px system-ui,sans-serif;cursor:pointer";
+        retry.addEventListener("click", () => location.reload());
+        loader.append(retry);
+    }
     throw err;
 }
 painted.then(dropLoader);

@@ -1,7 +1,7 @@
 import { host } from "../host.js";
 import { $, S, collapsed, data, esc, send } from "./base.js";
 import { fitTo, pageGroupOf, view } from "./plane.js";
-import { activate, docDirty, docs, renameFrame, selectFrame } from "./designs.js";
+import { activate, deletePage, docDirty, docs, renameFrame, selectFrame } from "./designs.js";
 import { PAGE_ICON, parsePath, renderLayers } from "./layers.js";
 import { cmd } from "./frame-messages.js";
 
@@ -20,6 +20,8 @@ function renderDetailsBlock() {
 }
 
 export const PAGE_EDIT = '<button type="button" data-pedit class="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-white/70" title="Page details: name, category, tags, visibility"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>';
+/** The trash at the end of a page's row (faint until the row is pointed at); a project keeps at least one page. */
+export const pageDelete = (d, active, count) => (count > 1 ? `<button type="button" data-pdel="${d.key}" class="layer-act ${active ? "" : "ml-auto"}" title="Delete this page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>` : "");
 /** A heading in a list of pages where the group changes ("Public site", then "Customer area"). `state.prev` is the group of the page before. */
 export const headingState = { prev: "" };
 export function groupHeading(d) {
@@ -39,7 +41,7 @@ export function renderPagesList() {
     const row = (d, depth) => {
         const active = d.key === S.curKey;
         const title = (active ? data.title : d.meta.title) || "Untitled page";
-        return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}${active ? PAGE_EDIT : ""}</div>`;
+        return `<div class="layer-row cursor-pointer gap-1.5 px-1 ${active ? "is-selected" : ""}" style="padding-left:${depth * 12 + 8}px" data-page="${d.key}" title="Double-click to rename">${d.kind === "section" ? '<span class="shrink-0 font-mono text-[11px] text-neutral-500">section</span>' : PAGE_ICON}<span class="truncate">${esc(title)}</span>${docDirty(d) ? '<i class="dirty-dot" title="Unsaved changes"></i>' : ""}${active ? PAGE_EDIT : ""}${pageDelete(d, active, list.length)}</div>`;
     };
     el.innerHTML = tops.map((d) => groupHeading(d) + row(d, 0) + list.filter((c) => c.kind === "section" && c.parent === d.key).map((c) => row(c, 1)).join("")).join("");
 }
@@ -58,6 +60,12 @@ export function init() {
         if (S.mode === "edit") $("detailsBtn").click(); // not in Interact
     }, true);
     $("leftProject").addEventListener("click", (e) => { if (!data.project) { e.preventDefault(); $("detailsBtn").click(); } });
+    $("pagesList").addEventListener("click", (e) => {
+        const del = e.target.closest("[data-pdel]");
+        if (!del) return;
+        e.stopImmediatePropagation();
+        deletePage(del.dataset.pdel);
+    }, true);
     $("pagesList").addEventListener("click", (e) => {
         const row = e.target.closest("[data-page]");
         if (!row || e.target.closest(".frename")) return;

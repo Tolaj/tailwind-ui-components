@@ -6,6 +6,7 @@
  * @typedef {object} Host
  * @property {(fields: object) => Promise<any>} createComponent    saves a new design (a design opened from a Figma draft sends `draftId`, and the answer may carry `figmaSource`); resolves to the saved record ({ _id, version, ... }), rejects with the reason
  * @property {(id: string, fields: object) => Promise<any>} updateComponent   changes a saved design (a new version when its code changes)
+ * @property {(id: string) => Promise<void>} [deleteComponent]   deletes a saved design (a page takes its sections with it); rejects with the reason. Omit it and the editor shows no Delete page
  * @property {(name: string) => Promise<{ id: string, name: string }>} createProject   a project is the canvas that designs share
  * @property {(projectId: string, positions: object[]) => Promise<void>} saveLayout   where each design sits on the project's canvas
  * @property {(projectId: string, positions: object[]) => void} saveLayoutOnExit   the same, while the page is closing
