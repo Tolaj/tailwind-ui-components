@@ -20,8 +20,12 @@ export function agentMain() {
     const ghostBox = mk(`position:absolute;border:1px dashed ${BLUE};${RIM}background:rgba(0,0,0,.05);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropBox = mk(`position:absolute;border:1.5px solid ${BLUE};${RIM}background:rgba(0,0,0,.035);display:none;pointer-events:none;box-sizing:border-box;`);
     const dropHint = mk(`position:absolute;display:none;pointer-events:none;background:${BLUE};color:#fff;font:500 11px/1 system-ui,sans-serif;white-space:nowrap;border-radius:4px;`);
-    const kidLayer = mk("position:absolute;left:0;top:0;");
-    overlay.append(kidLayer, hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    // the dashed boxes of what the selection holds are drawn in the inverse of whatever is under them (white, difference), so they show on dark
+    // pictures and light pages alike. A blend only reaches the page from outside the overlay, which is a layer of its own: this one sits beside it.
+    const kidLayer = mk("position:absolute;left:0;top:0;width:0;height:0;z-index:2147483646;pointer-events:none;");
+    overlay.append(hoverBox, guideLayer, draftBox, marqueeBox, ghostBox, dropBox, insertLine, dropHint);
+    const isOverlay = (n) => overlay.contains(n) || kidLayer.contains(n);
+    root.appendChild(kidLayer);
     root.appendChild(overlay);
 
     // In the editor the cursor belongs to the active tool, never to the design: a button's own cursor:pointer would show a
@@ -176,7 +180,7 @@ export function agentMain() {
         if (key === kidsKey) return;
         kidsKey = key;
         kidLayer.textContent = "";
-        list.forEach((r) => kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed ${BLUE};opacity:.45;box-sizing:border-box;pointer-events:none;`)));
+        list.forEach((r) => kidLayer.appendChild(mk(`position:absolute;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;border:1px dashed #fff;mix-blend-mode:difference;box-sizing:border-box;pointer-events:none;`)));
     }
 
     const clearGuides = () => { guideLayer.innerHTML = ""; insertLine.style.display = "none"; ghostBox.style.display = "none"; dropBox.style.display = "none"; dropHint.style.display = "none"; };
@@ -440,7 +444,7 @@ export function agentMain() {
     const SWAPPABLE = new Set([...FLOW_TAGS, ...TEXT_TAGS, ...ACTION_TAGS, "ul", "ol", "li", "menu", "b", "i", "u", "s", "code", "mark", "pre"]);
     function tagOptions(el) {
         const tag = el.tagName.toLowerCase();
-        if (el === document.body || overlay.contains(el)) return [];
+        if (el === document.body || isOverlay(el)) return [];
         if (PAIRS[tag]) return PAIRS[tag];
         if (!SWAPPABLE.has(tag)) return [];
         const parent = el.parentElement, ptag = parent ? parent.tagName.toLowerCase() : "body";
@@ -555,7 +559,7 @@ export function agentMain() {
     const targetOf = (e) => {
         let t = e.target;
         if (t && t.nodeType !== 1) t = t.parentElement;
-        if (!t || overlay.contains(t) || t === root) return document.body;
+        if (!t || isOverlay(t) || t === root) return document.body;
         while (t && t !== document.body && isLocked(t)) t = t.parentElement;
         if (e.metaKey || e.ctrlKey) return t || document.body; // Cmd/Ctrl: the deepest, whatever the level
         return pickable(t || document.body);
@@ -587,7 +591,7 @@ export function agentMain() {
     }
     const containerAt = (x, y) => {
         let t = document.elementFromPoint(x, y);
-        if (!t || overlay.contains(t) || t === root) return document.body;
+        if (!t || isOverlay(t) || t === root) return document.body;
         while (t && t !== document.body && !CONTAINERS.has(t.tagName.toLowerCase())) t = t.parentElement;
         return t || document.body;
     };
@@ -672,7 +676,7 @@ export function agentMain() {
     function targetsFor(exclude) {
         const out = [];
         document.body.querySelectorAll("*").forEach((n) => {
-            if (overlay.contains(n) || GUIDE_SKIP.has(n.tagName) || exclude.some((x) => x === n || x.contains(n))) return;
+            if (isOverlay(n) || GUIDE_SKIP.has(n.tagName) || exclude.some((x) => x === n || x.contains(n))) return;
             const r = pageRect(n);
             if (r.w >= 1 && r.h >= 1) out.push(r);
         });
@@ -872,7 +876,7 @@ export function agentMain() {
         return "page flow";
     };
     function dropTarget(el, x, y) {
-        const hit = document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root && !el.contains(n)) || document.body;
+        const hit = document.elementsFromPoint(x, y).find((n) => !isOverlay(n) && n !== root && !el.contains(n)) || document.body;
         // a box that only holds text (a card label, a button-like div) is an item to drop beside, not a container to drop into
         const holdsText = (k) => !k.children.length && k.textContent.trim() !== "";
         let c = hit;
@@ -1354,7 +1358,7 @@ export function agentMain() {
         for (let n = shown(level); n.length === 1 && !isTextual(n[0]) && shown(n[0]).length; n = shown(level)) level = n[0];
         let hits = shown(level).filter(touches);
         if (!hits.length) { // nothing there: free-positioned boxes anywhere, as before
-            hits = Array.prototype.filter.call(document.body.querySelectorAll("*"), (el) => !overlay.contains(el) && isAbs(el) && touches(el)).filter((el, _, all) => !all.some((o) => o !== el && o.contains(el)));
+            hits = Array.prototype.filter.call(document.body.querySelectorAll("*"), (el) => !isOverlay(el) && isAbs(el) && touches(el)).filter((el, _, all) => !all.some((o) => o !== el && o.contains(el)));
         }
         g.hits = hits;
     }
@@ -1410,7 +1414,7 @@ export function agentMain() {
             if (!editing && tool === "move") {
                 hov = targetOf(e);
                 // over the box that is selected: the child under the pointer is outlined (a double-click goes into it)
-                const cur = sels.length === 1 ? sels[0] : null, raw = e.target && e.target.nodeType === 1 && !overlay.contains(e.target) ? e.target : null;
+                const cur = sels.length === 1 ? sels[0] : null, raw = e.target && e.target.nodeType === 1 && !isOverlay(e.target) ? e.target : null;
                 if (hov && cur && hov === cur && raw && raw !== cur && cur.contains(raw) && !isTextual(cur) && !e.metaKey && !e.ctrlKey) hov = childOf(cur, raw.closest("svg") || raw);
                 redraw();
             }
@@ -1514,7 +1518,7 @@ export function agentMain() {
     root.addEventListener("pointerleave", dropHover);
     document.addEventListener("mouseleave", dropHover);
 
-    const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !overlay.contains(n) && n !== root) || document.body;
+    const hitAt = (x, y) => document.elementsFromPoint(x, y).find((n) => !isOverlay(n) && n !== root) || document.body;
     /** Has words of its own (not only elements): a double-click edits it, rather than going into what is in it. */
     const isTextual = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     /** The child of `box` that holds `el`. */
