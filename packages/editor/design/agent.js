@@ -1346,11 +1346,16 @@ export function agentMain() {
         const x0 = Math.min(g.sx, e.clientX) + window.scrollX, y0 = Math.min(g.sy, e.clientY) + window.scrollY;
         const x1 = Math.max(g.sx, e.clientX) + window.scrollX, y1 = Math.max(g.sy, e.clientY) + window.scrollY;
         Object.assign(marqueeBox.style, { display: "block", left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
-        const hits = Array.prototype.filter.call(document.body.querySelectorAll("*"), (el) => {
-            if (overlay.contains(el) || !isAbs(el)) return false;
-            const r = pageRect(el);
-            return r.x < x1 && r.x + r.w > x0 && r.y < y1 && r.y + r.h > y0;
-        }).filter((el, _, all) => !all.some((o) => o !== el && o.contains(el)));
+        const touches = (el) => { const r = pageRect(el); return r.x < x1 && r.x + r.w > x0 && r.y < y1 && r.y + r.h > y0; };
+        // as in Figma: the boxes at the level being worked in (the one gone into, else the top of the page) that the rectangle touches;
+        // a lone wrapper holding everything doesn't count as a level, so the boxes inside it are the ones picked
+        let level = inside && alive(inside) ? inside : document.body;
+        const shown = (el) => realKids(el).filter((c) => getComputedStyle(c).display !== "none" && !isLocked(c));
+        for (let n = shown(level); n.length === 1 && !isTextual(n[0]) && shown(n[0]).length; n = shown(level)) level = n[0];
+        let hits = shown(level).filter(touches);
+        if (!hits.length) { // nothing there: free-positioned boxes anywhere, as before
+            hits = Array.prototype.filter.call(document.body.querySelectorAll("*"), (el) => !overlay.contains(el) && isAbs(el) && touches(el)).filter((el, _, all) => !all.some((o) => o !== el && o.contains(el)));
+        }
         g.hits = hits;
     }
 

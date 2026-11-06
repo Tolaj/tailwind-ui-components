@@ -103,7 +103,7 @@ const panelActions = {
     },
     redraw: () => renderInspector(),
     // the property sections (prop-sections.js)
-    setProp: (prop, value, css) => { if (S.selected) setProp(prop, value, css); }, // css: what to write when it goes to CSS (fit -> fit-content)
+    setProp: (prop, value, css, key) => { if (S.selected) setProp(prop, value, css, key); }, // css: what to write when it goes to CSS (fit -> fit-content)
     setPropLive: (prop, hex) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); },
     setPropDone: (prop, hex, input) => { if (S.selected) setProp(prop, hex, undefined, liveKey(`p-${prop}`)); pickerClosed(input); },
     // one colour on several properties at once (a stroke's four sides), dragged in the picker as one undo step

@@ -218,8 +218,9 @@ function setKind(s, actions, kind) {
     // stacked children made a row, column or grid keep their spacing (the gap takes over from their margins)
     if (now === "block" && s.arrange) return actions.arrange(kind);
     if (kind === "grid") return actions.setProp("display", "grid");
-    if (now !== "row" && now !== "col") actions.setProp("display", "flex");
-    actions.setProp("flex-direction", kind === "col" ? "column" : "row");
+    // display and direction are one click: one undo step
+    if (now !== "row" && now !== "col") actions.setProp("display", "flex", undefined, "layout-kind");
+    actions.setProp("flex-direction", kind === "col" ? "column" : "row", undefined, "layout-kind");
 }
 
 const POS = ["flex-start", "center", "flex-end"];
