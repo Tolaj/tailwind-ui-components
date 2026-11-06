@@ -14,7 +14,7 @@ Select, drag and style like Figma. Generate with AI. Hand the result to your cod
 [![Figma plugin](https://img.shields.io/badge/Figma-plugin-F24E1E?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1697363010304569719)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[**Watch the demo**](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [Figma import](#bring-a-design-in-from-figma) · [MCP](#let-your-ai-tools-use-it-mcp) · [Embed the editor](#embed-the-editor-in-your-own-app)
+[**Try it live**](https://windcraft.swapniljadhav.com/) · [Watch the demo](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [Figma import](#bring-a-design-in-from-figma) · [MCP](#let-your-ai-tools-use-it-mcp) · [Embed the editor](#embed-the-editor-in-your-own-app)
 
 <br>
 
@@ -94,6 +94,8 @@ Describe a page and Windcraft drafts it with **Anthropic Claude** or **any OpenA
 
 ### Try the editor in 30 seconds (no database)
 
+No install needed: **[open Windcraft live](https://windcraft.swapniljadhav.com/)**. To run the editor yourself, with no database:
+
 ```bash
 git clone https://github.com/Tolaj/tailwind-ui-components.git windcraft
 cd windcraft
@@ -101,7 +103,7 @@ npm install
 npm run demo
 ```
 
-Open <http://localhost:4000/editor/demo/> (add `?theme` to see a project theme applied). Designs are kept in your browser's local storage.
+Open <http://localhost:4000/editor/demo/> (add `?theme` to see a project theme applied).
 
 ### Run the full app
 
