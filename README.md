@@ -44,28 +44,28 @@ Most design tools end in a hand-off: a picture of the thing, rebuilt by someone 
 ## See it
 
 <p align="center">
-  <img src="docs/media/editor.png" alt="The Windcraft editor: a selected card with its Tailwind properties on the right and the live code below" width="900">
+  <img src="docs/media/editor.png" alt="The Windcraft editor: a selected card with its Tailwind properties on the right and the live code below" width="760">
   <br><sub><b>Select a card</b> and the Properties panel shows its Tailwind values, while the code below highlights the exact element.</sub>
 </p>
 
 <table>
   <tr>
-    <td width="50%" valign="top">
-      <img src="docs/media/selection.png" alt="Selecting a container shows its children as dashed outlines" width="100%">
+    <td valign="top">
+      <img src="docs/media/selection.png" alt="Selecting a container shows its children as dashed outlines" width="420">
       <br><b>Selection like Figma.</b> Click picks the top box, double-click goes one level in. The box you picked shows what it holds as dashed outlines.
     </td>
-    <td width="50%" valign="top">
-      <img src="docs/media/code.png" alt="The code panel open beside the design" width="100%">
+    <td valign="top">
+      <img src="docs/media/code.png" alt="The code panel open beside the design" width="420">
       <br><b>Code and canvas in step.</b> Edit the HTML and the design follows. Edit the design and the code follows. Undo covers both.
     </td>
   </tr>
   <tr>
-    <td width="50%" valign="top">
-      <img src="docs/media/layers.png" alt="Layers panel listing every element of the page" width="100%">
+    <td valign="top">
+      <img src="docs/media/layers.png" alt="Layers panel listing every element of the page" width="420">
       <br><b>Layers and pages.</b> Every element in a tree, every page on one infinite canvas.
     </td>
-    <td width="50%" valign="top">
-      <img src="docs/media/responsive.png" alt="The same page at mobile width, the cards stacked in one column" width="100%">
+    <td valign="top">
+      <img src="docs/media/responsive.png" alt="The same page at mobile width, the cards stacked in one column" width="420">
       <br><b>Responsive by design.</b> Switch to Tablet or Mobile, or drag to any width. Edits land in the right breakpoint (<code>md:p-8</code>).
     </td>
   </tr>
