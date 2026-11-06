@@ -111,6 +111,8 @@ export function twValue(prop, raw, scale) {
         return !m ? null : [0, 1, 2, 3, 6, 12, 45, 90, 180].includes(Math.abs(Number(m[1]))) ? String(Number(m[1])) : `${Number(m[1])}deg`;
     }
     if (WORDS[prop]) return WORDS[prop][1](v);
+    // z-index: only 0-50 in steps of 10 are classes in every Tailwind version; any other whole number is an arbitrary value (z-[9999], -z-[1])
+    if (prop === "z-index" && /^-?\d+$/.test(v)) return /^(-?)(0|10|20|30|40|50)$/.test(v) ? v : `${v.startsWith("-") ? "-" : ""}[${Math.abs(Number(v))}]`;
     if (LENGTHS[prop]) {
         if (LENGTH_WORDS.test(v) || /^\[.*\]$/.test(v)) return v;
         if (/^-?\d*\.?\d+$/.test(v)) return (scale && hasScale(LENGTHS[prop])) || prop === "z-index" ? v : fromPx(LENGTHS[prop], Number(v));
@@ -124,7 +126,12 @@ export function twValue(prop, raw, scale) {
         return null;
     }
     if (prop === "border-top-width") { const n = v.replace(/px$/, ""); return /^(0|1|2|4|8)$/.test(n) ? n : /^\d+(\.\d+)?(px)?$/.test(v) ? `${n}px` : null; }
-    if (prop === "opacity") { const n = Number(v); return !Number.isFinite(n) ? null : n <= 1 ? String(Math.round(n * 100)) : String(Math.round(n)); } // the panel sends a fraction (0.9), a typed class number is above 1
+    if (prop === "opacity") { // Tailwind's own steps are classes (opacity-50), anything else an arbitrary fraction (opacity-[0.33])
+        const n = Number(v);
+        if (!Number.isFinite(n)) return null;
+        const pct = n <= 1 ? Math.round(n * 100) : Math.round(n);
+        return [0, 5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95, 100].includes(pct) ? String(pct) : `[${pct / 100}]`;
+    } // the panel sends a fraction (0.9), a typed class number is above 1
     if (prop === "grid-template-columns") return /^\d+$/.test(v) || v === "none" ? v : null;
     if (prop === "aspect-ratio") {
         // 16 / 9 -> video, 1 / 1 -> square, any other two whole numbers -> [w/h]

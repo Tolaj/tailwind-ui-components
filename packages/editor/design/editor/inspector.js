@@ -282,7 +282,8 @@ export function setProp(prop, raw, cssOverride, key) {
     const send = (m) => cmd({ cmd: "setProp", path: s.path, prop, key, ...m }, key);
     if (v === "") {
         // the exact class that gives the value comes off (px-4 for padding-left), at the picked breakpoint / state if one is picked
-        const tok = picked() || allPlain() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
+        let tok = picked() || allPlain() ? tokenFor(s.classes, prop, vp) : onTw ? { token: src.token } : null;
+        if (!tok || !tok.token) tok = tokenFor(s.classes, prop, vp); // a property whose source isn't found by its name (rotate) still has its class
         if (tok && tok.token) { const next = s.classes.split(/\s+/).filter((t) => t && t !== tok.token).join(" "); s.classes = next; if (group && onAll([group], next, vp, key)) return; return send({ route: "tw", classes: next }); }
         if (src.source === "inline") return send({ route: "css", css: null });
         return renderInspector();

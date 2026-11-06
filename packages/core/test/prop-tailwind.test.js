@@ -16,3 +16,12 @@ test("opacity: the panel's fraction becomes the class number, with or without a 
     assert.equal(twValue("opacity", "50", true), "50");
     assert.equal(twValue("opacity", "0", true), "0");
 });
+
+test("z-index and opacity: values outside Tailwind's own steps are arbitrary values, which work in every version", () => {
+    assert.equal(twValue("z-index", "30", false), "30");
+    assert.equal(twValue("z-index", "9999", false), "[9999]");
+    assert.equal(twValue("z-index", "-1", false), "-[1]");
+    assert.equal(twValue("opacity", "33", false), "[0.33]");
+    assert.equal(twValue("opacity", "0.33", false), "[0.33]");
+    assert.equal(twValue("opacity", "75", false), "75");
+});
