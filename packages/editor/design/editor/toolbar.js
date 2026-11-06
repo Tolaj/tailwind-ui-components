@@ -104,6 +104,10 @@ export function handleKey({ key, meta, shift, code }) {
     if (!meta && shift && key === "g") return send({ cmd: "gridLayout" });
     if (S.selected.tag === "body") return;
     if (key === "delete" || key === "backspace") return send({ cmd: "deleteSel" });
+    if (meta && key === "c") return send({ cmd: "copySel" });
+    if (meta && key === "x") return send({ cmd: "cutSel" });
+    if (meta && key === "v") return send({ cmd: "pasteSel" });
+    if (key.startsWith("arrow")) { const s = shift ? 10 : 1; return send({ cmd: "nudgeSel", dx: key === "arrowleft" ? -s : key === "arrowright" ? s : 0, dy: key === "arrowup" ? -s : key === "arrowdown" ? s : 0 }); }
 }
 /** Ctrl/Cmd + = / - zoom the plane around the middle of the canvas, Ctrl/Cmd + 0 back to 100% (the browser's own zoom is off). */
 export function keyZoom(key) {
@@ -232,7 +236,7 @@ export function init() {
         if (e.key === "Escape" && S.mode === "preview") { e.preventDefault(); handleKey({ key: "escape" }); return; }
         if (e.code === "Space") { e.preventDefault(); setSpace(true); return; }
         if (e.shiftKey && (e.key === "!" || e.key === "@")) { e.preventDefault(); handleKey({ key: e.key, meta: false, shift: true }); return; }
-        if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (meta && (e.code === "BracketLeft" || e.code === "BracketRight" || (e.shiftKey && (key === "l" || key === "h")))) || (!meta && !e.altKey && TOOL_KEYS[key]) || (!meta && e.shiftKey && (key === "a" || key === "g"))) {
+        if (["delete", "backspace"].includes(key) || (meta && ["z", "y", "d", "s", "g"].includes(key)) || (meta && S.selected && ["c", "x", "v"].includes(key)) || (S.selected && key.startsWith("arrow")) || (meta && (e.code === "BracketLeft" || e.code === "BracketRight" || (e.shiftKey && (key === "l" || key === "h")))) || (!meta && !e.altKey && TOOL_KEYS[key]) || (!meta && e.shiftKey && (key === "a" || key === "g"))) {
             e.preventDefault();
             handleKey({ key, meta, shift: e.shiftKey, code: e.code });
         }

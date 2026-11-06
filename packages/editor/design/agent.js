@@ -1730,6 +1730,25 @@ export function agentMain() {
         if (copies.length) { setSelection(copies); changed(); }
     }
 
+    // Cut / copy / paste of elements, inside this page (the markup is kept as text; a pasted copy lands after the selection, or at the end of the page)
+    let held = [];
+    function copySelection(cut) {
+        const items = sels.filter((el) => el !== document.body);
+        if (!items.length) return;
+        held = items.map((el) => el.outerHTML);
+        if (cut) removeSelection();
+    }
+    function pasteSelection() {
+        if (!held.length) return;
+        const at = sels.filter((el) => el !== document.body).pop();
+        const made = held.map((h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstElementChild; }).filter(Boolean);
+        made.forEach((c) => {
+            if (at) at.after(c); else root.appendChild(c);
+            if (isAbs(c)) { const g = geomOf(c); setPx(c, "left", g.x + 12); setPx(c, "top", g.y + 12); }
+        });
+        if (made.length) { setSelection(made); changed(); }
+    }
+
     function removeSelection() {
         const items = sels.filter((el) => el !== document.body);
         if (!items.length) return;
@@ -1830,6 +1849,8 @@ export function agentMain() {
         if (e.shiftKey && !meta && k === "a") { e.preventDefault(); autoLayout(); return; }
         if (e.shiftKey && !meta && k === "g") { e.preventDefault(); gridLayout(); return; }
         if (meta && k === "d") { e.preventDefault(); duplicate(); return; }
+        if (meta && !e.shiftKey && (k === "c" || k === "x") && sels.length) { e.preventDefault(); copySelection(k === "x"); return; }
+        if (meta && !e.shiftKey && k === "v") { e.preventDefault(); pasteSelection(); return; }
         if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelection(); return; }
         if (e.key.startsWith("Arrow") && sels.length) {
             e.preventDefault();
@@ -2033,6 +2054,10 @@ export function agentMain() {
         if (m.cmd === "ungroup") { ungroup(); return; }
         if (m.cmd === "deleteSel") { removeSelection(); return; }
         if (m.cmd === "duplicateSel") { duplicate(); return; }
+        if (m.cmd === "copySel") { copySelection(false); return; }
+        if (m.cmd === "cutSel") { copySelection(true); return; }
+        if (m.cmd === "pasteSel") { pasteSelection(); return; }
+        if (m.cmd === "nudgeSel") { nudge(m.dx || 0, m.dy || 0); return; }
         if (m.cmd === "applyGesture") { applyGesture(m); return; }
         if (m.cmd === "freePosition") {
             const el = elAt(m.path);
