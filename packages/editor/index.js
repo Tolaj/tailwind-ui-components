@@ -9,6 +9,7 @@
 import { setHost } from "./design/host.js";
 import { config } from "./design/config.js";
 import { editorHtml } from "./template.js";
+import { localHost, savedDesign } from "./local-host.js";
 
 const here = (path) => new URL(path, import.meta.url).href;
 const TAILWIND = "https://cdn.tailwindcss.com";
@@ -60,3 +61,21 @@ export async function mountEditor(root, { host, data = {}, back = null, tailwind
     return (await import("./design/editor/api.js")).api;
 }
 export { embedEditor } from "./embed.js";
+
+/**
+ * The quickest way in: the editor with nothing to set up. Designs are saved in this browser (localStorage).
+ * @param {HTMLElement} root
+ * @param {{ html?: string, title?: string, key?: string, theme?: object }} [options]
+ *     html: what a new design starts with; title: its name; key: the localStorage key (use different ones for different editors);
+ *     theme: { brand, gray, font, radius }
+ */
+export async function startEditor(root, { html = "", title = "My design", key = "windcraft", theme } = {}) {
+    const categories = [{ group: "Designs", items: [{ slug: "design", name: "Design" }] }];
+    const saved = savedDesign(key);
+    await mountEditor(root, {
+        host: localHost(key),
+        data: saved
+            ? { id: saved._id, title: saved.title, htmlCode: saved.htmlCode, version: saved.version, category: saved.category || "design", description: saved.description, tags: String(saved.tags || "").split(",").filter(Boolean), categories }
+            : { title, htmlCode: html, category: "design", description: "", theme, categories },
+    });
+}

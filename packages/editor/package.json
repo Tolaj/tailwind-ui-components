@@ -1,6 +1,6 @@
 {
     "name": "@windcraft/editor",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Windcraft's visual HTML + Tailwind editor (source). Published to npm as windcraft-editor by scripts/build-npm.mjs.",
     "keywords": [
         "tailwind",

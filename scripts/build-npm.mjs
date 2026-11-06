@@ -16,7 +16,7 @@ mkdirSync(path.join(out, "editor"), { recursive: true });
 mkdirSync(path.join(out, "core"), { recursive: true });
 
 // the editor: everything except its demo and tests
-for (const name of ["index.js", "embed.js", "embed.html", "embed-frame.js", "template.js", "styles.css", "design", "playground", "vendor"]) {
+for (const name of ["index.js", "local-host.js", "embed.js", "embed.html", "embed-frame.js", "template.js", "styles.css", "design", "playground", "vendor"]) {
     cpSync(src("editor", name), path.join(out, "editor", name), { recursive: true });
 }
 // core: the .js files, no tests

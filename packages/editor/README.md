@@ -1,48 +1,77 @@
+<p align="center">
+  <a href="https://github.com/Tolaj/windcraft"><img src="https://raw.githubusercontent.com/Tolaj/windcraft/main/docs/media/logo-card.png" alt="Windcraft" width="320"></a>
+</p>
+
 # windcraft-editor
+
+A visual editor for **HTML + Tailwind** that you can put in any web page. Select, drag and style like Figma, and every change is real Tailwind code. No backend, no build step.
+
+## Try it in one file
+
+Save this as `index.html`, run `npx serve` next to it, and open the address it prints:
+
+```html
+<div id="root"></div>
+<script type="module">
+  import { startEditor } from "https://unpkg.com/windcraft-editor/editor/index.js";
+  startEditor(document.getElementById("root"), {
+    html: '<h1 class="p-10 text-4xl font-bold">Hello</h1>',
+  });
+</script>
+```
+
+That is all. Designs are saved in the browser (localStorage).
+
+## Use it from npm
 
 ```bash
 npm install windcraft-editor
 ```
 
-The Windcraft visual editor (HTML + Tailwind): canvas, layers, Properties panel, code panel and pages. It has no backend of its own: the page that mounts it gives it a **host** that loads and saves.
+Serve the `node_modules/windcraft-editor` folder as static files (for example `app.use("/windcraft", express.static("node_modules/windcraft-editor"))`) and import from it:
 
 ```js
-import { mountEditor } from "windcraft-editor";
+import { startEditor } from "/windcraft/editor/index.js";
+startEditor(document.getElementById("root"), { html: "<h1>Hello</h1>" });
+```
+
+### `startEditor(root, options)`
+
+| Option | What it does |
+|---|---|
+| `html` | The HTML a new design starts with |
+| `title` | The design's name (default `My design`) |
+| `key` | The localStorage key, so two editors on one site do not share designs |
+| `theme` | `{ brand: "#e11d48", gray: "stone", font: "Poppins", radius: "xl" }` |
+
+## Save to your own server
+
+`startEditor` keeps designs in the browser. To load and save somewhere else, use `mountEditor` and give it a **host**: a few functions (`createComponent`, `updateComponent`, ...) that talk to your backend. The list is in [`editor/design/host.js`](design/host.js), and [`local-host.js`](local-host.js) is a complete one to copy.
+
+```js
+import { mountEditor } from "/windcraft/editor/index.js";
 
 await mountEditor(document.getElementById("root"), {
-    host,   // saving, projects, AI and the address: see design/host.js
-    data,   // the design to open: { id, title, htmlCode, ... }
+    host,                              // your load and save functions
+    data: { id, title, htmlCode },     // the design to open
 });
 ```
 
-| Piece | Where |
-|---|---|
-| What the app must provide | `design/host.js` (the `Host` type) |
-| A host with no backend (localStorage) | `demo/demo.js` |
-| Run the demo | `npm run demo`, then open http://localhost:4000/editor/demo/ |
-| Windcraft's own host | `src/public/js/app-host.js` |
+## Put it inside a part of a page
 
-The package carries the Tailwind logic inside it (`core/`) and reaches it by relative paths, so there is nothing else to map. On a plain page map `windcraft-editor` to `<where you serve the package>/editor/index.js` with an import map; a bundler does that itself (an import map, as in `demo/index.html`, or a bundler). `mountEditor` loads Tailwind's play CDN (v3) unless you pass `tailwind: false`. One editor per page; it takes over the page's size, keys and zoom.
-
-The AI panel and "Generate" need `host.generate`; without a working one they show its error.
-
-## Embedding in a container
-
-`embedEditor` puts the editor in an element of your page, isolated in an iframe (its own keys, zoom and styles), so several can share a page and it fills whatever size you give it. Leave out the parts you don't need with `ui`; keep the code box and the details form in your own page.
+`startEditor` and `mountEditor` take over the whole page. To place the editor in one box, use `embedEditor`. It runs in an iframe, so several can share a page.
 
 ```js
-import { embedEditor } from "windcraft-editor";
+import { embedEditor } from "/windcraft/editor/index.js";
 
-const ed = embedEditor(el, {
-    host,                                    // saving, as above
-    data: { htmlCode },                      // what to open
-    ui: { panels: false, nav: false, tools: ["move", "hand", "interact", "frame", "shape", "text", "add"] },
-    onDetails: (fields) => showMyForm(fields), // the first save of a new design needs a name: you ask, then call saveDetails
+const ed = embedEditor(document.getElementById("box"), {
+    host,
+    data: { htmlCode: "<h1>Hello</h1>" },
+    ui: { panels: false, nav: false },   // hide parts you do not need
 });
-ed.onChange(({ html, dirty, status, source }) => {});  // source: "host" (your setHtml), "editor" (a change there), "status" (save state only)
-ed.setHtml(html);  ed.getHtml();  ed.isDirty();  ed.save();
-await ed.saveDetails({ title, category, description, tags, isPublished, useAsReference, project });
-ed.destroy();
+
+ed.onChange(({ html }) => console.log(html));
+ed.setHtml("<p>New</p>");   // ed.getHtml(), ed.isDirty(), ed.save(), ed.destroy()
 ```
 
 | `ui` | Effect |
@@ -51,4 +80,9 @@ ed.destroy();
 | `nav: false` | no Back, page list or project |
 | `tools: [...]` | only these tools (`move hand interact frame shape text add`); `null` keeps all |
 
-The iframe loads `embed.html` (next to `embed.js`; pass `src` if you serve it elsewhere). It needs the same import map as any editor page. Run `npm run demo` and open `/editor/demo/embed.html` for a working example: a code box and the editor following each other.
+## Notes
+
+- The editor loads Tailwind's play CDN (v3) unless you pass `tailwind: false` because your page already has it.
+- One full-page editor per page. It takes over the page's size and keyboard.
+- Source, demo and issues: https://github.com/Tolaj/windcraft
+- MIT licensed.
