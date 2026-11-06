@@ -14,7 +14,7 @@ Select, drag and style like Figma. Generate with AI. Hand the result to your cod
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3_%26_4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![MCP](https://img.shields.io/badge/MCP-server-8A2BE2)](#let-your-ai-tools-use-it-mcp)
 [![Figma plugin](https://img.shields.io/badge/Figma-plugin-F24E1E?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1697363010304569719)
-[![License](https://img.shields.io/badge/license-all_rights_reserved-lightgrey)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [**Watch the demo**](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [Figma import](#bring-a-design-in-from-figma) · [MCP](#let-your-ai-tools-use-it-mcp) · [Embed the editor](#embed-the-editor-in-your-own-app)
 
@@ -178,7 +178,11 @@ npm run typecheck   # tsc over the whole repo
 
 ## License
 
-Copyright © 2026 Swapnil Jadhav. All rights reserved. The source is not licensed for copying, modification, hosting or redistribution without written permission, see [LICENSE](LICENSE). Third-party code keeps its own licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+[MIT](LICENSE) © 2026 Swapnil Jadhav. Use it, change it, host it, sell what you build with it. Third-party code keeps its own licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+## Contributing
+
+Issues and pull requests are welcome. Run `npm test` and `npm run typecheck` before you send one.
 
 <div align="center">
 <br>
