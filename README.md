@@ -15,7 +15,7 @@ Select, drag and style like Figma. Generate with AI. Hand the result to your cod
 [![Figma plugin](https://img.shields.io/badge/Figma-plugin-F24E1E?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1697363010304569719)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[**Try it live**](https://windcraft.swapniljadhav.com/) · [Watch the demo](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [MCP](#connect-claude-claude-code-or-cursor-mcp) · [Embed](#use-the-editor-in-your-own-app) · [Contribute](#contributing)
+[**Try it live**](https://windcraft.swapniljadhav.com/) · [Watch the demo](docs/media/windcraft-demo.mp4) · [Features](#features) · [Quick start](#quick-start) · [npm](https://www.npmjs.com/package/windcraft-editor) · [MCP](#connect-claude-claude-code-or-cursor-mcp) · [Embed](#use-the-editor-in-your-own-app) · [Contribute](#contributing)
 
 <br>
 
@@ -170,11 +170,18 @@ In **Figma desktop**: *Plugins → Development → Import plugin from manifest�
 
 ## Use the editor in your own app
 
-The editor is on npm as [`windcraft-editor`](https://www.npmjs.com/package/windcraft-editor). It has no backend of its own: you give it a **host** that loads and saves.
+The editor is on npm as [**`windcraft-editor`**](https://www.npmjs.com/package/windcraft-editor): one package, with the Tailwind logic (`@windcraft/core`) bundled inside, so there is nothing else to install. It has no backend of its own: you give it a **host** that loads and saves.
 
 ```bash
 npm install windcraft-editor
 ```
+
+| | |
+|---|---|
+| **Package** | [`windcraft-editor`](https://www.npmjs.com/package/windcraft-editor) on npm, MIT licensed |
+| **Format** | Plain ES modules for the browser. No build step needed |
+| **Contains** | The editor, plus `core/` (class tables, layout, themes, exporters) |
+| **Needs from you** | A host (load and save) and an import map, below |
 
 It is plain ES modules that run in the browser. Serve `node_modules/windcraft-editor` as static files (the editor's own code under `/editor/`, the core logic bundled inside it under `core/`) and tell the page where to find them with an import map:
 
@@ -207,7 +214,7 @@ Windcraft is a monorepo of small packages around a Node app.
 | Package | What it does |
 |---|---|
 | [`windcraft-editor`](packages/editor) | The visual editor (on npm): canvas, layers, Properties panel, code panel, pages. Host-agnostic. |
-| [`@windcraft/core`](packages/core) | The Tailwind brain: class groups, property-to-class mapping, board layout, themes. Pure functions, heavily tested. |
+| [`@windcraft/core`](packages/core) | The Tailwind brain: class groups, property-to-class mapping, board layout, themes. Pure functions, heavily tested. Bundled into `windcraft-editor` when it is published. |
 | [`@windcraft/figma`](packages/figma) | The Figma to Tailwind converter and plugin. Fixed rules, no LLM. |
 | [`@windcraft/mcp`](packages/mcp) | The MCP protocol for Express, with nothing about what the tools do. |
 | [`@windcraft/ai`](packages/ai) | Provider-neutral AI generation (Anthropic and OpenAI-compatible). |

@@ -44,3 +44,13 @@ Both should pass. If you fix a bug in `packages/core` or the Figma converter, ad
 ## Reporting bugs
 
 Open an issue with the steps, what you expected, what happened, and your browser. A screenshot or a short screen recording helps a lot.
+
+## Releasing (maintainers)
+
+Only `windcraft-editor` is published to npm. It carries `packages/core` inside it: `npm pack` and `npm publish` copy core into the package (`packages/editor/scripts/bundle-core.mjs`) and remove the copy afterwards.
+
+1. Bump `version` in `packages/editor/package.json` and make sure `npm test` passes.
+2. Check the contents: `npm pack --dry-run -w windcraft-editor`.
+3. Publish: `npm publish -w windcraft-editor` (npm may ask for a one-time code or hold the release for approval on npmjs.com).
+4. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, and create a GitHub release.
+
