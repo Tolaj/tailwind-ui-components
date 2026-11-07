@@ -82,7 +82,7 @@ const panelActions = {
         const n = Number(text);
         if (text.trim() === "" || !Number.isFinite(n)) return renderInspector(); // not a number: show the old value again
         const prop = { w: "width", h: "height", x: "left", y: "top" }[key];
-        if (prop) setProp(prop, `${Math.round(prop === "width" || prop === "height" ? Math.max(1, n) : n)}px`);
+        if (prop) setProp(prop, `${prop === "width" || prop === "height" ? Math.max(1, n) : Math.round(n)}px`);
         else cmd({ cmd: "setGeom", path: S.selected.path, [key]: n });
     },
     setProps: (props, value, group, clear) => { if (S.selected) setProps(props, value, group, clear); },
